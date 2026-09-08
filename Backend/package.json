@@ -4,16 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -r dotenv/config --experimental-json-modules src/index.js",
-    "start": "node --experimental-json-modules src/index.js",
-    "postinstall": "prisma skills sync || exit 0"
+    "build": "tsc",
+    "start": "node --env-file=.env dist/index.js",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "postinstall": "prisma skills sync || exit 0",
+    "contract:emit": "prisma contract emit"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@prisma/client": "^7.10.0",
+    "@prisma/orm-postgres": "^8.0.0-rc.8",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^5.0.6",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
@@ -24,7 +28,17 @@
     "pg": "^8.23.0",
     "socket.io": "^4.8.3"
   },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "esbuild@0.28.2": true,
+    "msgpackr-extract@3.0.4": true,
+    "workerd@1.20260704.1": true
+  },
   "devDependencies": {
-    "prisma": "^8.0.0-rc.13"
+    "@prisma/cli-engine": "^0.2.3",
+    "@types/node": "^26.5.0",
+    "prisma": "^8.0.0-rc.10",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2"
   }
 }
