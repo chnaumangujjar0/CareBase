@@ -14,5 +14,5 @@
   },
   "include": [
     "**/*.ts"
-  ]
+, "src/prisma/contract.prisma"  ]
 }

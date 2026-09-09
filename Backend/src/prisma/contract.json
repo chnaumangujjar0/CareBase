@@ -248,10 +248,38 @@
           },
           "Tenant": {
             "fields": {
+              "address": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "city": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "country": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "createdAt": {
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "favicon": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -272,6 +300,13 @@
                   "kind": "scalar"
                 }
               },
+              "logo": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "name": {
                 "nullable": false,
                 "type": {
@@ -279,8 +314,22 @@
                   "kind": "scalar"
                 }
               },
+              "postalCode": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "slug": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "state": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -328,8 +377,20 @@
             },
             "storage": {
               "fields": {
+                "address": {
+                  "column": "address"
+                },
+                "city": {
+                  "column": "city"
+                },
+                "country": {
+                  "column": "country"
+                },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "favicon": {
+                  "column": "favicon"
                 },
                 "id": {
                   "column": "id"
@@ -337,11 +398,20 @@
                 "isActive": {
                   "column": "isActive"
                 },
+                "logo": {
+                  "column": "logo"
+                },
                 "name": {
                   "column": "name"
                 },
+                "postalCode": {
+                  "column": "postalCode"
+                },
                 "slug": {
                   "column": "slug"
+                },
+                "state": {
+                  "column": "state"
                 },
                 "updatedAt": {
                   "column": "updatedAt"
@@ -659,6 +729,25 @@
             },
             "Tenant": {
               "columns": {
+                "address": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "city": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "country": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PK"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
                   "default": {
@@ -666,6 +755,11 @@
                     "kind": "function"
                   },
                   "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "favicon": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
                   "nullable": false
                 },
                 "id": {
@@ -685,15 +779,30 @@
                   "nativeType": "bool",
                   "nullable": false
                 },
+                "logo": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "name": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
                 },
+                "postalCode": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "slug": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "state": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "updatedAt": {
                   "codecId": "pg/timestamptz-string@1",
@@ -811,7 +920,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1a78fbf8322d83cd9b5b471bd8bb67ff42d44914b8fb0f7f8ccd80e5ce71a38c"
+    "storageHash": "8584ae967928dd7aae3f5a0270919fb1322be296f24f0ac8a0464152fd12b84b"
   },
   "execution": {
     "executionHash": "1cb4fa9827168d0d948fb8ccc2e926a0662e1bacd7c2268d02e2af0e1d1aad8c",

@@ -6,7 +6,7 @@ import { app, httpServer } from "./app.js";
 import { connectDB } from "./db/index.js"
 
 connectDB().then(() => {
-  app.on("error", (err) => {
+  httpServer.on("error", (err) => {
     console.log("Error : ", err)
     throw err
   })
