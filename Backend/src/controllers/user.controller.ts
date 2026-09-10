@@ -6,6 +6,7 @@ import bcrypt from "bcrypt"
 import jwt from "jsonwebtoken";
 import { getRequestMeta } from "../utils/device.utils";
 import { generateAccessAndRefreshToken } from "../utils/token.utils";
+import { ApiResponse } from "../utils/apiResponse";
 
 const cookieOptions = {
   httpOnly: true,
@@ -13,43 +14,57 @@ const cookieOptions = {
 };
 
 export const registerUser = asyncHandler(async (req: Request, res: Response) => {
-    const { name, email, passwordHash, tenantId = null, isSuperAdmin = false, roleId = null } = req.body;
-    
-    if ([name, email, passwordHash].some((field) => !field || typeof field !== 'string' || !field.trim())) {
-        throw new ApiError(400, "All Fields are required!");
+    const { name, email, password } = req.body;
+
+    // 1. Validate mandatory fields
+    if ([name, email, password].some((val) => !val || typeof val !== "string" || !val.trim())) {
+        throw new ApiError(400, "Name, email, and password are required");
     }
 
     if (!email.includes("@")) {
-        throw new ApiError(400, "Enter Valid email!");
+        throw new ApiError(400, "Please enter a valid email address");
     }
 
+    // 2. Prevent duplicate accounts
     const existingUser = await db.orm.public.User
-        .where({ email }) 
+        .where({ email: email.toLowerCase().trim() })
         .first();
-        
+
     if (existingUser) {
         throw new ApiError(409, "User with this email already exists");
     }
-    const hashedPassword = await bcrypt.hash(passwordHash, 10);
-    const payload = {
-        name,
-        email,
-        passwordHash: hashedPassword,
-        isSuperAdmin,
-        tenantId,
-        roleId
-    };
-    
-    const user = await db.orm.public.User.create(payload); 
 
-    // Remove the passwordHash before returning the data to the client
-    const { passwordHash: _, ...safeUser } = user;
-
-    return res.status(201).json({
-        statusCode: 201,
-        data: safeUser,
-        message: "User registered successfully!"
+    const passwordHash = await bcrypt.hash(password, 12);
+    const newUser = await db.orm.public.User.create({
+        name: name.trim(),
+        email: email.toLowerCase().trim(),
+        passwordHash,
+        isSuperAdmin: true,  
+        isActive: true,
     });
+
+    const { userAgent, ipAddress } = getRequestMeta(req);
+
+    const tokens = await generateAccessAndRefreshToken(newUser.id, {
+        userAgent: userAgent ?? undefined,
+        ipAddress: ipAddress ?? undefined,
+    });
+
+    const safeUser = await db.orm.public.User
+        .where({ id: newUser.id })
+        .select("id", "name", "email", "tenantId", "roleId", "isSuperAdmin", "isActive", "createdAt", "updatedAt")
+        .first();
+
+    return res.status(201).json(
+        new ApiResponse(
+            201,
+            {
+                user: safeUser,
+                ...tokens,
+            },
+            "Account created successfully. Proceed to hospital onboarding."
+        )
+    );
 });
 
 export const loginOwner = asyncHandler(async (req: Request, res: Response) => {
@@ -76,13 +91,46 @@ export const loginOwner = asyncHandler(async (req: Request, res: Response) => {
         userAgent: userAgent ?? undefined,
         ipAddress: ipAddress ?? undefined,
     });
+    const loggedInUser = await db.orm.public.User.where({email}).select("email","id","createdAt","updatedAt","isActive","name","tenantId","roleId")
 
-    const { passwordHash: _, ...safeUser } = user;
-
-    return res.status(200).json({
-        statusCode: 200,
-        data: { user: safeUser, ...tokens },
-        message: "Owner login successful"
-    });
+    return res.status(200)
+    .cookie("accessToken", (await tokens).accessToken, cookieOptions)
+    .cookie("refreshToken", (await tokens).refreshToken, cookieOptions)
+    .json(
+        new ApiResponse(
+            200,
+            {user:loggedInUser,...tokens},
+            "User LoggedIn Successfully!"
+        )
+    );
 });
 
+export const loginTenantMemebers = asyncHandler(async (req: Request, res: Response) => {
+    const {email, password} = req.body
+
+    if(!email.trim() || !password.trim()){
+        throw new ApiError(400,"Both fields are required!")
+    }
+
+    const existingUser = await db.orm.public.User.where(email).first()
+
+    if(!existingUser){
+        throw new ApiError(404,"This user does not exist.")
+    }
+
+    const isPasswordValid = await bcrypt.compare(password,existingUser.passwordHash)
+
+    if(!isPasswordValid){
+        throw new ApiError(401,"Incorrect password!")
+    }
+
+    const { userAgent, ipAddress } = getRequestMeta(req);
+
+    const tokens = generateAccessAndRefreshToken(existingUser.id, {
+        userAgent: userAgent ?? undefined,
+        ipAddress: ipAddress ?? undefined,
+    });
+    const loggedInUser = await db.orm.public.User.where({email}).select("email","id","createdAt","updatedAt","isActive","name","tenantId","roleId")
+
+
+})
