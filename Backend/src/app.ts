@@ -26,4 +26,14 @@ app.use(cookieParser())
 
 
 
+// roter imports
+
+import userRouter from "./routes/user.routes"
+import { errorHandler } from "./middlewares/error.middleware";
+
+// routes intialization
+app.use("/api/v1/users",userRouter)
+app.use(errorHandler)
+
+
 export {httpServer,app}
