@@ -30,10 +30,11 @@ app.use(cookieParser())
 
 import userRouter from "./routes/user.routes"
 import { errorHandler } from "./middlewares/error.middleware";
-
+import tenantRouter from "./routes/tenant.routes"
 // routes intialization
 app.use("/api/v1/users",userRouter)
 app.use(errorHandler)
+app.use("/api/v1/tenant",tenantRouter)
 
 
 export {httpServer,app}

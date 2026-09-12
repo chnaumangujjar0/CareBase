@@ -13,9 +13,9 @@ import {
   slugifyTenantName,
 } from "../utils/tenant.utils";
 
-interface AuthenticatedRequest extends Request {
-  user?: { id: string };
-}
+type AuthenticatedRequest = Request & {
+  user?: Request["user"] & { id: string };
+};
 
 export const completeOnboarding = asyncHandler(
   async (req: AuthenticatedRequest, res: Response) => {
