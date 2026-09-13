@@ -6,6 +6,7 @@ import bcrypt from "bcrypt"
 import { getRequestMeta } from "../utils/device.utils";
 import { generateAccessAndRefreshToken } from "../utils/token.utils";
 import { ApiResponse } from "../utils/apiResponse";
+import { SAFE_USER_FIELDS } from "../utils/tenant.utils";
 
 const options = {
   httpOnly: true,
@@ -73,17 +74,7 @@ const MIN_PASSWORD_LENGTH = 8;
   });
  
   const safeUser = await db.orm.public.User.where({ id: newUser.id })
-    .select(
-      "id",
-      "name",
-      "email",
-      "isSuperAdmin",
-      "tenantId",
-      "roleId",
-      "isActive",
-      "createdAt",
-      "updatedAt"
-    )
+    .select(...SAFE_USER_FIELDS,"isSuperAdmin")
     .first();
  
   return res.status(201).json(
@@ -126,16 +117,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   });
 
   const loggedInUser = await db.orm.public.User.where({ id: user.id })
-    .select(
-      "id",
-      "email",
-      "name",
-      "tenantId",
-      "roleId",
-      "isActive",
-      "createdAt",
-      "updatedAt"
-    )
+    .select(...SAFE_USER_FIELDS)
     .first();
 
   return res
