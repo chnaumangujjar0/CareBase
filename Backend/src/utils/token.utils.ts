@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { ApiError } from "./apiError.js";
 import { db } from "../prisma/db.js";
-
+import  "temporal-polyfill/global";
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days fallback
 
 const getRequiredEnv = (key: string) => {
@@ -13,27 +13,24 @@ const getRequiredEnv = (key: string) => {
   return value;
 };
 
-const parseExpiryToMs = (expiry?: string) => {
-  if (!expiry) return new Date(Date.now() + DEFAULT_SESSION_TTL_MS);
+const parseExpiryToMs = (expiry?: string): Temporal.Instant => {
+  const ms = expiry
+    ? (() => {
+        const value = Number(expiry.slice(0, -1));
+        const unit = expiry.slice(-1).toLowerCase();
 
-  const value = Number(expiry.slice(0, -1));
-  const unit = expiry.slice(-1).toLowerCase();
-  const date = new Date();
+        const multipliers: Record<string, number> = {
+          s: 1000,
+          m: 60 * 1000,
+          h: 60 * 60 * 1000,
+          d: 24 * 60 * 60 * 1000,
+        };
 
-  if (unit === "d") {
-    date.setDate(date.getDate() + value);
-  }
-  if (unit === "h") {
-    date.setHours(date.getHours() + value);
-  }
-  if (unit === "m") {
-    date.setMinutes(date.getMinutes() + value);
-  }
-  if (unit === "s") {
-    date.setSeconds(date.getSeconds() + value);
-  }
+        return value * (multipliers[unit] ?? 0);
+      })()
+    : DEFAULT_SESSION_TTL_MS;
 
-  return date;
+  return Temporal.Instant.fromEpochMilliseconds(Date.now() + ms);
 };
 
 export const generateAccessAndRefreshToken = async (
@@ -81,6 +78,9 @@ export const generateAccessAndRefreshToken = async (
 
     return { accessToken, refreshToken };
   } catch (error) {
+    if(error instanceof Error){
+      console.log(error.message);
+    }
     throw new ApiError(500, "Something went wrong while generating tokens");
   }
 };

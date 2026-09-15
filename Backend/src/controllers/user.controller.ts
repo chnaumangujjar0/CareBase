@@ -19,7 +19,8 @@ const MIN_PASSWORD_LENGTH = 8;
 
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
- 
+  
+  console.log(name,email,password);
   if (
     [name, email, password].some(
       (val) => !val || typeof val !== "string" || !val.trim()
@@ -120,6 +121,8 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     .select(...SAFE_USER_FIELDS)
     .first();
 
+    const userRole = await db.orm.public.Role.where({id: loggedInUser?.roleId}).first()
+    
   return res
     .status(200)
     .cookie("accessToken", tokens.accessToken, options)
@@ -127,7 +130,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, ...tokens },
+        { user: loggedInUser, ...tokens, role: userRole },
         "User logged in successfully!"
       )
     );

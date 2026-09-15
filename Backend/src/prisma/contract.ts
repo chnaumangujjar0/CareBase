@@ -45,6 +45,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
       tenantId: field.uuidString().optional(),
       roleId: field.uuidString().optional(),
       isSuperAdmin: field.boolean().default(false),
+      authProvider: field.text().optional().default("local"),
       name: field.text(),
       email: field.text().unique(),
       passwordHash: field.text(),

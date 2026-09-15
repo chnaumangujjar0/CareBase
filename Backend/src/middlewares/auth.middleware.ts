@@ -33,18 +33,12 @@ const isAccessTokenPayload = (value: unknown): value is AccessTokenPayload =>
   value !== null &&
   typeof (value as Record<string, unknown>).id === "string";
 
-const getAccessToken = (req: Request): string | undefined => {
-  const authorization = req.headers.authorization;
-  if (authorization && /^Bearer\s+/i.test(authorization)) {
-    return authorization.replace(/^Bearer\s+/i, "").trim();
-  }
-
-  return req.cookies?.accessToken;
-};
 
 export const requireAuth = asyncHandler(
   async (req: Request, _res: Response, next: NextFunction) => {
-    const token = getAccessToken(req);
+    const authHeader = req.header("Authorization") || "";
+    const tokenFromHeader = authHeader.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+    const token = req.cookies?.accessToken || tokenFromHeader;
 
     if (!token) {
       throw new ApiError(401, "Authentication required");
@@ -58,7 +52,10 @@ export const requireAuth = asyncHandler(
     let payload: unknown;
     try {
       payload = jwt.verify(token, secret);
-    } catch {
+    } catch (error) {
+      if (error instanceof Error) {
+        console.log(error.message);
+      }
       throw new ApiError(401, "Invalid or expired access token");
     }
 
