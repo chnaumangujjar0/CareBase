@@ -1,0 +1,240 @@
+$primary:       #0F766E;  // Deep teal — main brand/action color (buttons, links, active nav)
+$secondary:     #475569;  // Slate gray-blue — secondary buttons, muted UI chrome
+$success:       #16A34A;  // Green — "available", "completed", "normal" status
+$info:          #0284C7;  // Blue — informational badges, tooltips
+$warning:       #D97706;  // Amber — "pending", "low stock", "urgent" (not critical)
+$danger:        #DC2626;  // Red — "critical", errors, destructive actions
+$light:         #F8FAFC;  // Near-white — card backgrounds, table stripe
+$dark:          #0F172A;  // Near-black — headings, high-emphasis text
+
+
+$theme-colors: (
+  "primary":    $primary,
+  "secondary":  $secondary,
+  "success":    $success,
+  "info":       $info,
+  "warning":    $warning,
+  "danger":     $danger,
+  "light":      $light,
+  "dark":       $dark,
+);
+
+
+$body-bg:       #F1F5F9; 
+$body-color:    #1E293B;  
+
+
+// ------------------------------------------------------------
+// 3. TYPOGRAPHY
+// ------------------------------------------------------------
+$font-family-sans-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+$font-family-monospace:  "IBM Plex Mono", SFMono-Regular, Menlo, monospace;
+
+$font-size-base:   0.9375rem;
+                               // slightly smaller base fits more info without feeling cramped
+$font-size-sm:     0.8125rem; // 13px — table cells, captions, metadata
+$font-size-lg:     1.125rem;  // 18px — section intros, empty-state messages
+
+$headings-font-weight: 600;   // Semi-bold, not Bootstrap's default 500 — gives clearer
+                               // visual hierarchy against dense body content
+$headings-color:   $dark;
+
+$line-height-base: 1.5;       // Standard readable line height for body text
+$small-font-size:  0.8125rem; // Used by Bootstrap's <small> and .small utility
+
+
+// ------------------------------------------------------------
+// 4. SPACING
+// ------------------------------------------------------------
+// Bootstrap generates ALL spacing utilities (m-1, p-3, gap-2, etc.)
+// from this single base value — keep it, don't hardcode pixel
+// margins anywhere in your components.
+$spacer: 1rem; // 16px base unit — m-1 = 0.25rem, m-2 = 0.5rem, m-3 = 1rem, etc.
+
+
+// ------------------------------------------------------------
+// 5. BORDERS & RADIUS
+// ------------------------------------------------------------
+$border-color:        #E2E8F0; // Light gray — table borders, card outlines, input borders
+$border-radius:        0.5rem;  // 8px — cards, modals, alerts (soft, modern, not childish)
+$border-radius-sm:     0.375rem; // 6px — buttons, badges, inputs
+$border-radius-lg:     0.75rem;  // 12px — large containers, dashboard cards
+$border-width:          1px;
+
+// A clinical/enterprise UI should look "sharp" not "bubbly" —
+// avoid pushing these radii much higher than the above.
+
+
+// ------------------------------------------------------------
+// 6. SHADOWS
+// ------------------------------------------------------------
+// Used for cards, dropdowns, modals — keep subtle, avoid heavy
+// drop-shadows which look dated and reduce perceived data density.
+$box-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05);
+$box-shadow:    0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06);
+$box-shadow-lg: 0px 0px 0px 2px rgba(15, 23, 42, 0.10);
+
+
+// ------------------------------------------------------------
+// 7. GRID & BREAKPOINTS
+// ------------------------------------------------------------
+// Match these to your actual target devices (see Figma brief:
+// desktop-first 1440px, tablet 1024px, mobile 375px).
+$grid-breakpoints: (
+  xs: 0,
+  sm: 576px,
+  md: 768px,
+  lg: 1024px,   // tablet — matches your Figma tablet target
+  xl: 1280px,
+  xxl: 1440px   // desktop — matches your Figma desktop target
+);
+
+$container-max-widths: (
+  sm: 540px,
+  md: 720px,
+  lg: 980px,
+  xl: 1200px,
+  xxl: 1380px
+);
+
+
+// ------------------------------------------------------------
+// 8. COMPONENT-SPECIFIC OVERRIDES
+// ------------------------------------------------------------
+
+// Buttons
+$btn-font-weight:        500;
+$btn-border-radius:      $border-radius-sm;
+$btn-padding-y:          0.5rem;
+$btn-padding-x:          1rem;
+
+// Cards (your dashboard will live and die by how good cards look)
+$card-border-radius:     $border-radius-lg;
+$card-border-color:      $border-color;
+$card-box-shadow:        $box-shadow-sm;
+$card-cap-bg:            $light;
+
+// Tables (patients, appointments, audit logs — used constantly)
+$table-striped-bg:       #F8FAFC;
+$table-hover-bg:         #F1F5F9;
+$table-border-color:     $border-color;
+$table-cell-padding-y:   0.75rem;
+$table-cell-padding-x:   1rem;
+
+// Forms (registration, consultation forms are long — legibility matters)
+$input-border-color:     $border-color;
+$input-border-radius:    $border-radius-sm;
+$input-focus-border-color: $primary;
+$input-focus-box-shadow: 0 0 0 0.2rem rgba($primary, 0.15);
+$input-padding-y:        0.5rem;
+$input-padding-x:        0.75rem;
+
+// Badges (status pills — booked/completed/cancelled/critical, etc.)
+$badge-font-weight:      600;
+$badge-padding-y:        0.35em;
+$badge-padding-x:        0.65em;
+$badge-border-radius:    $border-radius-sm;
+
+// Alerts / toasts
+$alert-border-radius:    $border-radius;
+$alert-padding-y:        0.75rem;
+$alert-padding-x:        1rem;
+
+// Modals
+$modal-content-border-radius: $border-radius-lg;
+$modal-backdrop-opacity:      0.5;
+
+// Z-index stack — define explicitly to avoid dropdown/modal/toast
+// conflicts once you have a sidebar, topbar, and modals all at once
+$zindex-dropdown:        1000;
+$zindex-sticky:          1020;
+$zindex-fixed:           1030;
+$zindex-modal-backdrop:  1040;
+$zindex-modal:           1050;
+$zindex-toast:           1090;
+
+
+// ------------------------------------------------------------
+// 9. FEATURE TOGGLES
+// ------------------------------------------------------------
+$enable-rounded:          true;
+$enable-shadows:          false;   // We define shadows manually above for control
+$enable-gradients:        false;   // Flat colors read as more "enterprise/clinical"
+$enable-transitions:      true;
+$enable-negative-margins: true;    // Occasionally useful for card overlaps in dashboards
+$enable-smooth-scroll:    true;
+
+
+.auth-shell {
+  background-color: $body-bg;
+}
+ 
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: $card-border-radius;  // stays consistent with every other card in the app
+  box-shadow: $box-shadow-lg;          // slightly stronger than default card shadow —
+                                        // this is the one focal object on an otherwise empty screen
+}
+
+// ------------------------------------------------------------
+// 10. SELECT DROPDOWNS
+// ------------------------------------------------------------
+.form-select {
+  display: block;
+  width: 100%;
+  padding: $input-padding-y $input-padding-x;
+  // Make extra room on the right so text doesn't overlap the arrow
+  padding-right: 2.25rem; 
+  
+  font-family: $font-family-sans-serif;
+  font-size: $font-size-base;
+  font-weight: 400;
+  line-height: $line-height-base;
+  color: $body-color;
+  background-color: #ffffff;
+  
+  // Custom SVG Chevron using your $secondary color (#475569)
+  // Note: the hex color must be URL-encoded in SVGs (%23 = #)
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right $input-padding-x center;
+  background-size: 16px 12px;
+  
+  border: $border-width solid $input-border-color;
+  border-radius: $input-border-radius; // Uses your 6px radius
+  
+  // Crucial: Hides the ugly native OS dropdown arrow
+  appearance: none; 
+  
+  // Matches the smooth transition of your other inputs
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+  // Active / Focus State
+  &:focus {
+    border-color: $input-focus-border-color; // Highlights in Deep Teal
+    outline: 0;
+    box-shadow: $input-focus-box-shadow;     // Uses your custom soft teal shadow
+  }
+
+  // Disabled State
+  &:disabled {
+    background-color: $table-hover-bg; // Matches the soft gray of your tables
+    color: #94A3B8; // Muted text color
+    opacity: 1; // Fixes an iOS Safari bug where disabled inputs look washed out
+    cursor: not-allowed;
+  }
+
+  // Error State (Triggered by Formik's isInvalid prop)
+  &.is-invalid {
+    border-color: $danger;
+    
+    // Custom SVG Chevron for errors (Red)
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23DC2626' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+    
+    &:focus {
+      border-color: $danger;
+      box-shadow: 0 0 0 0.2rem rgba($danger, 0.15); // Red focus ring
+    }
+  }
+}

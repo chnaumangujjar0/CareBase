@@ -44,20 +44,33 @@ const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQue
   return result;
 };
 
-// 3. The API Service (Define all your endpoints here)
 export const hospitalApi = createApi({
   reducerPath: "hospitalApi",
   baseQuery: baseQueryWithReauth,
   endpoints: (builder) => ({
   login: builder.mutation({
     query: (credentials) => ({
-      url: "/auth/login",
+      url: "/users/login",
       method: "POST",
       body: credentials,
+    }),
+  }),
+  register: builder.mutation({
+    query: (newUserData) => ({
+      url: "/users/register",
+      method: "POST",
+      body: newUserData,
+    }),
+  }),
+  setupTenant: builder.mutation({
+    query: (tenantData) => ({
+      url: "/tenant/onboarding",
+      method: "POST",
+      body: tenantData,
     }),
   }),
 }),
 });
 
 // 4. Export the auto-generated React Hooks
-export const { useLoginMutation } = hospitalApi;
+export const { useLoginMutation,useRegisterMutation, useSetupTenantMutation } = hospitalApi;

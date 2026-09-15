@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import './App.css'
 import { BrowserRouter, Route, Routes } from 'react-router'
 import { ProtectedRoute } from './components/common/ProtactedRoute'
 import Login from './components/pages/Login'
+import Dashboard from "./components/pages/Dashboard"
+import { SignUp } from './components/pages/SignUp'
+import { Onboarding } from './components/pages/Onboarding'
 
 function App() {
-  const [count, setCount] = useState(0)
 
   return (
     <>
@@ -13,11 +14,11 @@ function App() {
       <Routes>
         {/* Public Routes - Anyone can access these */}
         <Route path="/login" element={<Login/>} />
-        {/* <Route path="/unauthorized" element={<Unauthorized />} /> */}
-
+        <Route path="/signup" element={<SignUp />} />
+        <Route path='/onboarding' element={<Onboarding/>}/>
         <Route element={<ProtectedRoute />}>
-          {/* <Route path="/" element={<Dashboard />} />
-          <Route path="/patients" element={<div>Patient List Here</div>} /> */}
+          <Route path="/" element={<Dashboard />}/>
+          
         </Route>
 
         {/* Strictly Protected Routes - ONLY Doctors and Admins can access */}
