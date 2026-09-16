@@ -1,19 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Card, Form, Button, Alert, Spinner, Row, Col, Image } from "react-bootstrap";
-import { useSetupTenantMutation } from "../../store/hospitalApi";
+import { configureTenat } from "../../services/api";
+import { useDispatch } from "react-redux";
+import { setUser } from "../../store/authSlice";
+import { setTenant } from "../../store/tenantSlice";
 
-export const Onboarding = () => {
+const Onboarding = () => {
   const navigate = useNavigate();
-  const [setupTenantApi, { isLoading }] = useSetupTenantMutation();
+  const [isLoading, setIsLoading] = useState(false);
+  const dispatch = useDispatch()
 
   const formik = useFormik({
     initialValues: {
-      name: "",
-      logo: null as File | null,    
-      favicon: null as File | null, 
+      tenantName: "",
+      logo: null as File | null,
+      favicon: null as File | null,
       address: "",
       city: "",
       state: "",
@@ -21,25 +25,45 @@ export const Onboarding = () => {
       postalCode: "",
     },
     validationSchema: Yup.object({
-      name: Yup.string().required("Hospital name is required"),
+      tenantName: Yup.string().required("Hospital name is required"),
       logo: Yup.mixed().required("Please select a hospital logo"),
       favicon: Yup.mixed().required("Please select a favicon"),
       country: Yup.string().required("Country is required"),
     }),
     onSubmit: async (values, { setStatus }) => {
+      setIsLoading(true);
       try {
         const formData = new FormData();
 
+        formData.append("tenantName", values.tenantName);
+
         Object.entries(values).forEach(([key, value]) => {
+          if (key === "tenantName" || key === "logo" || key === "favicon") {
+            if (key === "tenantName") return;
+            if (value instanceof File) {
+              formData.append(key, value);
+            }
+            return;
+          }
+
           if (value !== null && value !== "") {
-            formData.append(key, value as string | Blob);
+            formData.append(key, value as string);
           }
         });
 
-        await setupTenantApi(formData).unwrap();
+        const res = await configureTenat(formData);
+
+        dispatch(setUser(res.user))
+        dispatch(setTenant(res.tenant))
+        
         navigate("/");
-      } catch (err: any) {
-        setStatus(err?.data?.message || "Failed to setup workspace. Please try again.");
+      } catch (err) {
+          if(err instanceof Error) {
+
+            setStatus(err.message || "Failed to setup workspace. Please try again.");
+          }
+      } finally {
+        setIsLoading(false);
       }
     },
   });
@@ -72,16 +96,17 @@ export const Onboarding = () => {
                     type="text"
                     placeholder="e.g. City General Hospital"
                     disabled={isLoading}
-                    {...formik.getFieldProps("name")}
-                    isInvalid={!!(formik.touched.name && formik.errors.name)}
+                    {...formik.getFieldProps("tenantName")}
+                    isInvalid={!!(formik.touched.tenantName && formik.errors.tenantName)}
                   />
-                  <Form.Control.Feedback type="invalid">{formik.errors.name as string}</Form.Control.Feedback>
+                  <Form.Control.Feedback type="invalid">{formik.errors.tenantName as string}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
             </Row>
 
             <Row className="mb-3">
               {/* Logo Local File Picker */}
+              
               <Col md={6}>
                 <Form.Group>
                   <Form.Label className="fw-semibold small">Hospital Logo <span className="text-danger">*</span></Form.Label>
@@ -120,6 +145,7 @@ export const Onboarding = () => {
                   <Form.Control.Feedback type="invalid">{formik.errors.favicon as string}</Form.Control.Feedback>
                 </Form.Group>
               </Col>
+              <span>File size must be less than 5MB.</span>
             </Row>
 
             <hr className="my-4 text-muted" />
@@ -209,3 +235,5 @@ export const Onboarding = () => {
     </div>
   );
 };
+
+export default Onboarding

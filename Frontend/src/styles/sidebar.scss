@@ -1,0 +1,181 @@
+@use "variables" as vars;
+
+$collapsed-width: 80px;
+$expanded-width: 260px;
+$transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: $collapsed-width;
+  background-color: #ffffff;
+  border-right: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  transition: width $transition-speed;
+  z-index: 1040;
+  overflow-x: hidden; // Hides text when collapsed
+
+  // Expand on hover
+  &:hover {
+    width: $expanded-width;
+
+    .brandText,
+    .sectionTitle,
+    .linkLabel,
+    .userInfo {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    
+  }
+}
+
+.header {
+  padding: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: $expanded-width; // Prevents shifting during animation
+
+  
+}
+
+.brandLogo {
+  width: 25px; // Fits perfectly inside the 80px sidebar (20px padding + 40px logo + 20px padding = 80px)
+  height: 40px;
+  object-fit: contain; // Ensures the SVG doesn't stretch or distort
+  flex-shrink: 0;
+  font-family: Georgia, 'Times New Roman', Times, serif;
+}
+.logostart{
+  color: #0F766E;
+}
+.logoend{
+  color: #64748B;
+}
+.brandText {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1E293B;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity $transition-speed, transform $transition-speed;
+  white-space: nowrap;
+}
+
+.navScroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 1rem 0;
+  
+  // Clean scrollbar
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: transparent;
+    border-radius: 4px;
+  }
+  &:hover::-webkit-scrollbar-thumb {
+    background-color: #CBD5E1;
+  }
+}
+
+.section {
+  margin-bottom: 1.5rem;
+  min-width: $expanded-width;
+}
+
+.sectionTitle {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 1.5rem;
+  margin-bottom: 0.5rem;
+  opacity: 0;
+  transition: opacity $transition-speed;
+  white-space: nowrap;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  padding: 0.625rem 1.5rem;
+  color: #64748B;
+  text-decoration: none;
+  gap: 1rem;
+  transition: background-color 0.2s, color 0.2s;
+
+  &:hover {
+    background-color: #F8FAFC;
+    color: #0F766E;
+  }
+
+  // React Router active class
+  &.active {
+    background-color: #F0FDF4; // Light teal tint
+    color: #0F766E;
+    font-weight: 600;
+    border-right: 3px solid #0F766E;
+  }
+}
+
+.linkIcon {
+  flex-shrink: 0;
+}
+
+.linkLabel {
+  font-size: 0.9rem;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: opacity $transition-speed, transform $transition-speed;
+  white-space: nowrap;
+}
+
+.divider {
+  height: 1px;
+  background-color: #E2E8F0;
+  margin: 1rem 0rem;
+}
+
+.footer {
+  padding: 1.25rem 1.5rem;
+  border-top: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-width: $expanded-width;
+}
+
+.avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #E2E8F0;
+  flex-shrink: 0;
+}
+
+.userInfo {
+  opacity: 0;
+  transition: opacity $transition-speed;
+  white-space: nowrap;
+  
+  .userName {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1E293B;
+    margin: 0;
+  }
+  
+  .userEmail {
+    font-size: 0.75rem;
+    color: #64748B;
+    margin: 0;
+  }
+}

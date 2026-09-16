@@ -1,14 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
 import authReducer from "./authSlice";
-import { hospitalApi } from "./hospitalApi";
+import tenantReducer from "./tenantSlice"
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    [hospitalApi.reducerPath]: hospitalApi.reducer,
+    tenant: tenantReducer
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(hospitalApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

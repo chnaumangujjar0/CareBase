@@ -6,13 +6,18 @@ export interface AuthUser {
   tenantId: string | null;
   roleId: string | null;
   isActive: boolean;
-  isProfileComplete?: boolean;
+  isSuperAdmin: boolean;
   avatar?: string;
   authProvider?: "local" | "auth0";
   createdAt: string;
   updatedAt: string;
-  role: string;
-  permissions: string
+  role?: string | null;
+  permissions?: string;
+}
+interface role {
+  id: string;
+  name: string;
+  permissions: string;
 }
 
 export interface Tenant {
@@ -29,13 +34,12 @@ export interface Tenant {
 }
 
 export interface LoginPayload {
-  identifier: string;
+  email: string;
   password: string;
 }
 
 export interface SignupPayload {
-  fullName: string;
-  username: string;
+  name: string;
   email: string;
   password: string;
 }
@@ -55,6 +59,7 @@ export interface AuthResponseData {
   user: AuthUser;
   accessToken: string;
   refreshToken?: string;
+  role: role
 }
 
 export interface OnboardingResponseData {

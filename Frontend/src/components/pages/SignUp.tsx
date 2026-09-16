@@ -3,16 +3,18 @@ import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Card, Form, Button, Alert, Spinner } from "react-bootstrap";
-import { useRegisterMutation } from "../../store/hospitalApi";
 import { setUser } from "../../store/authSlice";
 import { toast } from "react-toastify";
 import Logo from "../../assets/carebase-logo-full.svg"
+import { registerUser } from "../../services/api";
+import type { AuthUser } from "../../types/auth";
+import { useState } from "react";
+import Loader from "../common/Loader";
 
 export const SignUp = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
-  const [registerApi, { isLoading }] = useRegisterMutation();
+  const [isLoading,setIsLoading] = useState(false)
 
   const formik = useFormik({
     initialValues: {
@@ -35,18 +37,22 @@ export const SignUp = () => {
         .required("Please confirm your password"),
     }),
     onSubmit: async (values, { setStatus }) => {
+      setIsLoading(true)
       try {
         
         const { confirmPassword, ...submitData } = values;
         console.log(submitData);
-        const userData = await registerApi(submitData).unwrap();
-        dispatch(setUser(userData.user));
+        const userData = await registerUser(submitData);
+        const userDetails = userData.user;
+        const role = userData.role?.name ?? userDetails.role ?? "user";
+        const user: AuthUser = { ...userDetails, role };
+        dispatch(setUser(user));
         
         if (userData.accessToken) {
           localStorage.setItem("accessToken", userData.accessToken);
         }
 
-        if (userData.accessToken) {
+        if (userData.refreshToken) {
           localStorage.setItem("refreshToken", userData.refreshToken);
         }
         
@@ -56,12 +62,15 @@ export const SignUp = () => {
         const errorMsg = err?.data?.message || "Registration failed. Please try again.";
         setStatus(errorMsg);
         toast.error(errorMsg);
+      }finally{
+        setIsLoading(false)
       }
     },
   });
 
   return (
     <div className="auth-shell d-flex min-vh-100 align-items-center justify-content-center p-3">
+    <Loader isLoading={isLoading}/>
       <Card className="auth-card border-0 p-4">
         <Card.Body>
           <div className="text-center mb-4">
