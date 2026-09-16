@@ -43,7 +43,7 @@ export const requireAuth = asyncHandler(
     if (!token) {
       throw new ApiError(401, "Authentication required");
     }
-
+    console.log(token);
     const secret = process.env.ACCESS_TOKEN_SECRET;
     if (!secret) {
       throw new ApiError(500, "Server misconfiguration: ACCESS_TOKEN_SECRET is not set.");

@@ -81,7 +81,7 @@ export const completeOnboarding = asyncHandler(
 
       const ownerRole = await trx.orm.public.Role.create({
         tenantId: tenant.id,
-        name: `Owner-${tenant.id.slice(0, 8)}`,
+        name: `Owner`,
         permissions: [...OWNER_PERMISSIONS],
       });
 
@@ -94,10 +94,11 @@ export const completeOnboarding = asyncHandler(
         .select(...SAFE_USER_FIELDS)
         .first();
 
+        
       if (!safeUser) {
         throw new ApiError(500, "Unable to retrieve the onboarded user");
       }
-
+      safeUser.role = ownerRole.name
       return { user: safeUser, tenant };
     });
 

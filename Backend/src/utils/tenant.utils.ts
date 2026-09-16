@@ -11,6 +11,7 @@ export const SAFE_USER_FIELDS = [
   "isActive",
   "createdAt",
   "updatedAt",
+  "isSuperAdmin"
 ] as const;
 
 export const completeOnboardingSchema = z.object({
