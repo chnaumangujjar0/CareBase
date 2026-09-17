@@ -1,0 +1,107 @@
+@import 'variables'; 
+.unauthorized-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  font-family: $font-family-sans-serif;
+  // Replaced the hardcoded sky blue with a subtle, clinical teal-tinted gradient 
+  // that transitions smoothly into your application's base background colors.
+  background: linear-gradient(180deg, rgba($primary, 0.08) 0%, $body-bg 40%, $light 100%);
+}
+
+.giant-background-text {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40vw;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.8);
+  z-index: 1;
+  user-select: none;
+  line-height: 1;
+  letter-spacing: -0.05em;
+  margin: 0;
+  // Soft shadow using your dark theme color to separate it from the background
+  text-shadow: 0px 10px 30px rgba($dark, 0.03);
+}
+
+.content-wrapper {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.floating-monster {
+  width: 320px;
+  max-width: 80vw;
+  height: auto;
+  margin-bottom: 1.5rem;
+  animation: float 4s ease-in-out infinite;
+  // Replaced hardcoded shadow with your system's large shadow variable
+  filter: drop-shadow(0 15px 25px rgba($dark, 0.15));
+}
+
+.error-title {
+  font-size: 2.25rem;
+  font-weight: $headings-font-weight;
+  color: $headings-color;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.error-description {
+  font-size: $font-size-lg; // Uses your 1.125rem variable
+  color: $secondary;        // Uses your slate gray-blue
+  max-width: 450px;
+  margin-bottom: 2rem;
+  line-height: $line-height-base;
+}
+
+.back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: $primary; // Deep teal action color
+  color: #ffffff;
+  border: none;
+  padding: $btn-padding-y 1.75rem;
+  border-radius: 50px; // Kept pill shape for uniqueness on this specific screen
+  font-size: $font-size-base;
+  font-weight: $btn-font-weight;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px 0 rgba($primary, 0.35);
+
+  &:hover {
+    // Standard SCSS color function to darken your primary color slightly
+    background-color: darken(#0F766E, 5%); 
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba($primary, 0.25);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}

@@ -1,18 +1,24 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Card, Form, Button, Alert, Spinner, Row, Col, Image } from "react-bootstrap";
 import { configureTenat } from "../../services/api";
-import { useDispatch } from "react-redux";
-import { setUser } from "../../store/authSlice";
+import { useDispatch, useSelector } from "react-redux";
+import { selectCurrentUser, setUser } from "../../store/authSlice";
 import { setTenant } from "../../store/tenantSlice";
 
 const Onboarding = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const dispatch = useDispatch()
-
+  const user = useSelector(selectCurrentUser);
+  useEffect(() => {
+    if(user?.isSuperAdmin && user.roleId){
+      navigate("/")
+      return
+    }
+  },[])
   const formik = useFormik({
     initialValues: {
       tenantName: "",

@@ -29,6 +29,12 @@ export const loginUser = async (values:LoginPayload) => {
   return res.data.data as AuthResponseData;
 }
 
+export const logoutUser = async () => {
+  const refreshToken = localStorage.getItem("refreshToken")
+  const res = await api.post("/user/logout",{refreshToken})
+  
+  return res.data
+} 
 
 // Tenant Apis
 

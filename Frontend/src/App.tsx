@@ -6,6 +6,8 @@ import { SignUp } from './components/pages/SignUp';
 import Patient from './components/pages/Patient';
 import Onboarding from './components/pages/Onboarding';
 import Layout from "./Layout"
+import Unauthorized from './components/pages/Unauthorized';
+import SuperAdmin from './components/common/SuperAdmin';
 function App() {
   return (
     <>
@@ -13,7 +15,10 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/onboarding" element={<Onboarding />} />
+          <Route element={<SuperAdmin/>}>
+            <Route path="/onboarding" element={<Onboarding />} />
+          </Route>
+          <Route path='/unauthorized' element={<Unauthorized/>} />
           <Route element={<Layout/>}>
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Dashboard />} />
