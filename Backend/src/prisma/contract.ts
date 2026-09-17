@@ -27,14 +27,14 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
   // --------------------------------------------------------
   const Role = model('Role', {
     fields: {
-      id: field.id.uuidv4String().unique(),
+      id: field.id.uuidv4String(),
       tenantId: field.uuidString(),
-      name: field.text().unique(),
+      name: field.text(),
       permissions: field.json(),
       createdAt: field.temporal.createdAtString(),
       updatedAt: field.temporal.updatedAtString(),
     },
-  })
+  });
 
   // --------------------------------------------------------
   // 3. User

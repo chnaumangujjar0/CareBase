@@ -4,10 +4,11 @@ import { ApiError } from "../utils/apiError";
 import { db } from "../prisma/db"; 
 import bcrypt from "bcrypt"
 import { getRequestMeta } from "../utils/device.utils";
-import { generateAccessAndRefreshToken } from "../utils/token.utils";
+import { generateAccessAndRefreshToken, verifySessionFromRefreshToken,revokeSessionByRefreshToken } from "../utils/token.utils";
 import { ApiResponse } from "../utils/apiResponse";
 import { SAFE_USER_FIELDS } from "../utils/tenant.utils";
-
+import type { Char } from "@prisma/orm-postgres/target/codec-types";
+import jwt from "jsonwebtoken";
 const options = {
   httpOnly: true,
   secure: true,
@@ -16,6 +17,12 @@ const options = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 8;
+
+interface role {
+  id: string;
+  name: string;
+  permissions: string;
+}
 
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -136,3 +143,63 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     );
 });
 
+export const  refreshAccessToken = asyncHandler(async (req: Request,res: Response) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body?.refreshToken;
+  console.log("i am here.........")
+  if (!incomingRefreshToken) {
+    throw new ApiError(401, "Unauthorized access");
+  }
+
+  const { decoded } = await verifySessionFromRefreshToken(incomingRefreshToken);
+
+  const user = await db.orm.public.User.where({id: decoded.id}).select(...SAFE_USER_FIELDS).first();
+  if (!user) {
+    throw new ApiError(400, "User not found");
+  }
+
+  const accessToken = jwt.sign(
+    {
+      id: user.id ,
+      email: user.email,
+      name: user.name,
+    },
+    process.env.ACCESS_TOKEN_SECRET as string,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRY as jwt.SignOptions["expiresIn"],
+    }
+  )
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .json(
+      new ApiResponse(
+        200,
+        { user, accessToken },
+        "Token generated successfully",
+      ),
+    );
+})
+
+export const currentUser = asyncHandler(async (req:Request, res:Response) => {
+    const ownerRole = await db.orm.public.Role
+      .where({ id: req.user?.roleId as Char<36> })
+      .first();
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {
+      user: {...req.user, role: ownerRole?.name}
+    }, "User fetched Successfully"));
+});
+
+export const logout = asyncHandler(async (req:Request, res:Response) => {
+  const incomingRefreshToken =
+    req.cookies?.refreshToken || req.body?.refreshToken;
+  await revokeSessionByRefreshToken(incomingRefreshToken);
+
+  return res
+    .status(200)
+    .clearCookie("accessToken", options)
+    .clearCookie("refreshToken", options)
+    .json(new ApiResponse(200, {}, `${req.user?.name} Logged Out Successfully!`));
+});

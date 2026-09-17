@@ -2,9 +2,11 @@ import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { ApiError } from "./apiError.js";
 import { db } from "../prisma/db.js";
-import  "temporal-polyfill/global";
+import { Temporal } from "temporal-polyfill";
+import { Char } from "@prisma/orm-postgres/target/codec-types";
+import { sessionResponse } from "../types/session.types.js";
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days fallback
-
+import bcrypt from "bcrypt"
 const getRequiredEnv = (key: string) => {
   const value = process.env[key];
   if (!value) {
@@ -33,6 +35,10 @@ const parseExpiryToMs = (expiry?: string): Temporal.Instant => {
   return Temporal.Instant.fromEpochMilliseconds(Date.now() + ms);
 };
 
+const isSessionValid = async function (thisRefreshToken : string,incomingRefreshToken:string) {
+
+    return await bcrypt.compare(thisRefreshToken,incomingRefreshToken)
+}
 export const generateAccessAndRefreshToken = async (
   userId: any,
   meta: { userAgent?: string; ipAddress?: string  } = {}
@@ -82,5 +88,52 @@ export const generateAccessAndRefreshToken = async (
       console.log(error.message);
     }
     throw new ApiError(500, "Something went wrong while generating tokens");
+  }
+};
+
+interface refreshTokenPayload {
+  sid: Char<36>;
+  id: Char<36>;
+}
+
+export const verifySessionFromRefreshToken = async (incomingRefreshToken: string) => {
+  let decoded:refreshTokenPayload;
+  
+  try {
+    decoded = jwt.verify(
+      incomingRefreshToken,
+      process.env.REFRESH_TOKEN_SECRET as string
+    ) as refreshTokenPayload;
+  } catch (error) {
+    throw new ApiError(401, "Refresh token is invalid or expired");
+  }
+  const session = (await db.orm.public.Session.where({
+    id: decoded.sid as Char<36>,
+  }).first()) as sessionResponse | null;
+  if (!session || session.revokedAt || session.expiresAt < new Date()) {
+    throw new ApiError(401, "Session is expired or has been revoked");
+  }
+
+  if (session.userId.toString() !== decoded.id) {
+    throw new ApiError(401, "Refresh token does not match session");
+  }
+
+  const isValid = await isSessionValid(session.tokenHash,incomingRefreshToken);
+  if (!isValid) {
+    throw new ApiError(401, "Refresh token is invalid");
+  }
+
+  return { decoded, session };
+};
+
+export const revokeSessionByRefreshToken = async (incomingRefreshToken: string) => {
+  if (!incomingRefreshToken) return;
+  try {
+    const decoded = jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET as string) as refreshTokenPayload
+    if (decoded?.sid) {
+      await db.orm.public.Session.where({id: decoded.sid}).update({revokedAt:  Temporal.Instant.fromEpochMilliseconds(Date.now()) })
+    }
+  } catch (error) {
+    throw new ApiError(400,"someting wrong in revoked date")
   }
 };
