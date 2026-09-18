@@ -1,17 +1,20 @@
 import { Navigate, Outlet } from "react-router";
-import { useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
 import Loader from "./Loader";
+import { useAuthBootstrap } from "../../store/Useauthbootstrap";
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
+ 
+  skipOnboardingCheck?: boolean;
 }
 
-export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
-  const user = useSelector((state: RootState) => state.auth.user);
-  const loading = useSelector((state: RootState) => state.auth.loading);
+export const ProtectedRoute = ({
+  allowedRoles,
+  skipOnboardingCheck = false,
+}: ProtectedRouteProps) => {
+  const { isReady, user } = useAuthBootstrap();
 
-  if (loading) {
+  if (!isReady) {
     return <Loader isLoading={true} />;
   }
 
@@ -19,10 +22,10 @@ export const ProtectedRoute = ({ allowedRoles }: ProtectedRouteProps) => {
     return <Navigate to="/login" replace />;
   }
 
-   if(user?.isSuperAdmin && user.roleId == null){
-      return <Navigate to="/onboarding" replace />;
-    }
-    
+  if (!skipOnboardingCheck && user.isSuperAdmin && user.roleId == null) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
   if (
     allowedRoles &&
     allowedRoles.length > 0 &&

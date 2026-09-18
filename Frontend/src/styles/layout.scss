@@ -1,0 +1,23 @@
+// layout.scss
+
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: #F1F5F9;
+  padding-top: 72px; // Offsets the fixed 72px header
+  overflow-x: hidden;
+}
+
+.body-layout {
+  display: flex;
+  flex: 1;
+}
+
+.page-content {
+  flex:1;
+  margin-left: 70px; // Offsets the fixed 70px sidebar
+  padding: 2rem; 
+  min-width: 0;
+  
+}

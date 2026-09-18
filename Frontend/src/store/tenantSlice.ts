@@ -37,3 +37,6 @@ export const tenantSlice = createSlice({
 
 export const { setTenant, clearTenant } = tenantSlice.actions;
 export default tenantSlice.reducer;
+
+
+export const selectCurrentTenant = (state: { tenant: TenantState }) => state.tenant;

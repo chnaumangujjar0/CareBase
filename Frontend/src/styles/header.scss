@@ -1,0 +1,127 @@
+@import 'variables';
+
+.top-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1050; // Keep this higher than the sidebar's z-index
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 72px;
+  padding: 0 2rem;
+  background-color: #ffffff;
+  border-bottom: 1px solid $border-color;
+  
+}
+
+// Brand Section
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-brand-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: $dark;
+  letter-spacing: -0.02em;
+}
+
+// Actions Section
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+// Notification Button
+.icon-btn {
+  position: relative;
+  background: none;
+  border: none;
+  color: $secondary;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border-radius: $border-radius-sm;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: $table-hover-bg;
+    color: $primary;
+  }
+}
+
+.notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: $danger;
+  border-radius: 50%;
+  border: 2px solid #ffffff; // Creates a cutout effect against the icon
+}
+
+.header-divider {
+  height: 32px;
+  width: 1px;
+  background-color: $border-color;
+}
+
+// User Profile Section
+.header-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: $border-radius-sm;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: $table-hover-bg;
+  }
+}
+
+.user-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end; // Aligns text cleanly to the right
+}
+
+.user-name {
+  font-size: $font-size-base;
+  font-weight: 600;
+  color: $dark;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: $font-size-sm;
+  color: $secondary;
+  text-transform: capitalize;
+}
+
+.header-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid $border-color;
+}
+
+.dropdown-icon {
+  color: $secondary;
+}

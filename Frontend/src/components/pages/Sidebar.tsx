@@ -19,12 +19,13 @@ import {
   LogOut,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
-import { clearUser, selectCurrentUser } from "../../store/authSlice";
+import { clearUser } from "../../store/authSlice";
 import Logo from "../../../public/carebase-logo-icon.svg";
 import { logoutUser } from "../../services/api";
 import { useState } from "react";
 import Loader from "../common/Loader";
 import { toast } from "react-toastify";
+import { selectCurrentTenant } from "../../store/tenantSlice";
 
 const navConfig = [
   {
@@ -61,7 +62,7 @@ const navConfig = [
 
 export const Sidebar = () => {
 
-  const user = useSelector(selectCurrentUser);
+  const tenant = useSelector(selectCurrentTenant);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isloading, setIsloading] = useState(false);
@@ -99,7 +100,7 @@ export const Sidebar = () => {
       <aside className="sidebar">
         {/* Header / Brand */}
         <div className="header">
-          <img src={Logo} alt="carbase logo" className="brandLogo" />
+          <img src={tenant?.logo ?? Logo} alt={`${tenant.name} logo`} className="brandLogo" />
           <span className="brandText">
             <span className="logostart">Care</span>
             <span className="logoend">Base</span>
@@ -138,21 +139,7 @@ export const Sidebar = () => {
             <span className="linkLabel">Log Out</span>
           </button>
         </div>
-        {/* User Footer */}
-        <div className="footer">
-          <img
-            src={
-              user?.avatar ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=E2E8F0&color=0F766E`
-            }
-            alt="User Avatar"
-            className="avatar"
-          />
-          <div className="userInfo">
-            <p className="userName">{user?.name || "Staff Member"}</p>
-            <p className="userEmail">{user?.email || "staff@carebase.com"}</p>
-          </div>
-        </div>
+        <div className="divider" />
       </aside>
     </>
   );
