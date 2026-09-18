@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { completeOnboarding } from "../controllers/tenant.controller";
+import { completeOnboarding, getTenantById } from "../controllers/tenant.controller";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { upload } from "../middlewares/multer.middleware";
 
@@ -13,5 +13,5 @@ router.route("/onboarding").post(
     ]),
     completeOnboarding,
 )
-
+router.route("/:tenantId").get(requireAuth,getTenantById)
 export default router

@@ -12,6 +12,7 @@ import {
   SAFE_USER_FIELDS,
   slugifyTenantName,
 } from "../utils/tenant.utils";
+import { Tenant } from "../types/tenant.types";
 
 type AuthenticatedRequest = Request & {
   user?: Request["user"] & { id: string };
@@ -113,3 +114,21 @@ export const completeOnboarding = asyncHandler(
       );
   }
 );
+
+export const getTenantById = asyncHandler(async (req:Request,res:Response) => {
+  const {tenantId} = req.params
+
+  const tenant = await db.orm.public.Tenant.where({id: tenantId as Char<36>}).first() as Tenant
+
+  if(!tenant) {
+    throw new ApiError(400,"Tenent does not exist.")
+  }
+
+  res.status(200).json(
+    new ApiResponse(
+      200,
+      tenant,
+      "Tenent fetched Successfully!"
+    )
+  )
+})
