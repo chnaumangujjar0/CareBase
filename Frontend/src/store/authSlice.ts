@@ -48,6 +48,7 @@ export const fetchCurrentUser = createAsyncThunk<
     }
 
     const response = await api.get("/user/current-user");
+    console.log(response.data?.data);
     return response.data?.data;
   } catch (err: any) {
     const status = err?.response?.status;
