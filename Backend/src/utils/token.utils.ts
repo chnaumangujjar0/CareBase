@@ -35,10 +35,7 @@ const parseExpiryToMs = (expiry?: string): Temporal.Instant => {
   return Temporal.Instant.fromEpochMilliseconds(Date.now() + ms);
 };
 
-const isSessionValid = async function (thisRefreshToken : string,incomingRefreshToken:string) {
 
-    return await bcrypt.compare(thisRefreshToken,incomingRefreshToken)
-}
 export const generateAccessAndRefreshToken = async (
   userId: any,
   meta: { userAgent?: string; ipAddress?: string  } = {}
@@ -79,7 +76,7 @@ export const generateAccessAndRefreshToken = async (
       refreshSecret,
       { expiresIn: refreshExpiry as SignOptions["expiresIn"] }
     );
-
+    
     const updatedSession = await db.orm.public.Session.where({id: session.id}).update({tokenHash:refreshToken})
 
     return { accessToken, refreshToken };
@@ -93,10 +90,10 @@ export const generateAccessAndRefreshToken = async (
 
 interface refreshTokenPayload {
   sid: Char<36>;
-  id: Char<36>;
+  _id: Char<36>;
 }
 
-export const verifySessionFromRefreshToken = async (incomingRefreshToken: string) => {
+export const verifySessionFromRefreshToken = async (incomingRefreshToken: string): Promise<sessionResponse> => {
   let decoded:refreshTokenPayload;
   
   try {
@@ -110,18 +107,20 @@ export const verifySessionFromRefreshToken = async (incomingRefreshToken: string
   const session = (await db.orm.public.Session.where({
     id: decoded.sid as Char<36>,
   }).first()) as sessionResponse | null;
-  if (!session || session.revokedAt || session.expiresAt < new Date()) {
+  const now = Temporal.Now.instant();
+  if (
+    !session ||
+    session.revokedAt ||
+    Temporal.Instant.compare(session.expiresAt,now) < 0
+  ) {
     throw new ApiError(401, "Session is expired or has been revoked");
   }
-
-  if (session.userId.toString() !== decoded.id) {
+  console.log(session.id,decoded._id);
+  if (session.userId !== decoded._id) {
     throw new ApiError(401, "Refresh token does not match session");
   }
+  
 
-  const isValid = await isSessionValid(session.tokenHash,incomingRefreshToken);
-  if (!isValid) {
-    throw new ApiError(401, "Refresh token is invalid");
-  }
 
   return { decoded, session };
 };

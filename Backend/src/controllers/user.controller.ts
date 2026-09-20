@@ -153,7 +153,7 @@ export const  refreshAccessToken = asyncHandler(async (req: Request,res: Respons
 
   const { decoded } = await verifySessionFromRefreshToken(incomingRefreshToken);
 
-  const user = await db.orm.public.User.where({id: decoded.id}).select(...SAFE_USER_FIELDS).first();
+  const user = await db.orm.public.User.where({id: decoded._id}).select(...SAFE_USER_FIELDS).first();
   if (!user) {
     throw new ApiError(400, "User not found");
   }
@@ -185,18 +185,19 @@ export const currentUser = asyncHandler(async (req:Request, res:Response) => {
     const ownerRole = await db.orm.public.Role
       .where({ id: req.user?.roleId as Char<36> })
       .first();
+
+      const user = {...req.user, role: ownerRole?.name}
   return res
     .status(200)
-    .json(new ApiResponse(200, {
-      user: {...req.user, role: ownerRole?.name}
-    }, "User fetched Successfully"));
+    .json(new ApiResponse(200, 
+      user
+    , "User fetched Successfully"));
 });
 
 export const logout = asyncHandler(async (req:Request, res:Response) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body?.refreshToken;
   await revokeSessionByRefreshToken(incomingRefreshToken);
-
   return res
     .status(200)
     .clearCookie("accessToken", options)
