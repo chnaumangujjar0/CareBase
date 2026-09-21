@@ -8,6 +8,7 @@ import Onboarding from './components/pages/Onboarding';
 import Layout from "./Layout"
 import Unauthorized from './components/pages/Unauthorized';
 import SuperAdmin from './components/common/SuperAdmin';
+import Departments from './components/pages/Department';
 function App() {
   return (
     <>
@@ -23,6 +24,7 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Dashboard />} />
               <Route path='/patient' element={<Patient/>}/>
+              <Route path='/departments' element={<Departments/>} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["doctor", "admin"]} />}>

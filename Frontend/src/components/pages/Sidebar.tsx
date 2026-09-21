@@ -19,13 +19,13 @@ import {
   LogOut,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
-import { clearUser } from "../../store/authSlice";
+import { clearUser, selectCurrentUser } from "../../store/authSlice";
 import Logo from "../../../public/carebase-logo-icon.svg";
-import { logoutUser } from "../../services/api";
-import { useState } from "react";
+import { getTenantById, logoutUser } from "../../services/api";
+import { useEffect, useState } from "react";
 import Loader from "../common/Loader";
 import { toast } from "react-toastify";
-import { selectCurrentTenant } from "../../store/tenantSlice";
+import { selectCurrentTenant, setTenant } from "../../store/tenantSlice";
 
 const navConfig = [
   {
@@ -63,10 +63,22 @@ const navConfig = [
 export const Sidebar = () => {
 
   const tenant = useSelector(selectCurrentTenant);
+  const user = useSelector(selectCurrentUser)
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isloading, setIsloading] = useState(false);
-
+  useEffect(() => {
+    if(user){
+      console.log(user.tenantId);
+      getTenantById(user?.tenantId as string)
+      .then((res) => dispatch(setTenant(res)))
+      .catch((err) => {
+        if(err instanceof Error){
+          toast.error(err.message)
+        }
+      })
+    }
+  },[])
   const handleLogout = async () => {
     setIsloading(true);
     try {
@@ -98,12 +110,10 @@ export const Sidebar = () => {
     <>
       <Loader isLoading={isloading} />
       <aside className="sidebar">
-        {/* Header / Brand */}
         <div className="header">
           <img src={tenant?.logo ?? Logo} alt={`${tenant.name} logo`} className="brandLogo" />
           <span className="brandText">
-            <span className="logostart">Care</span>
-            <span className="logoend">Base</span>
+            {tenant.name?.toLocaleUpperCase()}
           </span>
         </div>
 

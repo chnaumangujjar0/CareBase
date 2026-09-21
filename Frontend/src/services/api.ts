@@ -47,3 +47,10 @@ export const configureTenat = async (values: OnboardingPayload | FormData) => {
 
     return res.data.data as OnboardingResponseData
 }
+
+
+export const getTenantById = async (tenantId : string) => {
+  const res = await api.get(`/tenant/${tenantId}`)
+
+  return res.data.data
+}

@@ -2,8 +2,6 @@ import { createSlice,type PayloadAction } from '@reduxjs/toolkit';
 import type { Tenant } from '../types/auth';
 
 
-
-// Maps over the Tenant interface to allow null values for the initial state
 export type TenantState = {
   [K in keyof Tenant]: Tenant[K] | null;
 };
