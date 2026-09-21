@@ -2,6 +2,7 @@ import { Router } from "express";
 import { completeOnboarding, getTenantById } from "../controllers/tenant.controller";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { upload } from "../middlewares/multer.middleware";
+import { checkEligibilty } from "../middlewares/RBAC.middleware";
 
 const router = Router()
 
@@ -13,5 +14,5 @@ router.route("/onboarding").post(
     ]),
     completeOnboarding,
 )
-router.route("/:tenantId").get(requireAuth,getTenantById)
+router.route("/:tenantId").get(requireAuth,checkEligibilty,getTenantById)
 export default router

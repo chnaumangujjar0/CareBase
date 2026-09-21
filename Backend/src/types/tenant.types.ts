@@ -10,3 +10,4 @@ export interface Tenant {
   country?: string;
   postalCode?: string;
 }
+export type Char36 = string & { readonly __charLength: 36 };

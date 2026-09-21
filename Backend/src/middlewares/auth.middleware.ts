@@ -3,21 +3,15 @@ import jwt from "jsonwebtoken";
 import { asyncHandler } from "../utils/asyncHandler"; 
 import { ApiError } from "../utils/apiError";
 import { db } from "../prisma/db"; 
+import { SAFE_USER_FIELDS } from "../utils/tenant.utils";
+import { AuthenticatedUser, Role } from "../types/user.types";
 
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-  name: string;
-  tenantId: string | null;
-  roleId: string | null;
-  isSuperAdmin: boolean;
-  isActive: boolean;
-}
 
 declare global {
   namespace Express {
     interface Request {
       user?: AuthenticatedUser;
+      role?: Role
     }
   }
 }
@@ -43,7 +37,6 @@ export const requireAuth = asyncHandler(
     if (!token) {
       throw new ApiError(401, "Authentication required");
     }
-    console.log(token);
     const secret = process.env.ACCESS_TOKEN_SECRET;
     if (!secret) {
       throw new ApiError(500, "Server misconfiguration: ACCESS_TOKEN_SECRET is not set.");
@@ -66,7 +59,7 @@ export const requireAuth = asyncHandler(
     const user = await db.orm.public.User.where({
       id: payload.id as Char36,
     })
-      .select("id", "email", "name", "tenantId", "roleId", "isSuperAdmin", "isActive")
+      .select(...SAFE_USER_FIELDS)
       .first();
 
     if (!user) {

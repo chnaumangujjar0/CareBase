@@ -115,7 +115,7 @@ export const verifySessionFromRefreshToken = async (incomingRefreshToken: string
   ) {
     throw new ApiError(401, "Session is expired or has been revoked");
   }
-  console.log(session.id,decoded._id);
+
   if (session.userId !== decoded._id) {
     throw new ApiError(401, "Refresh token does not match session");
   }

@@ -146,7 +146,6 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 export const  refreshAccessToken = asyncHandler(async (req: Request,res: Response) => {
   const incomingRefreshToken =
     req.cookies?.refreshToken || req.body?.refreshToken;
-  console.log("i am here.........")
   if (!incomingRefreshToken) {
     throw new ApiError(401, "Unauthorized access");
   }
