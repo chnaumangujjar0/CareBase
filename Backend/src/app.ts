@@ -36,6 +36,6 @@ import departmentRouter from "./routes/department.routes"
 app.use("/api/v1/user",userRouter)
 app.use(errorHandler)
 app.use("/api/v1/tenant",tenantRouter)
-app.use("/ap/v1/department",departmentRouter)
+app.use("/api/v1/department",departmentRouter)
 
 export {httpServer,app}

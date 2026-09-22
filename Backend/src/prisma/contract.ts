@@ -284,7 +284,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
         appointments: rel.hasMany(Appointment, { by: 'departmentId' }),
         wards: rel.hasMany(Ward, { by: 'departmentId' }),
       }).sql(({ cols, constraints }) => ({
-        table: 'department',
+        table: 'Department',
         indexes: [
           constraints.index([cols.tenantId]),
           constraints.index([cols.tenantId, cols.name], { unique: true, name: 'department_tenant_name_key' }),
@@ -303,7 +303,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           .sql({ fk: { name: 'doctorProfile_departmentId_fkey', onDelete: 'restrict' } }),
         appointments: rel.hasMany(Appointment, { by: 'doctorId' }),
       }).sql(({ cols, constraints }) => ({
-        table: 'doctorProfile',
+        table: 'DoctorProfile',
         indexes: [constraints.index([cols.tenantId]), constraints.index([cols.departmentId])],
       })),
 
@@ -314,7 +314,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
         appointments: rel.hasMany(Appointment, { by: 'patientId' }),
         beds: rel.hasMany(Bed, { by: 'currentPatientId' }),
       }).sql(({ cols, constraints }) => ({
-        table: 'patient',
+        table: 'Patient',
         indexes: [
           constraints.index([cols.tenantId, cols.mrn], { unique: true, name: 'patient_tenant_mrn_key' }),
           constraints.index([cols.tenantId, cols.lastName]),
@@ -341,7 +341,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           .belongsTo(User, { from: 'updatedBy', to: 'id' })
           .sql({ fk: { name: 'appointment_updatedBy_fkey', onDelete: 'setNull' } }),
       }).sql(({ cols, constraints }) => ({
-        table: 'appointment',
+        table: 'Appointment',
         indexes: [
           constraints.index([cols.tenantId, cols.scheduledAt]),
           constraints.index([cols.doctorId, cols.scheduledAt], { name: 'appointment_doctor_schedule_idx' }),
@@ -360,7 +360,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           .sql({ fk: { name: 'ward_departmentId_fkey', onDelete: 'setNull' } }),
         rooms: rel.hasMany(Room, { by: 'wardId' }),
       }).sql(({ cols, constraints }) => ({
-        table: 'ward',
+        table: 'Ward',
         indexes: [constraints.index([cols.tenantId]), constraints.index([cols.departmentId])],
       })),
 
@@ -373,7 +373,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           .sql({ fk: { name: 'room_wardId_fkey', onDelete: 'cascade' } }),
         beds: rel.hasMany(Bed, { by: 'roomId' }),
       }).sql(({ cols, constraints }) => ({
-        table: 'room',
+        table: 'Room',
         indexes: [constraints.index([cols.tenantId]), constraints.index([cols.wardId])],
       })),
 
@@ -388,7 +388,7 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           .belongsTo(Patient, { from: 'currentPatientId', to: 'id' })
           .sql({ fk: { name: 'bed_currentPatientId_fkey', onDelete: 'setNull' } }),
       }).sql(({ cols, constraints }) => ({
-        table: 'bed',
+        table: 'Bed',
         indexes: [
           constraints.index([cols.tenantId]),
           constraints.index([cols.roomId, cols.code], { unique: true, name: 'bed_room_code_key' }),

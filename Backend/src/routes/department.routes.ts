@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware";
 
-import { checkEligibilty } from "../middlewares/RBAC.middleware";
-import { addDepartment } from "../controllers/department.controller";
+import { checkAuthorizationForSuperRoles, checkEligibilty } from "../middlewares/RBAC.middleware";
+import { addDepartment, getAllDepartments } from "../controllers/department.controller";
 
 const router = Router()
 
-router.route("/add-department").post(requireAuth,checkEligibilty,addDepartment)
-
+router.route("/:tenantId/add").post(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles,addDepartment)
+router.route("/:tenantId/all").get(getAllDepartments)
 export default router
