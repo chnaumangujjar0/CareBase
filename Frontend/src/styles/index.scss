@@ -1,8 +1,56 @@
 @import "variables";
 @import "bootstrap/scss/bootstrap";
 
+/* Bulletproof React-Toastify Glassmorphism Overrides */
+.Toastify__toast-container {
+  
+  .Toastify__toast {
+    background: rgba(255, 255, 255, 0.75) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.6) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 32px rgba(15, 34, 63, 0.12) !important;
+    color: rgb(15, 34, 63) !important; 
+    font-family: inherit !important;
+    font-weight: 500;
+    padding: 16px;
+  }
 
+  /* Success Accent */
+  .Toastify__toast--success {
+    
+    .Toastify__progress-bar {
+      background: #0f766e !important;
+    }
+    .Toastify__toast-icon svg {
+      fill: #0f766e !important;
+    }
+  }
 
+  /* Error Accent */
+  .Toastify__toast--error {
+    
+    .Toastify__progress-bar {
+      background: #ef4444 !important;
+    }
+    .Toastify__toast-icon svg {
+      fill: #ef4444 !important;
+    }
+  }
+
+  /* Close Button Adjustment */
+  .Toastify__close-button {
+    color: rgb(15, 34, 63) !important;
+    opacity: 0.6;
+    
+    &:hover {
+      opacity: 1;
+    }
+  }
+}
+
+@import "header";
 @import "sidebar";
 @import "unauthorized";
-@import "header"
+@import "department"

@@ -3,7 +3,6 @@ const API_URL = import.meta.env.VITE_API_URL;
 import api from "./axiosinstance.js"
 import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, SignupPayload } from "../types/auth.js";
 
-
 // user apis
 
 export const registerUser = async (values: SignupPayload) => {
@@ -53,4 +52,32 @@ export const getTenantById = async (tenantId : string) => {
   const res = await api.get(`/tenant/${tenantId}`)
 
   return res.data.data
+}
+
+// department Apis 
+interface DepartmentPayload {
+  name: string;
+  isActive: Boolean;
+}
+export const addDepartment = async (values:DepartmentPayload,tenantId:string) => {
+  const res = await api.post(`/department/${tenantId}/add`,values)
+  return res.data.data
+}
+
+export const getDepartments = async (tenantId:string) => {
+  const res = await api.get(`/department/${tenantId}/all`)
+
+  return res.data.data
+}
+
+export const updateDepartment = async (tenantId: string,deptId: string,values:any) => {
+  const res = await api.patch(`/department/${tenantId}/update`,{departmentId: deptId,...values})
+
+  return res.data.data
+}
+
+export const deleteDepartment = async (tenantId: string,deptId: string,) => {
+  const res = await api.delete(`/department/${tenantId}/delete`, { data: { departmentId: deptId } })
+
+  return res.data
 }

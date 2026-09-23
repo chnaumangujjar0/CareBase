@@ -53,12 +53,6 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   flex-shrink: 0;
   font-family: Georgia, 'Times New Roman', Times, serif;
 }
-.logostart{
-  color: #0F766E;
-}
-.logoend{
-  color: #64748B;
-}
 .brandText {
   font-size: 1.25rem;
   font-weight: 700;
@@ -67,6 +61,8 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateX(-10px);
   transition: opacity $transition-speed, transform $transition-speed;
   white-space: nowrap;
+  overflow: hidden;     
+  text-overflow: ellipsis;
 }
 
 .navScroll {

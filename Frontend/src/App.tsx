@@ -9,10 +9,25 @@ import Layout from "./Layout"
 import Unauthorized from './components/pages/Unauthorized';
 import SuperAdmin from './components/common/SuperAdmin';
 import Departments from './components/pages/Department';
+import { ToastContainer } from 'react-toastify';
+
 function App() {
   return (
     <>
+    
       <BrowserRouter>
+      <ToastContainer 
+        position="bottom-center"
+        autoClose={3000}
+        hideProgressBar={true} 
+        newestOnTop={true}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />

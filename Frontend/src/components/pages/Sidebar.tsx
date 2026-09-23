@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 import {
   LayoutDashboard,
   BarChart2,
@@ -19,13 +19,14 @@ import {
   LogOut,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
-import { clearUser, selectCurrentUser } from "../../store/authSlice";
+import { clearUser } from "../../store/authSlice";
 import Logo from "../../../public/carebase-logo-icon.svg";
-import { getTenantById, logoutUser } from "../../services/api";
-import { useEffect, useState } from "react";
+import { logoutUser } from "../../services/api";
+import { useState } from "react";
 import Loader from "../common/Loader";
 import { toast } from "react-toastify";
-import { selectCurrentTenant, setTenant } from "../../store/tenantSlice";
+import { clearTenant } from "../../store/tenantSlice";
+import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
 
 const navConfig = [
   {
@@ -61,60 +62,43 @@ const navConfig = [
 ];
 
 export const Sidebar = () => {
-
-  const tenant = useSelector(selectCurrentTenant);
-  const user = useSelector(selectCurrentUser)
+  const { isReady, tenant } = useTenantBootstrap();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [isloading, setIsloading] = useState(false);
-  useEffect(() => {
-    if(user){
-      console.log(user.tenantId);
-      getTenantById(user?.tenantId as string)
-      .then((res) => dispatch(setTenant(res)))
-      .catch((err) => {
-        if(err instanceof Error){
-          toast.error(err.message)
-        }
-      })
-    }
-  },[])
+
   const handleLogout = async () => {
     setIsloading(true);
     try {
       await logoutUser();
-      
-      navigate("/login", { replace: true });
-
+    } catch (error) {
+      if (error instanceof Error) {
+        toast.error(error.message);
+      }
+      console.error("Server-side logout failed, proceeding with local cleanup:", error);
+    } finally {
       dispatch(clearUser());
-
+      dispatch(clearTenant());
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("carbase-user");
-      
-    } catch (error) {
-        if(error instanceof Error){
-        toast.error(error.message)
-        console.log(error.message);
-        }
-        console.error(
-            "Server-side logout failed, proceeding with local cleanup:",
-            error,
-        );
-    } finally {
-        
+
       setIsloading(false);
+      navigate("/login", { replace: true });
     }
   };
+
   return (
     <>
-      <Loader isLoading={isloading} />
+      <Loader isLoading={isloading || !isReady} />
       <aside className="sidebar">
         <div className="header">
-          <img src={tenant?.logo ?? Logo} alt={`${tenant.name} logo`} className="brandLogo" />
-          <span className="brandText">
-            {tenant.name?.toLocaleUpperCase()}
-          </span>
+          <img
+            src={tenant?.logo ?? Logo}
+            alt={tenant?.name ? `${tenant.name} logo` : "Hospital logo"}
+            className="brandLogo"
+          />
+          <span className="brandText">{tenant?.name?.toLocaleUpperCase()}</span>
         </div>
 
         {/* Navigation Links */}
@@ -128,16 +112,12 @@ export const Sidebar = () => {
                 <NavLink
                   key={item.label}
                   to={item.path}
-                  className={({ isActive }) =>
-                    isActive ? "link active" : "link"
-                  }
+                  className={({ isActive }) => (isActive ? "link active" : "link")}
                 >
                   <item.icon className="linkIcon" size={20} />
                   <span className="linkLabel">{item.label}</span>
                 </NavLink>
               ))}
-
-              {/* Render a divider unless it's the last section */}
               {index < navConfig.length - 1 && <div className="divider" />}
             </div>
           ))}

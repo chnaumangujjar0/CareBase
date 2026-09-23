@@ -1,0 +1,27 @@
+.department-card {
+  border-radius: 0.5rem;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  background-color: #ffffff;
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 .5rem 1rem rgba(15, 34, 63, 0.08) !important; 
+  }
+  .badge.bg-opacity-25 {
+    background-color: rgba($success, 0.15) !important;
+    &.text-success { color: darken($success, 10%) !important; }
+    &.text-secondary { 
+      background-color: rgba($secondary, 0.15) !important; 
+      color: darken($secondary, 20%) !important;
+    }
+  }
+}
+
+// 3. Text Truncation Utility
+.truncate-single {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block; // Required for span/p tags to truncate properly
+  max-width: 100%;
+}
