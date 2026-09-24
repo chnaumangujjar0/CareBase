@@ -28,6 +28,15 @@ const BedStatus = enumType(
   member('Cleaning', 'cleaning'),
 );
 
+const ShiftType = enumType(
+  'ShiftType',
+  pgText,
+  member('Morning', 'morning'),
+  member('Evening', 'evening'),
+  member('Night', 'night'),
+  member('Flexible', 'flexible'),
+);
+
 export const contract = defineContract({}, ({ field, model, rel }) => {
   // --------------------------------------------------------
   // 1. Tenant (Hospital) — the root. Nothing points up from here.
@@ -122,9 +131,13 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
       tenantId: field.uuidString(),
       userId: field.uuidString().unique(),
       departmentId: field.uuidString(),
+      employeeId: field.text(),
       specialization: field.text(),
       qualifications: field.text().optional(),
       licenseNumber: field.text().optional(),
+      description: field.text().optional(),
+      designation: field.text().optional(),
+      phone: field.text().unique(),
       isActive: field.boolean().default(true),
       createdAt: field.temporal.createdAtString(),
       updatedAt: field.temporal.updatedAtString(),
@@ -215,6 +228,40 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
       updatedAt: field.temporal.updatedAtString(),
     },
   });
+  //  Staff model
+
+  const StaffProfile = model('StaffProfile', {
+    fields: {
+      id: field.id.uuidv4String(),
+      tenantId: field.uuidString(),
+      userId: field.uuidString().unique(), // one profile per user, same pattern as DoctorProfile
+      employeeId: field.text(), // human-readable staff ID, unique per tenant — see composite unique below
+      departmentId: field.uuidString().optional(), // e.g. Receptionist at "Front Desk", optional for HR/Accounts
+      wardId: field.uuidString().optional(), // e.g. Nurse assigned to a specific ward
+      shift: field.namedType(ShiftType).optional(),
+      joiningDate: field.dateTime().optional(),
+      phone: field.text().optional(),
+      isActive: field.boolean().default(true),
+      createdAt: field.temporal.createdAtString(),
+      updatedAt: field.temporal.updatedAtString(),
+    },
+  });
+
+  const AuditLog = model('AuditLog', {
+    fields: {
+      id: field.id.uuidv4String(),
+      tenantId: field.uuidString().optional(),
+      userId: field.uuidString().optional(),
+      action: field.text(),
+      entityType: field.text(),
+      entityId: field.uuidString().optional(),
+      oldValue: field.json().optional(),
+      newValue: field.json().optional(),
+      ipAddress: field.text().optional(),
+      userAgent: field.text().optional(),
+      createdAt: field.temporal.createdAtString(),
+    },
+  });
 
   // --------------------------------------------------------
   // Register Models, Relations, Cascade Rules, and Indexes
@@ -273,6 +320,29 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           constraints.index([cols.userId]),
           constraints.index([cols.expiresAt]),
           constraints.index([cols.revokedAt])
+        ],
+      })),
+
+       StaffProfile: StaffProfile.relations({
+        tenant: rel
+          .belongsTo(Tenant, { from: 'tenantId', to: 'id' })
+          .sql({ fk: { name: 'staffProfile_tenantId_fkey', onDelete: 'cascade' } }),
+        user: rel
+          .belongsTo(User, { from: 'userId', to: 'id' })
+          .sql({ fk: { name: 'staffProfile_userId_fkey', onDelete: 'cascade' } }),
+        department: rel
+          .belongsTo(Department, { from: 'departmentId', to: 'id' })
+          .sql({ fk: { name: 'staffProfile_departmentId_fkey', onDelete: 'setNull' } }),
+        ward: rel
+          .belongsTo(Ward, { from: 'wardId', to: 'id' })
+          .sql({ fk: { name: 'staffProfile_wardId_fkey', onDelete: 'setNull' } }),
+      }).sql(({ cols, constraints }) => ({
+        table: 'StaffProfile',
+        indexes: [
+          constraints.index([cols.tenantId]),
+          constraints.index([cols.tenantId, cols.employeeId], { unique: true, name: 'staffProfile_tenant_employeeId_key' }),
+          constraints.index([cols.departmentId]),
+          constraints.index([cols.wardId]),
         ],
       })),
 
@@ -395,6 +465,23 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
           constraints.index([cols.currentPatientId]),
         ],
       })),
+
+      AuditLog: AuditLog.relations({
+        tenant: rel
+          .belongsTo(Tenant, { from: 'tenantId', to: 'id' })
+          .sql({ fk: { name: 'auditLog_tenantId_fkey', onDelete: 'setNull' } }),
+        user: rel
+          .belongsTo(User, { from: 'userId', to: 'id' })
+          .sql({ fk: { name: 'auditLog_userId_fkey', onDelete: 'setNull' } }),
+      }).sql(({ cols, constraints }) => ({
+        table: 'AuditLog',
+        indexes: [
+          constraints.index([cols.tenantId, cols.createdAt]),
+          constraints.index([cols.entityType, cols.entityId]),
+          constraints.index([cols.userId]),
+        ],
+      })),
+
     },
   };
 });

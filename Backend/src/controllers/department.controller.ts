@@ -127,11 +127,11 @@ export const deleteDepartment = asyncHandler(async (req: Request, res: Response)
  
 
   const [doctorCount, appointmentCount] = await Promise.all([
-    db.orm.public.DoctorProfile.where({ departmentId: deptId, tenantId }).count(),
-    db.orm.public.Appointment.where({ departmentId: deptId, tenantId }).count(),
+    db.orm.public.DoctorProfile.where({ departmentId: deptId, tenantId }).aggregate((a) => ({ total: a.count() })),
+    db.orm.public.Appointment.where({ departmentId: deptId, tenantId }).aggregate((a) => ({ total: a.count() })),
   ]);
  
-  if (Number(doctorCount) > 0 || Number(appointmentCount) > 0) {
+  if (Number(doctorCount.total) > 0 || Number(appointmentCount.total) > 0) {
     throw new ApiError(
       409,
       "Cannot delete a department that still has doctors or appointments assigned to it. Reassign or remove them first."

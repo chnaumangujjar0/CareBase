@@ -8,6 +8,14 @@
       "model": "Appointment",
       "namespace": "public"
     },
+    "AuditLog": {
+      "model": "AuditLog",
+      "namespace": "public"
+    },
+    "Bed": {
+      "model": "Bed",
+      "namespace": "public"
+    },
     "Department": {
       "model": "Department",
       "namespace": "public"
@@ -32,6 +40,10 @@
       "model": "Session",
       "namespace": "public"
     },
+    "StaffProfile": {
+      "model": "StaffProfile",
+      "namespace": "public"
+    },
     "Tenant": {
       "model": "Tenant",
       "namespace": "public"
@@ -42,10 +54,6 @@
     },
     "Ward": {
       "model": "Ward",
-      "namespace": "public"
-    },
-    "bed": {
-      "model": "Bed",
       "namespace": "public"
     }
   },
@@ -389,6 +397,172 @@
               "table": "Appointment"
             }
           },
+          "AuditLog": {
+            "fields": {
+              "action": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "entityId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "entityType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "ipAddress": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "newValue": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "oldValue": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "userAgent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              }
+            },
+            "relations": {
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Tenant",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "action": {
+                  "column": "action"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "entityId": {
+                  "column": "entityId"
+                },
+                "entityType": {
+                  "column": "entityType"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "ipAddress": {
+                  "column": "ipAddress"
+                },
+                "newValue": {
+                  "column": "newValue"
+                },
+                "oldValue": {
+                  "column": "oldValue"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "userAgent": {
+                  "column": "userAgent"
+                },
+                "userId": {
+                  "column": "userId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "AuditLog"
+            }
+          },
           "Bed": {
             "fields": {
               "code": {
@@ -554,7 +728,7 @@
                 }
               },
               "namespaceId": "public",
-              "table": "bed"
+              "table": "Bed"
             }
           },
           "Department": {
@@ -715,6 +889,27 @@
                   }
                 }
               },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "designation": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "id": {
                 "nullable": false,
                 "type": {
@@ -734,6 +929,13 @@
               },
               "licenseNumber": {
                 "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "phone": {
+                "nullable": false,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -854,6 +1056,15 @@
                 "departmentId": {
                   "column": "departmentId"
                 },
+                "description": {
+                  "column": "description"
+                },
+                "designation": {
+                  "column": "designation"
+                },
+                "employeeId": {
+                  "column": "employeeId"
+                },
                 "id": {
                   "column": "id"
                 },
@@ -862,6 +1073,9 @@
                 },
                 "licenseNumber": {
                   "column": "licenseNumber"
+                },
+                "phone": {
+                  "column": "phone"
                 },
                 "qualifications": {
                   "column": "qualifications"
@@ -1462,6 +1676,223 @@
               },
               "namespaceId": "public",
               "table": "Session"
+            }
+          },
+          "StaffProfile": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "departmentId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "employeeId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "isActive": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "joiningDate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "kind": "scalar"
+                }
+              },
+              "phone": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "shift": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                },
+                "valueSet": {
+                  "entityKind": "enum",
+                  "entityName": "ShiftType",
+                  "namespaceId": "public",
+                  "plane": "domain"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "wardId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "sql/char@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              }
+            },
+            "relations": {
+              "department": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "departmentId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Department",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Tenant",
+                  "namespace": "public"
+                }
+              },
+              "user": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "userId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "ward": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "wardId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Ward",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "departmentId": {
+                  "column": "departmentId"
+                },
+                "employeeId": {
+                  "column": "employeeId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "isActive": {
+                  "column": "isActive"
+                },
+                "joiningDate": {
+                  "column": "joiningDate"
+                },
+                "phone": {
+                  "column": "phone"
+                },
+                "shift": {
+                  "column": "shift"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userId": {
+                  "column": "userId"
+                },
+                "wardId": {
+                  "column": "wardId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "StaffProfile"
             }
           },
           "Tenant": {
@@ -2413,6 +2844,344 @@
               },
               "uniques": []
             },
+            "AuditLog": {
+              "columns": {
+                "action": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "entityId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "entityType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "ipAddress": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "newValue": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "oldValue": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "tenantId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "userAgent": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "userId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "auditLog_tenantId_fkey",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "AuditLog"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Tenant"
+                  }
+                },
+                {
+                  "name": "auditLog_userId_fkey",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "AuditLog"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "entityType",
+                    "entityId"
+                  ],
+                  "name": "AuditLog_entityType_entityId_idx_ea0fa809",
+                  "prefix": "AuditLog_entityType_entityId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "createdAt"
+                  ],
+                  "name": "AuditLog_tenantId_createdAt_idx_88162366",
+                  "prefix": "AuditLog_tenantId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "AuditLog_tenantId_idx_c93ed4f1",
+                  "prefix": "AuditLog_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId"
+                  ],
+                  "name": "AuditLog_userId_idx_a489d58a",
+                  "prefix": "AuditLog_userId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "Bed": {
+              "checks": [
+                {
+                  "expression": "\"status\" IN ('available', 'occupied', 'maintenance', 'cleaning')",
+                  "name": "Bed_status_check_b354a3db",
+                  "prefix": "Bed_status_check"
+                }
+              ],
+              "columns": {
+                "code": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "currentPatientId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "id": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "roomId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "available"
+                  },
+                  "nativeType": "text",
+                  "nullable": false,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "BedStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "tenantId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "version": {
+                  "codecId": "pg/int4@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 1
+                  },
+                  "nativeType": "int4",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "bed_tenantId_fkey",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Bed"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Tenant"
+                  }
+                },
+                {
+                  "name": "bed_roomId_fkey",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "roomId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Bed"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Room"
+                  }
+                },
+                {
+                  "name": "bed_currentPatientId_fkey",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "currentPatientId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Bed"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Patient"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "currentPatientId"
+                  ],
+                  "name": "Bed_currentPatientId_idx_41689716",
+                  "prefix": "Bed_currentPatientId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "roomId"
+                  ],
+                  "name": "Bed_roomId_idx_fe51d647",
+                  "prefix": "Bed_roomId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "Bed_tenantId_idx_c93ed4f1",
+                  "prefix": "Bed_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "roomId",
+                    "code"
+                  ],
+                  "name": "bed_room_code_key_aff24a4e",
+                  "prefix": "bed_room_code_key",
+                  "unique": true
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "Department": {
               "columns": {
                 "createdAt": {
@@ -2525,6 +3294,21 @@
                     "length": 36
                   }
                 },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "designation": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
                 "id": {
                   "codecId": "sql/char@1",
                   "nativeType": "character",
@@ -2546,6 +3330,11 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
+                },
+                "phone": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
                 },
                 "qualifications": {
                   "codecId": "pg/text@1",
@@ -2662,6 +3451,11 @@
                 {
                   "columns": [
                     "userId"
+                  ]
+                },
+                {
+                  "columns": [
+                    "phone"
                   ]
                 }
               ]
@@ -3141,6 +3935,227 @@
                 }
               ]
             },
+            "StaffProfile": {
+              "checks": [
+                {
+                  "expression": "\"shift\" IN ('morning', 'evening', 'night', 'flexible')",
+                  "name": "StaffProfile_shift_check_fa4bb835",
+                  "prefix": "StaffProfile_shift_check"
+                }
+              ],
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "departmentId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "employeeId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "isActive": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "joiningDate": {
+                  "codecId": "pg/timestamptz-temporal@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "phone": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "shift": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true,
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ShiftType",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "tenantId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "userId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": false,
+                  "typeParams": {
+                    "length": 36
+                  }
+                },
+                "wardId": {
+                  "codecId": "sql/char@1",
+                  "nativeType": "character",
+                  "nullable": true,
+                  "typeParams": {
+                    "length": 36
+                  }
+                }
+              },
+              "foreignKeys": [
+                {
+                  "name": "staffProfile_tenantId_fkey",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "StaffProfile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Tenant"
+                  }
+                },
+                {
+                  "name": "staffProfile_userId_fkey",
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "userId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "StaffProfile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "name": "staffProfile_departmentId_fkey",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "departmentId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "StaffProfile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Department"
+                  }
+                },
+                {
+                  "name": "staffProfile_wardId_fkey",
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "wardId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "StaffProfile"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Ward"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "departmentId"
+                  ],
+                  "name": "StaffProfile_departmentId_idx_8e261ed8",
+                  "prefix": "StaffProfile_departmentId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "StaffProfile_tenantId_idx_c93ed4f1",
+                  "prefix": "StaffProfile_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "wardId"
+                  ],
+                  "name": "StaffProfile_wardId_idx_6180a90a",
+                  "prefix": "StaffProfile_wardId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "employeeId"
+                  ],
+                  "name": "staffProfile_tenant_employeeId_key_c90418e2",
+                  "prefix": "staffProfile_tenant_employeeId_key",
+                  "unique": true
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "userId"
+                  ]
+                }
+              ]
+            },
             "Tenant": {
               "columns": {
                 "address": {
@@ -3499,189 +4514,6 @@
                 ]
               },
               "uniques": []
-            },
-            "bed": {
-              "checks": [
-                {
-                  "expression": "\"status\" IN ('available', 'occupied', 'maintenance', 'cleaning')",
-                  "name": "bed_status_check_b354a3db",
-                  "prefix": "bed_status_check"
-                }
-              ],
-              "columns": {
-                "code": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
-                  "nullable": false
-                },
-                "createdAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
-                  "nativeType": "timestamptz",
-                  "nullable": false
-                },
-                "currentPatientId": {
-                  "codecId": "sql/char@1",
-                  "nativeType": "character",
-                  "nullable": true,
-                  "typeParams": {
-                    "length": 36
-                  }
-                },
-                "id": {
-                  "codecId": "sql/char@1",
-                  "nativeType": "character",
-                  "nullable": false,
-                  "typeParams": {
-                    "length": 36
-                  }
-                },
-                "roomId": {
-                  "codecId": "sql/char@1",
-                  "nativeType": "character",
-                  "nullable": false,
-                  "typeParams": {
-                    "length": 36
-                  }
-                },
-                "status": {
-                  "codecId": "pg/text@1",
-                  "default": {
-                    "kind": "literal",
-                    "value": "available"
-                  },
-                  "nativeType": "text",
-                  "nullable": false,
-                  "valueSet": {
-                    "entityKind": "valueSet",
-                    "entityName": "BedStatus",
-                    "namespaceId": "public",
-                    "plane": "storage"
-                  }
-                },
-                "tenantId": {
-                  "codecId": "sql/char@1",
-                  "nativeType": "character",
-                  "nullable": false,
-                  "typeParams": {
-                    "length": 36
-                  }
-                },
-                "updatedAt": {
-                  "codecId": "pg/timestamptz-string@1",
-                  "nativeType": "timestamptz",
-                  "nullable": false
-                },
-                "version": {
-                  "codecId": "pg/int4@1",
-                  "default": {
-                    "kind": "literal",
-                    "value": 1
-                  },
-                  "nativeType": "int4",
-                  "nullable": false
-                }
-              },
-              "foreignKeys": [
-                {
-                  "name": "bed_tenantId_fkey",
-                  "onDelete": "cascade",
-                  "source": {
-                    "columns": [
-                      "tenantId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "bed"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Tenant"
-                  }
-                },
-                {
-                  "name": "bed_roomId_fkey",
-                  "onDelete": "cascade",
-                  "source": {
-                    "columns": [
-                      "roomId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "bed"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Room"
-                  }
-                },
-                {
-                  "name": "bed_currentPatientId_fkey",
-                  "onDelete": "setNull",
-                  "source": {
-                    "columns": [
-                      "currentPatientId"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "bed"
-                  },
-                  "target": {
-                    "columns": [
-                      "id"
-                    ],
-                    "namespaceId": "public",
-                    "tableName": "Patient"
-                  }
-                }
-              ],
-              "indexes": [
-                {
-                  "columns": [
-                    "currentPatientId"
-                  ],
-                  "name": "bed_currentPatientId_idx_41689716",
-                  "prefix": "bed_currentPatientId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "roomId"
-                  ],
-                  "name": "bed_roomId_idx_fe51d647",
-                  "prefix": "bed_roomId_idx",
-                  "unique": false
-                },
-                {
-                  "columns": [
-                    "roomId",
-                    "code"
-                  ],
-                  "name": "bed_room_code_key_aff24a4e",
-                  "prefix": "bed_room_code_key",
-                  "unique": true
-                },
-                {
-                  "columns": [
-                    "tenantId"
-                  ],
-                  "name": "bed_tenantId_idx_c93ed4f1",
-                  "prefix": "bed_tenantId_idx",
-                  "unique": false
-                }
-              ],
-              "primaryKey": {
-                "columns": [
-                  "id"
-                ]
-              },
-              "uniques": []
             }
           },
           "valueSet": {
@@ -3717,10 +4549,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "df0224b534c52496b3522338b298e5fbdb5da1a4bef7b3df28bc6d490f5ab1d3"
+    "storageHash": "4060052236326b7933d4da08936c8b9b462b1ba88976cf92805bfe1f75a97289"
   },
   "execution": {
-    "executionHash": "7eb35c3e9ce125d6334fcc9b0e2b035ae215d4db9e9ab398216815ccf91d3255",
+    "executionHash": "f4b7ab25efe85dece6e55c9f908cd0676575a430efc3325d07d0868f615f80d3",
     "mutations": {
       "defaults": [
         {
@@ -3757,7 +4589,18 @@
           "ref": {
             "column": "id",
             "namespace": "public",
-            "table": "bed"
+            "table": "AuditLog"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "Bed"
           }
         },
         {
@@ -3772,7 +4615,7 @@
           "ref": {
             "column": "updatedAt",
             "namespace": "public",
-            "table": "bed"
+            "table": "Bed"
           }
         },
         {
@@ -3914,6 +4757,32 @@
             "column": "id",
             "namespace": "public",
             "table": "Session"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "uuidv4",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "StaffProfile"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "StaffProfile"
           }
         },
         {
