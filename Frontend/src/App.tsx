@@ -10,6 +10,7 @@ import Unauthorized from './components/pages/Unauthorized';
 import SuperAdmin from './components/common/SuperAdmin';
 import Departments from './components/pages/Department';
 import { ToastContainer } from 'react-toastify';
+import Staff from './components/pages/Staff';
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path='/patient' element={<Patient/>}/>
               <Route path='/departments' element={<Departments/>} />
+              <Route path='/staff' element={<Staff/>} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["doctor", "admin"]} />}>

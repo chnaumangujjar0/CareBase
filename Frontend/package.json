@@ -12,6 +12,7 @@
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",
     "@types/react-redux": "^7.1.34",
+    "antd": "^6.6.5",
     "axios": "^1.20.0",
     "bootstrap": "^5.3.8",
     "formik": "^2.4.9",

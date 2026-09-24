@@ -3,12 +3,9 @@ import { Bell, ChevronDown } from "lucide-react";
 import { selectCurrentUser } from "../../store/authSlice";
 import Logo from "../../assets/carebase-logo-full.svg";
 import "../../styles/header.scss"; 
-import { useEffect } from "react";
-
 export const Header = () => {
 
   const user = useSelector(selectCurrentUser);
-  console.log(user?.name);
   return (
     <header className="top-header">
       {/* Left Side: Brand Identity */}

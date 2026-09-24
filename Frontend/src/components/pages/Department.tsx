@@ -17,6 +17,9 @@ interface Department {
   id: string;
   name: string;
   isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  tenantId: string;
 }
 
 
@@ -31,7 +34,6 @@ export default function Departments() {
   useEffect(() => {
     getDepartments(user.tenantId as string)
     .then((res) => {
-      console.log(res);
       setDepartments(res)})
     .catch((err:Error) => toast.error(err.message))
   },[])
@@ -164,7 +166,7 @@ export default function Departments() {
       <Row xs={1} md={2} lg={3} className="g-4">
         
       {departments && departments.length > 0 && (
-          departments.map((dept:any) => (
+          departments.map((dept:Department) => (
             <Col key={dept.id}>
               <Card className="h-100 shadow-sm border-0 department-card bg-light">
                 <Card.Body>
@@ -185,7 +187,7 @@ export default function Departments() {
                   </p>
                 </Card.Body>
                 <Card.Footer className="bg-transparent border-top border-light d-flex justify-content-between align-items-center py-3">
-                  <span className="text-muted small">Updated recently</span>
+                  <span className="text-muted small">{new Date(dept.createdAt).toLocaleDateString()}</span>
                   <div className="d-flex gap-2">
                     <Button variant="outline-secondary" size="sm" onClick={() => handleEdit(dept)}>
                       <Pencil size={14} />
