@@ -1,0 +1,72 @@
+// Import your variables file here if this is a standalone file
+// @import './variables'; 
+
+.staff-page {
+  overflow: hidden;
+}
+
+.staff-scroll-container {
+  height: calc(100vh - 180px);
+  overflow-y: auto;
+  padding-right: 12px;
+  padding-bottom: 20px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    // Uses your slate gray-blue variable with opacity
+    background: rgba($secondary, 0.3); 
+    border-radius: $border-radius-lg;
+    
+    &:hover {
+      background: rgba($secondary, 0.5);
+    }
+  }
+}
+
+.staff-card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  border: $border-width solid transparent;
+  background-color: #ffffff;
+  border-radius: $card-border-radius;
+
+  &:hover {
+    transform: translateY(-3px);
+    // Uses your $dark variable for cohesive shadows
+    box-shadow: 0 12px 24px rgba($dark, 0.08) !important; 
+  }
+}
+
+.active-staff-card {
+  border: $border-width solid $primary !important;
+  // Dynamic soft background based on your Deep Teal
+  background-color: rgba($primary, 0.04) !important; 
+  // Cohesive focus glow using primary brand color
+  box-shadow: 0 4px 12px rgba($primary, 0.08) !important; 
+}
+
+// Cleaned up the presence dots from inline React styles to SCSS
+.presence-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: $border-color; // Uses your #E2E8F0 variable
+  margin: 0 auto;
+  
+  &.active {
+    background-color: $primary; // Uses your Deep Teal
+  }
+}
+
+.presence-grid {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 8px;
+  padding: 10px 0;
+}
