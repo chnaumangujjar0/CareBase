@@ -239,6 +239,8 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
       departmentId: field.uuidString().optional(), // e.g. Receptionist at "Front Desk", optional for HR/Accounts
       wardId: field.uuidString().optional(), // e.g. Nurse assigned to a specific ward
       shift: field.namedType(ShiftType).optional(),
+      description: field.text().optional(),
+      designation: field.text().optional(),
       joiningDate: field.dateTime().optional(),
       phone: field.text().optional(),
       isActive: field.boolean().default(true),
