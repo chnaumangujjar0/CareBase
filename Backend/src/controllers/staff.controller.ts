@@ -125,7 +125,7 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
 
       const role = await trx.orm.public.Role.create({
         tenantId,
-        name: `${}`,
+        name: `Doctor`,
         permissions: [],
       });
 
@@ -149,14 +149,14 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
           })
         : await trx.orm.public.StaffProfile.create({
           tenantId: tenantId as Char<36>,
-            userId: user.id,
-            employeeId: normalizedEmployeeId,
+          userId: user.id,
+          employeeId: normalizedEmployeeId,
           departmentId: input.departmentId as Char<36>,
           wardId: input.wardId ? input.wardId as Char<36> : null,
-            shift: input.shift ?? null,
-            joiningDate: input.joiningDate ?? null,
-            phone: input.phone,
-            isActive: input.isActive,
+          shift: input.shift ?? null,
+          joiningDate: input.joiningDate ?? null,
+          phone: input.phone,
+          isActive: input.isActive,
           });
 
       return { user: { id: user.id, name: user.name, email: user.email, tenantId, roleId: role.id, isActive: user.isActive }, role, profile };
