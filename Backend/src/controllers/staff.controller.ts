@@ -4,7 +4,6 @@ import { ApiError } from "../utils/apiError";
 import { ApiResponse } from "../utils/apiResponse";
 import { db } from "../prisma/db";
 import bcrypt from "bcrypt";
-import type { Char } from "@prisma/orm-postgres/target/codec-types";
 import { z } from "zod";
 import { Char36 } from "../types/tenant.types";
 
@@ -51,6 +50,7 @@ const staffSchema = baseProfileSchema.extend({
   joiningDate: z.coerce.date().nullish(),
   description: optionalText(2000),
   designation: optionalText(120),
+  role: z.string().trim().min(1, "Role is required").max(64)
 });
 
 export const createProfileSchema = z.discriminatedUnion("type", [
@@ -60,16 +60,14 @@ export const createProfileSchema = z.discriminatedUnion("type", [
 
 const BCRYPT_ROUNDS = 12;
 
-type AuthenticatedRequest = Request & {
-  user?: Request["user"] & { tenantId?: Char36 | null };
-};
+
 
 export const addStaff = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = (req as AuthenticatedRequest).user?.tenantId;
+  const tenantId = req.user?.tenantId;
   if (!tenantId) {
     throw new ApiError(401, "Authenticated tenant context is required");
   }
-
+  const tenant =  tenantId as Char36
   const parsed = createProfileSchema.safeParse(req.body);
   if (!parsed.success) {
     throw new ApiError(
@@ -81,15 +79,17 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
 
   const input = parsed.data;
   const normalizedEmployeeId = input.employeeId.trim();
-  const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
   try {
     const result = await db.transaction(async (trx) => {
       const [department, existingUser, existingStaff, existingDoctor] = await Promise.all([
-        trx.orm.public.Department.where({ id: input.departmentId as Char36, tenantId: tenantId as Char36 }).first(),
+        trx.orm.public.Department.where({
+          id: input.departmentId as Char36,
+          tenantId: tenant,
+        }).first(),
         trx.orm.public.User.where({ email: input.email }).first(),
-        trx.orm.public.StaffProfile.where({ tenantId, employeeId: normalizedEmployeeId }).first(),
-        trx.orm.public.DoctorProfile.where({ tenantId, employeeId: normalizedEmployeeId }).first(),
+        trx.orm.public.StaffProfile.where({ tenantId: tenant, employeeId: normalizedEmployeeId }).first(),
+        trx.orm.public.DoctorProfile.where({ tenantId: tenant, employeeId: normalizedEmployeeId }).first(),
       ]);
 
       if (!department || !department.isActive) {
@@ -105,7 +105,7 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
       if (input.type === "Staff" && input.wardId) {
         const ward = await trx.orm.public.Ward.where({
           id: input.wardId as Char36,
-          tenantId,
+          tenantId: tenant,
           departmentId: input.departmentId as Char36,
         }).first();
         if (!ward) {
@@ -113,9 +113,15 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
         }
       }
 
+      const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+      const roleName = input.type === "Doctor" ? "Doctor" : input.role;
+      const role =
+        (await trx.orm.public.Role.where({ tenantId:  tenant, name: roleName }).first()) ??
+        (await trx.orm.public.Role.create({ tenantId: tenant, name: roleName, permissions: [] }));
+
       const user = await trx.orm.public.User.create({
-        tenantId,
-        roleId: null,
+        tenantId: tenant,
+        roleId: role.id,
         isSuperAdmin: false,
         name: input.name,
         email: input.email,
@@ -123,58 +129,55 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
         isActive: input.isActive,
       });
 
-      const role = await trx.orm.public.Role.create({
-        tenantId,
-        name: `Doctor`,
-        permissions: [],
-      });
+      const profile =
+        input.type === "Doctor"
+          ? await trx.orm.public.DoctorProfile.create({
+              tenantId: tenant,
+              userId: user.id,
+              departmentId: input.departmentId as Char36,
+              employeeId: normalizedEmployeeId,
+              specialization: input.specialization,
+              qualifications: input.qualifications,
+              licenseNumber: input.licenseNumber,
+              description: input.description,
+              designation: input.designation,
+              phone: input.phone,
+              isActive: input.isActive,
+            })
+          : await trx.orm.public.StaffProfile.create({
+              tenantId: tenant,
+              userId: user.id,
+              employeeId: normalizedEmployeeId,
+              departmentId: input.departmentId as Char36,
+              wardId: input.wardId ? (input.wardId as Char36) : null,
+              shift: input.shift ?? null,
+              joiningDate: input.joiningDate ?? null,
+              phone: input.phone,
+              isActive: input.isActive,
+            });
 
-      await trx.orm.public.User.where({ id: user.id, tenantId }).update({
-        roleId: role.id,
-      });
-
-      const profile = input.type === "Doctor"
-        ? await trx.orm.public.DoctorProfile.create({
-            tenantId,
-            userId: user.id,
-            departmentId: input.departmentId as Char36,
-            employeeId: normalizedEmployeeId,
-            specialization: input.specialization,
-            qualifications: input.qualifications,
-            licenseNumber: input.licenseNumber,
-            description: input.description,
-            designation: input.designation,
-            phone: input.phone,
-            isActive: input.isActive,
-          })
-        : await trx.orm.public.StaffProfile.create({
-          tenantId: tenantId as Char<36>,
-          userId: user.id,
-          employeeId: normalizedEmployeeId,
-          departmentId: input.departmentId as Char<36>,
-          wardId: input.wardId ? input.wardId as Char<36> : null,
-          shift: input.shift ?? null,
-          joiningDate: input.joiningDate ?? null,
-          phone: input.phone,
-          isActive: input.isActive,
-          });
-
-      return { user: { id: user.id, name: user.name, email: user.email, tenantId, roleId: role.id, isActive: user.isActive }, role, profile };
+      return {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          tenantId,
+          roleId: role.id,
+          isActive: user.isActive,
+        },
+        role,
+        profile,
+      };
     });
 
-    return res.status(201).json(
-      new ApiResponse(201, { ...result, type: input.type }, `${input.type} created successfully`)
-    );
+    return res
+      .status(201)
+      .json(new ApiResponse(201, { ...result, type: input.type }, `${input.type} created successfully`));
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
     }
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      error.code === "23505"
-    ) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
       throw new ApiError(409, "A user, role, or employee ID already exists");
     }
     throw error;

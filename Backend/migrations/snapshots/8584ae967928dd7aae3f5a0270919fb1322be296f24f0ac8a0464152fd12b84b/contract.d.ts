@@ -769,6 +769,7 @@ type ContractBase = Omit<
                   readonly model: 'Tenant';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -852,6 +853,7 @@ type ContractBase = Omit<
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
+                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['userId'];
                   readonly targetFields: readonly ['id'];
@@ -1044,6 +1046,7 @@ type ContractBase = Omit<
                   readonly model: 'Tenant';
                 };
                 readonly cardinality: 'N:1';
+                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -1052,6 +1055,7 @@ type ContractBase = Omit<
               readonly role: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Role' };
                 readonly cardinality: 'N:1';
+                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['roleId'];
                   readonly targetFields: readonly ['id'];

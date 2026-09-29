@@ -82,7 +82,7 @@ export const completeOnboarding = asyncHandler(
 
       const ownerRole = await trx.orm.public.Role.create({
         tenantId: tenant.id,
-        name: `${slug}_Owner`,
+        name: `Owner`,
         permissions: [...OWNER_PERMISSIONS],
       });
 

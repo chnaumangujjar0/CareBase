@@ -1353,13 +1353,6 @@
                   "kind": "scalar"
                 }
               },
-              "permissions": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/jsonb@1",
-                  "kind": "scalar"
-                }
-              },
               "tenantId": {
                 "nullable": false,
                 "type": {
@@ -1421,9 +1414,6 @@
                 },
                 "name": {
                   "column": "name"
-                },
-                "permissions": {
-                  "column": "permissions"
                 },
                 "tenantId": {
                   "column": "tenantId"
@@ -1990,13 +1980,6 @@
                   "kind": "scalar"
                 }
               },
-              "slug": {
-                "nullable": false,
-                "type": {
-                  "codecId": "pg/text@1",
-                  "kind": "scalar"
-                }
-              },
               "state": {
                 "nullable": true,
                 "type": {
@@ -2180,9 +2163,6 @@
                 },
                 "postalCode": {
                   "column": "postalCode"
-                },
-                "slug": {
-                  "column": "slug"
                 },
                 "state": {
                   "column": "state"
@@ -2567,10 +2547,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -2873,10 +2849,6 @@
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3035,10 +3007,6 @@
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3206,10 +3174,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3299,10 +3263,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3506,10 +3466,6 @@
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3649,10 +3605,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3667,11 +3619,6 @@
                 "name": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
-                  "nullable": false
-                },
-                "permissions": {
-                  "codecId": "pg/jsonb@1",
-                  "nativeType": "jsonb",
                   "nullable": false
                 },
                 "tenantId": {
@@ -3738,10 +3685,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3847,10 +3790,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -3966,10 +3905,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -4209,10 +4144,6 @@
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -4253,11 +4184,6 @@
                   "nativeType": "text",
                   "nullable": true
                 },
-                "slug": {
-                  "codecId": "pg/text@1",
-                  "nativeType": "text",
-                  "nullable": false
-                },
                 "state": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -4276,13 +4202,7 @@
                   "id"
                 ]
               },
-              "uniques": [
-                {
-                  "columns": [
-                    "slug"
-                  ]
-                }
-              ]
+              "uniques": []
             },
             "User": {
               "columns": {
@@ -4297,10 +4217,6 @@
                 },
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -4440,10 +4356,6 @@
               "columns": {
                 "createdAt": {
                   "codecId": "pg/timestamptz-string@1",
-                  "default": {
-                    "expression": "now()",
-                    "kind": "function"
-                  },
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
@@ -4579,21 +4491,32 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "dfef3d2b7cd89582c92216e8396a902d825d27d798b732c66f015db99959660c"
+    "storageHash": "cc629ebb235285d2437f4cdc11cdb9f18a8384678f6f38c9b3cbe0b49025d3c4"
   },
   "execution": {
-    "executionHash": "f4b7ab25efe85dece6e55c9f908cd0676575a430efc3325d07d0868f615f80d3",
+    "executionHash": "33781a9ae64f9c0003a39c8d55bbf6f6025cce54389a54444971a9dc70e68537",
     "mutations": {
       "defaults": [
         {
           "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Appointment",
+            "field": "createdAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
             "id": "uuidv4",
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Appointment"
+            "entry": "Appointment",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4606,9 +4529,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Appointment"
+            "entry": "Appointment",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "AuditLog",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4617,9 +4551,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "AuditLog"
+            "entry": "AuditLog",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Bed",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4628,9 +4573,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Bed"
+            "entry": "Bed",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4643,9 +4588,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Bed"
+            "entry": "Bed",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Department",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4654,9 +4610,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Department"
+            "entry": "Department",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4669,9 +4625,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Department"
+            "entry": "Department",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "DoctorProfile",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4680,9 +4647,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "DoctorProfile"
+            "entry": "DoctorProfile",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4695,9 +4662,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "DoctorProfile"
+            "entry": "DoctorProfile",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Patient",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4706,9 +4684,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Patient"
+            "entry": "Patient",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4721,9 +4699,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Patient"
+            "entry": "Patient",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Role",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4732,9 +4721,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Role"
+            "entry": "Role",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4747,9 +4736,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Role"
+            "entry": "Role",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Room",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4758,9 +4758,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Room"
+            "entry": "Room",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4773,9 +4773,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Room"
+            "entry": "Room",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Session",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4784,9 +4795,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Session"
+            "entry": "Session",
+            "field": "id",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "StaffProfile",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4795,9 +4817,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "StaffProfile"
+            "entry": "StaffProfile",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4810,9 +4832,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "StaffProfile"
+            "entry": "StaffProfile",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Tenant",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4821,9 +4854,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Tenant"
+            "entry": "Tenant",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4836,9 +4869,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Tenant"
+            "entry": "Tenant",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "User",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4847,9 +4891,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "User"
+            "entry": "User",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4862,9 +4906,20 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "User"
+            "entry": "User",
+            "field": "updatedAt",
+            "namespace": "public"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "entry": "Ward",
+            "field": "createdAt",
+            "namespace": "public"
           }
         },
         {
@@ -4873,9 +4928,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "id",
-            "namespace": "public",
-            "table": "Ward"
+            "entry": "Ward",
+            "field": "id",
+            "namespace": "public"
           }
         },
         {
@@ -4888,9 +4943,9 @@
             "kind": "generator"
           },
           "ref": {
-            "column": "updatedAt",
-            "namespace": "public",
-            "table": "Ward"
+            "entry": "Ward",
+            "field": "updatedAt",
+            "namespace": "public"
           }
         }
       ]
@@ -4909,6 +4964,8 @@
       "checkConstraint": true,
       "defaultInInsert": true,
       "enums": true,
+      "insertOnConflictSkip": true,
+      "insertOnConflictWithoutTarget": true,
       "lateral": true,
       "returning": true,
       "scalarList": true

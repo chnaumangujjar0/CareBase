@@ -45,7 +45,6 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
     fields: {
       id: field.id.uuidv4String(),
       name: field.text(),
-      slug: field.text().unique(),
       isActive: field.boolean().default(true),
       logo: field.text(),
       favicon: field.text(),
@@ -67,7 +66,6 @@ export const contract = defineContract({}, ({ field, model, rel }) => {
       id: field.id.uuidv4String(),
       tenantId: field.uuidString(),
       name: field.text(),
-      permissions: field.json(),
       createdAt: field.temporal.createdAtString(),
       updatedAt: field.temporal.updatedAtString(),
     },

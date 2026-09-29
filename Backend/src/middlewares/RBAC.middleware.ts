@@ -46,9 +46,6 @@ export const checkAuthorizationForSuperRoles = asyncHandler(
       throw new ApiError(403, "Role not resolved for this request");
     }
  
-    // Membership check on the allow-list, not a substring check on the
-    // role name — `.includes()` belongs on SUPER_AUTHORIZED_ROLES, not on
-    // req.role.name, or a role like "OwnerAssistant" would pass as "Owner".
     const isAuthorized = SUPER_AUTHORIZED_ROLES.includes(req.role.name);
     
     if (!isAuthorized) {

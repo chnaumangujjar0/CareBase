@@ -150,7 +150,7 @@ export default function Departments() {
           <Plus size={20} /> Add Department
         </Button>
       </div>
-      {!departments && (
+      {departments && departments.length == 0 && (
             <Card className="h-100 shadow-lg border-0 department-card bg-light w-full">
               <Card.Body>
                   <div className="d-flex justify-content-center align-items-center p-4">

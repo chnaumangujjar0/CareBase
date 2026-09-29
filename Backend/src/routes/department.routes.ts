@@ -6,8 +6,10 @@ import { addDepartment, deleteDepartment, getAllDepartments, updateDepartment } 
 
 const router = Router()
 
-router.route("/:tenantId/add").post(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles,addDepartment)
-router.route("/:tenantId/all").get(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles,getAllDepartments)
-router.route("/:tenantId/update").patch(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles,updateDepartment)
-router.route("/:tenantId/delete").delete(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles,deleteDepartment)
+router.use(requireAuth,checkEligibilty,checkAuthorizationForSuperRoles)
+
+router.route("/:tenantId/add").post(addDepartment)
+router.route("/:tenantId/all").get(getAllDepartments)
+router.route("/:tenantId/update").patch(updateDepartment)
+router.route("/:tenantId/delete").delete(deleteDepartment)
 export default router
