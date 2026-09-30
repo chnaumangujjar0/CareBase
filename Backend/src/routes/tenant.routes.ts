@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { completeOnboarding, getTenantById } from "../controllers/tenant.controller";
-import { requireAuth } from "../middlewares/auth.middleware";
-import { upload } from "../middlewares/multer.middleware";
-import { checkEligibilty } from "../middlewares/RBAC.middleware";
+import { completeOnboarding, getTenantById } from "../controllers/tenant.controller.js";
+import { requireAuth } from "../middlewares/auth.middleware.js";
+import { upload } from "../middlewares/multer.middleware.js";
+import { checkEligibilty } from "../middlewares/RBAC.middleware.js";
 
 const router = Router()
 

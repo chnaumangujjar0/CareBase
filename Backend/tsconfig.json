@@ -10,9 +10,9 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "rootDir": "src",
     "outDir": "dist"
   },
-  "include": [
-    "**/*.ts"
-, "src/prisma/contract.prisma"  ]
+  "include": ["src/**/*.ts"],
+  "exclude": ["dist", "migrations", "node_modules"]
 }

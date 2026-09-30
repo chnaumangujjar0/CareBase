@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { requireAuth } from "../middlewares/auth.middleware";
+import { requireAuth } from "../middlewares/auth.middleware.js";
 
-import { checkAuthorizationForSuperRoles, checkEligibilty } from "../middlewares/RBAC.middleware";
-import { addStaff } from "../controllers/staff.controller";
+import { checkAuthorizationForSuperRoles, checkEligibilty } from "../middlewares/RBAC.middleware.js";
+import { addStaff } from "../controllers/staff.controller.js";
 
 const router = Router()
 

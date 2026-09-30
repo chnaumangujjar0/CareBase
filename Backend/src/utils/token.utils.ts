@@ -1,12 +1,11 @@
+import { randomUUID } from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import { ApiError } from "./apiError.js";
-import { db } from "../prisma/db.js";
-import { Temporal } from "temporal-polyfill";
-import { Char } from "@prisma/orm-postgres/target/codec-types";
-import { sessionResponse } from "../types/session.types.js";
+import { db } from "../db/index.js";
+import { char36Schema } from "../types/tenant.types.js";
+import type { RefreshTokenPayload, SessionResponse } from "../types/session.types.js";
 const DEFAULT_SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 30; // 30 days fallback
-import bcrypt from "bcrypt"
 const getRequiredEnv = (key: string) => {
   const value = process.env[key];
   if (!value) {
@@ -15,7 +14,7 @@ const getRequiredEnv = (key: string) => {
   return value;
 };
 
-const parseExpiryToMs = (expiry?: string): Temporal.Instant => {
+const parseExpiryToDate = (expiry?: string): Date => {
   const ms = expiry
     ? (() => {
         const value = Number(expiry.slice(0, -1));
@@ -32,15 +31,15 @@ const parseExpiryToMs = (expiry?: string): Temporal.Instant => {
       })()
     : DEFAULT_SESSION_TTL_MS;
 
-  return Temporal.Instant.fromEpochMilliseconds(Date.now() + ms);
+  return new Date(Date.now() + ms);
 };
 
 
 export const generateAccessAndRefreshToken = async (
-  userId: any,
+  userId: string,
   meta: { userAgent?: string; ipAddress?: string  } = {}
 ) => {
-  const user = await db.orm.public.User.where({ id: userId }).first();
+  const user = await db.user.findUnique({ where: { id: userId } });
   if (!user) {
     throw new ApiError(404, "User not found while generating tokens");
   }
@@ -63,12 +62,14 @@ export const generateAccessAndRefreshToken = async (
       }
     );
 
-    const session = await db.orm.public.Session.create({
-      userId: user.id,
-      tokenHash: "pending",
-      ipAddress: meta.ipAddress || null,
-      userAgent: meta.userAgent || null,
-      expiresAt: parseExpiryToMs(refreshExpiry),
+    const session = await db.session.create({
+      data: {
+        userId: user.id,
+        tokenHash: randomUUID(),
+        ipAddress: meta.ipAddress || null,
+        userAgent: meta.userAgent || null,
+        expiresAt: parseExpiryToDate(refreshExpiry),
+      },
     });
 
     const refreshToken = jwt.sign(
@@ -77,7 +78,10 @@ export const generateAccessAndRefreshToken = async (
       { expiresIn: refreshExpiry as SignOptions["expiresIn"] }
     );
     
-    const updatedSession = await db.orm.public.Session.where({id: session.id}).update({tokenHash:refreshToken})
+    await db.session.update({
+      where: { id: session.id },
+      data: { tokenHash: refreshToken },
+    });
 
     return { accessToken, refreshToken };
   } catch (error) {
@@ -88,30 +92,13 @@ export const generateAccessAndRefreshToken = async (
   }
 };
 
-interface refreshTokenPayload {
-  sid: Char<36>;
-  _id: Char<36>;
-}
-
-export const verifySessionFromRefreshToken = async (incomingRefreshToken: string): Promise<sessionResponse> => {
-  let decoded:refreshTokenPayload;
-  
-  try {
-    decoded = jwt.verify(
-      incomingRefreshToken,
-      process.env.REFRESH_TOKEN_SECRET as string
-    ) as refreshTokenPayload;
-  } catch (error) {
-    throw new ApiError(401, "Refresh token is invalid or expired");
-  }
-  const session = (await db.orm.public.Session.where({
-    id: decoded.sid as Char<36>,
-  }).first()) as sessionResponse | null;
-  const now = Temporal.Now.instant();
+export const verifySessionFromRefreshToken = async (incomingRefreshToken: string): Promise<SessionResponse> => {
+  const decoded = decodeRefreshToken(incomingRefreshToken);
+  const session = await db.session.findUnique({ where: { id: decoded.sid } });
   if (
     !session ||
     session.revokedAt ||
-    Temporal.Instant.compare(session.expiresAt,now) < 0
+    session.expiresAt.getTime() < Date.now()
   ) {
     throw new ApiError(401, "Session is expired or has been revoked");
   }
@@ -119,20 +106,41 @@ export const verifySessionFromRefreshToken = async (incomingRefreshToken: string
   if (session.userId !== decoded._id) {
     throw new ApiError(401, "Refresh token does not match session");
   }
-  
-
 
   return { decoded, session };
+};
+
+const decodeRefreshToken = (incomingRefreshToken: string): RefreshTokenPayload => {
+  let decoded: string | jwt.JwtPayload;
+  try {
+    decoded = jwt.verify(
+      incomingRefreshToken,
+      getRequiredEnv("REFRESH_TOKEN_SECRET")
+    );
+  } catch {
+    throw new ApiError(401, "Refresh token is invalid or expired");
+  }
+  if (typeof decoded !== "object" || decoded === null) {
+    throw new ApiError(401, "Refresh token is invalid or expired");
+  }
+
+  const sid = char36Schema.safeParse(decoded.sid);
+  const userId = char36Schema.safeParse(decoded._id);
+  if (!sid.success || !userId.success) {
+    throw new ApiError(401, "Refresh token is invalid or expired");
+  }
+  return { sid: sid.data, _id: userId.data };
 };
 
 export const revokeSessionByRefreshToken = async (incomingRefreshToken: string) => {
   if (!incomingRefreshToken) return;
   try {
-    const decoded = jwt.verify(incomingRefreshToken,process.env.REFRESH_TOKEN_SECRET as string) as refreshTokenPayload
-    if (decoded?.sid) {
-      await db.orm.public.Session.where({id: decoded.sid}).update({revokedAt:  Temporal.Instant.fromEpochMilliseconds(Date.now()) })
-    }
-  } catch (error) {
+    const decoded = decodeRefreshToken(incomingRefreshToken);
+    await db.session.update({
+      where: { id: decoded.sid },
+      data: { revokedAt: new Date() },
+    });
+  } catch {
     throw new ApiError(400,"someting wrong in revoked date")
   }
 };

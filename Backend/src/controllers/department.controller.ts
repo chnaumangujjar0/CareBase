@@ -1,19 +1,30 @@
 import { Request, Response } from "express";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
-import { db } from "../db";
-import { Char36 } from "../types/tenant.types";
-import { ApiResponse } from "../utils/apiResponse";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { db } from "../db/index.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { char36Schema } from "../types/tenant.types.js";
+import type { Prisma } from "../generated/prisma/client.js";
 import { z } from "zod";
 
-export const addDepartment = asyncHandler(async(req:Request,res:Response) => {
-    const {name, isActive = true} = req.body
+const createDepartmentSchema = z.object({
+  name: z.string().trim().min(1, "Department name is required"),
+  isActive: z.boolean().default(true),
+});
 
-    if(!name.trim()){
-        throw new ApiError(400,"Department name is required!")
+export const addDepartment = asyncHandler(async(req:Request,res:Response) => {
+    const parsed = createDepartmentSchema.safeParse(req.body);
+    if (!parsed.success) {
+        throw new ApiError(400, parsed.error.issues[0]?.message ?? "Invalid department details");
+    }
+    const tenantId = req.user?.tenantId;
+    if (!tenantId) {
+        throw new ApiError(401, "Authenticated tenant context is required");
     }
 
-    const dep = await db.orm.public.Department.create({name:name.trim(),tenantId:req.user?.tenantId as Char36,isActive})
+    const dep = await db.department.create({
+      data: { ...parsed.data, tenantId },
+    });
 
     if(!dep){
         throw new ApiError(400,"Error while creating this department.")
@@ -29,8 +40,15 @@ export const addDepartment = asyncHandler(async(req:Request,res:Response) => {
 })
 
 export const getAllDepartments = asyncHandler(async (req:Request,res:Response) => {
-    const {tenantId} = req.params
-    const departments = await db.orm.public.Department.where({tenantId:tenantId as Char36}).all()
+    const rawTenantId = Array.isArray(req.params.tenantId)
+      ? req.params.tenantId[0]
+      : req.params.tenantId;
+    const parsedTenantId = char36Schema.safeParse(rawTenantId);
+    if (!parsedTenantId.success) {
+      throw new ApiError(400, "A valid tenant id is required");
+    }
+    const tenantId = parsedTenantId.data;
+    const departments = await db.department.findMany({ where: { tenantId } });
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -42,17 +60,12 @@ export const getAllDepartments = asyncHandler(async (req:Request,res:Response) =
 
 
 const updateDepartmentSchema = z.object({
-    departmentId: z.string().min(1, "Department id is required"),
+    departmentId: char36Schema,
     name: z.string().trim().min(1, "Name cannot be empty").max(150).optional(),
     isActive: z.boolean().optional(),
   }).refine((data) => data.name !== undefined || data.isActive !== undefined, {
     message: "At least one field (name or isActive) is required to update.",
   });
- 
-interface DepartmentUpdatePayload {
-  name?: string;
-  isActive?: boolean;
-}
  
 export const updateDepartment = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user?.tenantId) {
@@ -65,19 +78,16 @@ export const updateDepartment = asyncHandler(async (req: Request, res: Response)
   }
   const { departmentId, name, isActive } = parsed.data;
  
-  const tenantId = req.user.tenantId as Char36
-  const deptId = departmentId as Char36;
+  const tenantId = req.user.tenantId;
+  const deptId = departmentId;
  
-  const department = await db.orm.public.Department.where({
-    id: deptId,
-    tenantId,
-  }).first();
+  const department = await db.department.findFirst({ where: { id: deptId, tenantId } });
  
   if (!department) {
     throw new ApiError(404, "Department not found");
   }
  
-  const payload: DepartmentUpdatePayload = {};
+  const payload: Prisma.DepartmentUpdateInput = {};
  
   if (name !== undefined) {
     if (department.name === name) {
@@ -92,11 +102,10 @@ export const updateDepartment = asyncHandler(async (req: Request, res: Response)
     }
     payload.isActive = isActive;
   }
- console.log(payload);
-  const updated = await db.orm.public.Department.where({
-    id: deptId,
-    tenantId,
-  }).update(payload);
+  const updated = await db.department.update({
+    where: { id: deptId, tenantId },
+    data: payload,
+  });
  
   return res
     .status(200)
@@ -108,18 +117,16 @@ export const deleteDepartment = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(401, "Authentication required");
   }
  
-  const { departmentId } = req.body;
-  if (!departmentId) {
-    throw new ApiError(400, "Department id is required");
+  const parsed = z.object({ departmentId: char36Schema }).safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, "A valid department id is required");
   }
+  const { departmentId } = parsed.data;
  
-  const tenantId = req.user.tenantId as Char36
-  const deptId = departmentId as Char36
+  const tenantId = req.user.tenantId;
+  const deptId = departmentId;
  
-  const department = await db.orm.public.Department.where({
-    id: deptId,
-    tenantId,
-  }).first();
+  const department = await db.department.findFirst({ where: { id: deptId, tenantId } });
  
   if (!department) {
     throw new ApiError(404, "Department not found");
@@ -127,18 +134,18 @@ export const deleteDepartment = asyncHandler(async (req: Request, res: Response)
  
 
   const [doctorCount, appointmentCount] = await Promise.all([
-    db.orm.public.DoctorProfile.where({ departmentId: deptId, tenantId }).aggregate((a) => ({ total: a.count() })),
-    db.orm.public.Appointment.where({ departmentId: deptId, tenantId }).aggregate((a) => ({ total: a.count() })),
+    db.doctorProfile.count({ where: { departmentId: deptId, tenantId } }),
+    db.appointment.count({ where: { departmentId: deptId, tenantId } }),
   ]);
  
-  if (Number(doctorCount.total) > 0 || Number(appointmentCount.total) > 0) {
+  if (doctorCount > 0 || appointmentCount > 0) {
     throw new ApiError(
       409,
       "Cannot delete a department that still has doctors or appointments assigned to it. Reassign or remove them first."
     );
   }
  
-  await db.orm.public.Department.where({ id: deptId, tenantId }).delete();
+  await db.department.delete({ where: { id: deptId, tenantId } });
  
   return res
     .status(200)

@@ -1,4 +1,4 @@
-export class ApiResponse<T = any> {
+export class ApiResponse<T = unknown> {
   public statusCode: number;
   public data: T;
   public message: string;

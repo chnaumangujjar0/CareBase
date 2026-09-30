@@ -135,3 +135,4 @@ dist/
 # .cursor/rules/
 # If you DO want to track your own custom rules, but ignore Prisma's generated ones:
 # .cursor/rules/prisma-*.mdc
+/src/generated/prisma

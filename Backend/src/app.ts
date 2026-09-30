@@ -28,11 +28,11 @@ app.use(cookieParser())
 
 // roter imports
 
-import userRouter from "./routes/user.routes"
+import userRouter from "./routes/user.routes.js"
 import { errorHandler } from "./middlewares/error.middleware";
-import tenantRouter from "./routes/tenant.routes"
-import departmentRouter from "./routes/department.routes"
-import staffRouter from "./routes/staff.routes"
+import tenantRouter from "./routes/tenant.routes.js"
+import departmentRouter from "./routes/department.routes.js"
+import staffRouter from "./routes/staff.routes.js"
 // routes intialization
 app.use("/api/v1/user",userRouter)
 app.use(errorHandler)

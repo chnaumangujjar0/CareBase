@@ -2,17 +2,17 @@ import { z } from "zod";
 
 export const OWNER_PERMISSIONS = ["*"] as const;
 
-export const SAFE_USER_FIELDS = [
-  "id",
-  "name",
-  "email",
-  "tenantId",
-  "roleId",
-  "isActive",
-  "createdAt",
-  "updatedAt",
-  "isSuperAdmin"
-] as const;
+export const SAFE_USER_SELECT = {
+  id: true,
+  name: true,
+  email: true,
+  tenantId: true,
+  roleId: true,
+  isActive: true,
+  createdAt: true,
+  updatedAt: true,
+  isSuperAdmin: true,
+} as const;
 
 export const completeOnboardingSchema = z.object({
   tenantName: z

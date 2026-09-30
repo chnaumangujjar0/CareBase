@@ -1,13 +1,12 @@
 import { Request, Response } from "express";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
-import { db } from "../prisma/db"; 
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { db } from "../db/index.js";
 import bcrypt from "bcrypt"
-import { getRequestMeta } from "../utils/device.utils";
-import { generateAccessAndRefreshToken, verifySessionFromRefreshToken,revokeSessionByRefreshToken } from "../utils/token.utils";
-import { ApiResponse } from "../utils/apiResponse";
-import { SAFE_USER_FIELDS } from "../utils/tenant.utils";
-import type { Char } from "@prisma/orm-postgres/target/codec-types";
+import { getRequestMeta } from "../utils/device.utils.js";
+import { generateAccessAndRefreshToken, verifySessionFromRefreshToken,revokeSessionByRefreshToken } from "../utils/token.utils.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
 import jwt from "jsonwebtoken";
 const options = {
   httpOnly: true,
@@ -17,12 +16,6 @@ const options = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 8;
-
-interface role {
-  id: string;
-  name: string;
-  permissions: string;
-}
 
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
@@ -49,9 +42,7 @@ interface role {
  
   const normalizedEmail = email.toLowerCase().trim();
  
-  const existingUser = await db.orm.public.User.where({
-    email: normalizedEmail,
-  }).first();
+  const existingUser = await db.user.findUnique({ where: { email: normalizedEmail } });
  
   if (existingUser) {
     throw new ApiError(409, "User with this email already exists");
@@ -61,15 +52,17 @@ interface role {
  
   let newUser;
   try {
-    newUser = await db.orm.public.User.create({
-      name: name.trim(),
-      email: normalizedEmail,
-      passwordHash,
-      isSuperAdmin: true,
-      isActive: true,
+    newUser = await db.user.create({
+      data: {
+        name: name.trim(),
+        email: normalizedEmail,
+        passwordHash,
+        isSuperAdmin: true,
+        isActive: true,
+      },
     });
   } catch (error: any) {
-    if (error?.code === "23505") {
+    if (error?.code === "P2002") {
       throw new ApiError(409, "User with this email already exists");
     }
     throw error;
@@ -81,9 +74,10 @@ interface role {
     ipAddress: ipAddress ?? undefined,
   });
  
-  const safeUser = await db.orm.public.User.where({ id: newUser.id })
-    .select(...SAFE_USER_FIELDS,"isSuperAdmin")
-    .first();
+  const safeUser = await db.user.findUnique({
+    where: { id: newUser.id },
+    select: SAFE_USER_SELECT,
+  });
  
   return res.status(201).json(
     new ApiResponse(
@@ -103,7 +97,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
 
   const normalizedEmail = email.toLowerCase().trim();
 
-  const user = await db.orm.public.User.where({ email: normalizedEmail }).first();
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } });
 
   if (!user) {
     throw new ApiError(401, "Invalid email or password");
@@ -124,11 +118,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     ipAddress: ipAddress ?? undefined,
   });
 
-  const loggedInUser = await db.orm.public.User.where({ id: user.id })
-    .select(...SAFE_USER_FIELDS)
-    .first();
+  const loggedInUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: SAFE_USER_SELECT,
+  });
 
-    const userRole = await db.orm.public.Role.where({id: loggedInUser?.roleId}).first()
+  const userRole = loggedInUser?.roleId
+    ? await db.role.findUnique({ where: { id: loggedInUser.roleId } })
+    : null;
     
   return res
     .status(200)
@@ -152,7 +149,10 @@ export const  refreshAccessToken = asyncHandler(async (req: Request,res: Respons
 
   const { decoded } = await verifySessionFromRefreshToken(incomingRefreshToken);
 
-  const user = await db.orm.public.User.where({id: decoded._id}).select(...SAFE_USER_FIELDS).first();
+  const user = await db.user.findUnique({
+    where: { id: decoded._id },
+    select: SAFE_USER_SELECT,
+  });
   if (!user) {
     throw new ApiError(400, "User not found");
   }
@@ -181,9 +181,9 @@ export const  refreshAccessToken = asyncHandler(async (req: Request,res: Respons
 })
 
 export const currentUser = asyncHandler(async (req:Request, res:Response) => {
-    const ownerRole = await db.orm.public.Role
-      .where({ id: req.user?.roleId as Char<36> })
-      .first();
+    const ownerRole = req.user?.roleId
+      ? await db.role.findUnique({ where: { id: req.user.roleId } })
+      : null;
 
       const user = {...req.user, role: ownerRole?.name}
   return res

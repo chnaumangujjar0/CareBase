@@ -1,9 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
-import { asyncHandler } from "../utils/asyncHandler";
-import { db } from "../db";
-import { ApiError } from "../utils/apiError";
-import { Char36 } from "../types/tenant.types";
-import { Role } from "../types/user.types";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { db } from "../db/index.js";
+import { ApiError } from "../utils/apiError.js";
+import { char36Schema } from "../types/tenant.types.js";
 
 
 const SUPER_AUTHORIZED_ROLES: Array<string> = ["Owner", "Admin"];
@@ -14,10 +13,15 @@ export const checkEligibilty = asyncHandler(
       throw new ApiError(401, "Authentication required");
     }
 
-    const { tenantId } = req.params;
-    if (!tenantId || typeof tenantId !== "string") {
-      throw new ApiError(400, "tenantId is required");
+    const routeTenantId = Array.isArray(req.params.tenantId)
+      ? req.params.tenantId[0]
+      : req.params.tenantId;
+    const rawTenantId = routeTenantId ?? req.user.tenantId;
+    const parsedTenantId = char36Schema.safeParse(rawTenantId);
+    if (!parsedTenantId.success) {
+      throw new ApiError(403, "A valid tenant context is required");
     }
+    const tenantId = parsedTenantId.data;
 
     if (req.user.tenantId !== tenantId) {
       throw new ApiError(401, "Unauthorized");
@@ -27,15 +31,14 @@ export const checkEligibilty = asyncHandler(
       throw new ApiError(403, "No role assigned for this tenant");
     }
 
-    const role = await db.orm.public.Role.where({
-      id: req.user.roleId as Char36,
-      tenantId: tenantId as Char36,
-    }).first();
+    const role = await db.role.findFirst({
+      where: { id: req.user.roleId, tenantId },
+    });
 
     if (!role) {
       throw new ApiError(403, "You do not have access to this tenant");
     }
-    req.role = role as Role
+    req.role = role
     next();
   }
 );

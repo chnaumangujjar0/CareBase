@@ -1,17 +1,14 @@
-export interface AuthenticatedUser {
-  id: string;
-  email: string;
-  name: string;
-  tenantId: string | null;
-  roleId: string | null;
-  isSuperAdmin: boolean;
-  isActive: boolean;
-}
+import type { Role, User } from "../generated/prisma/client.js";
 
-export interface Role {
-  id: string;
-  name: string;
-  permissions: string;
-  createdAt: string;
-  updatedAt: string;
-}
+export type AuthenticatedUser = Pick<
+  User,
+  | "id"
+  | "email"
+  | "name"
+  | "tenantId"
+  | "roleId"
+  | "isSuperAdmin"
+  | "isActive"
+>;
+
+export type { Role };

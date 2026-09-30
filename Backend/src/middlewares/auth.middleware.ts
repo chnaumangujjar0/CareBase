@@ -1,10 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { asyncHandler } from "../utils/asyncHandler"; 
-import { ApiError } from "../utils/apiError";
-import { db } from "../prisma/db"; 
-import { SAFE_USER_FIELDS } from "../utils/tenant.utils";
-import { AuthenticatedUser, Role } from "../types/user.types";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { db } from "../db/index.js";
+import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
+import { AuthenticatedUser, Role } from "../types/user.types.js";
 
 
 declare global {
@@ -56,11 +56,10 @@ export const requireAuth = asyncHandler(
       throw new ApiError(401, "Invalid access token");
     }
 
-    const user = await db.orm.public.User.where({
-      id: payload.id as Char36,
-    })
-      .select(...SAFE_USER_FIELDS)
-      .first();
+    const user = await db.user.findUnique({
+      where: { id: payload.id as Char36 },
+      select: SAFE_USER_SELECT,
+    });
 
     if (!user) {
       throw new ApiError(401, "Invalid access token");

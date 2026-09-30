@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler } from "express";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
 
 export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
   const apiError = error instanceof ApiError

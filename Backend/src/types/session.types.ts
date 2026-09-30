@@ -1,12 +1,11 @@
-import { Char } from "@prisma/orm-postgres/target/codec-types";
+import type { Session } from "../generated/prisma/client.js";
 
-export interface sessionResponse {
-    id: Char<36>;
-    userId: Char<36>;
-    tokenHash: string;
-      ipAddress: string,
-      userAgent: string,
-      expiresAt: Date, 
-      revokedAt: Date,
-      createdAt: Date,
+export interface RefreshTokenPayload {
+  sid: string;
+  _id: string;
+}
+
+export interface SessionResponse {
+  decoded: RefreshTokenPayload;
+  session: Session;
 }

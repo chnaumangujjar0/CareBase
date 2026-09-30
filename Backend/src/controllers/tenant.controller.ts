@@ -1,18 +1,18 @@
 import type { Request, Response } from "express";
-import type { Char } from "@prisma/orm-postgres/target/codec-types";
-import { db } from "../prisma/db";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
-import { uploadToCloudinary } from "../utils/cloudinary";
+import { db } from "../db/index.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
+import { uploadToCloudinary } from "../utils/cloudinary.js";
 import {
   completeOnboardingSchema,
   emptyOptionalFields,
   OWNER_PERMISSIONS,
-  SAFE_USER_FIELDS,
+  SAFE_USER_SELECT,
   slugifyTenantName,
-} from "../utils/tenant.utils";
-import { Tenant } from "../types/tenant.types";
+} from "../utils/tenant.utils.js";
+import { char36Schema } from "../types/tenant.types.js";
+import type { Tenant } from "../types/tenant.types.js";
 
 type AuthenticatedRequest = Request & {
   user?: Request["user"] & { id: string };
@@ -56,8 +56,8 @@ export const completeOnboarding = asyncHandler(
       favicon = faviconUpload.secure_url;
     }
 
-    const result = await db.transaction(async (trx) => {
-      const user = await trx.orm.public.User.where({ id: userId as Char<36> }).first();
+    const result = await db.$transaction(async (trx) => {
+      const user = await trx.user.findUnique({ where: { id: userId } });
 
       if (!user) {
         throw new ApiError(404, "User not found");
@@ -72,35 +72,39 @@ export const completeOnboarding = asyncHandler(
 
       const slug = slugifyTenantName(tenantName, userId);
 
-      const tenant = await trx.orm.public.Tenant.create({
-        name: tenantName,
-        slug,
-        logo,
-        favicon,
-        ...emptyOptionalFields({ tenantName, ...location }),
+      const tenant = await trx.tenant.create({
+        data: {
+          name: tenantName,
+          slug,
+          logo,
+          favicon,
+          ...emptyOptionalFields({ tenantName, ...location }),
+        },
       });
 
-      const ownerRole = await trx.orm.public.Role.create({
-        tenantId: tenant.id,
-        name: `Owner`,
-        permissions: [...OWNER_PERMISSIONS],
+      const ownerRole = await trx.role.create({
+        data: {
+          tenantId: tenant.id,
+          name: `Owner`,
+          permissions: [...OWNER_PERMISSIONS],
+        },
       });
 
-      await trx.orm.public.User.where({ id: user.id }).update({
-        tenantId: tenant.id,
-        roleId: ownerRole.id,
+      await trx.user.update({
+        where: { id: user.id },
+        data: { tenantId: tenant.id, roleId: ownerRole.id },
       });
 
-      const safeUser = await trx.orm.public.User.where({ id: user.id })
-        .select(...SAFE_USER_FIELDS)
-        .first();
+      const safeUser = await trx.user.findUnique({
+        where: { id: user.id },
+        select: SAFE_USER_SELECT,
+      });
 
         
       if (!safeUser) {
         throw new ApiError(500, "Unable to retrieve the onboarded user");
       }
-      safeUser.role = ownerRole.name
-      return { user: safeUser, tenant };
+      return { user: { ...safeUser, role: ownerRole.name }, tenant };
     });
 
     return res
@@ -116,18 +120,39 @@ export const completeOnboarding = asyncHandler(
 );
 
 export const getTenantById = asyncHandler(async (req:Request,res:Response) => {
-  const {tenantId} = req.params
+  const rawTenantId = Array.isArray(req.params.tenantId)
+    ? req.params.tenantId[0]
+    : req.params.tenantId;
+  const parsedTenantId = char36Schema.safeParse(rawTenantId);
+  if (!parsedTenantId.success) {
+    throw new ApiError(400, "A valid tenant id is required");
+  }
 
-  const tenant = await db.orm.public.Tenant.where({id: tenantId as Char<36>}).first() as Tenant
+  const tenant = await db.tenant.findUnique({
+    where: { id: parsedTenantId.data },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      logo: true,
+      favicon: true,
+      address: true,
+      city: true,
+      state: true,
+      country: true,
+      postalCode: true,
+    },
+  });
 
   if(!tenant) {
     throw new ApiError(400,"Tenent does not exist.")
   }
 
+  const tenantResponse: Tenant = tenant;
   res.status(200).json(
-    new ApiResponse(
+    new ApiResponse<Tenant>(
       200,
-      tenant,
+      tenantResponse,
       "Tenent fetched Successfully!"
     )
   )

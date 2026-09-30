@@ -5,17 +5,20 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node --env-file=.env dist/index.js",
+    "start": "tsx --env-file=.env dist/index.js",
     "dev": "tsx watch --env-file=.env src/index.ts",
-    "postinstall": "prisma skills sync || exit 0",
-    "contract:emit": "prisma contract emit"
+    "postinstall": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "@prisma/orm-postgres": "8.0.0-rc.13",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
     "bcrypt": "^6.0.0",
@@ -29,7 +32,7 @@
     "nodemon": "^3.1.14",
     "pg": "^8.23.0",
     "socket.io": "^4.8.3",
-    "temporal-polyfill": "^1.0.5",
+    "tsx": "^4.23.13",
     "ua-parser-js": "^2.0.10",
     "zod": "^4.6.2"
   },
@@ -40,14 +43,12 @@
     "workerd@1.20260704.1": true
   },
   "devDependencies": {
-    "@prisma/cli-engine": "0.6.1",
     "@types/bcrypt": "^6.0.0",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^26.5.0",
     "@types/ua-parser-js": "^0.7.39",
-    "prisma": "8.0.0-rc.19",
-    "tsx": "^4.23.13",
+    "prisma": "^7.10.0",
     "typescript": "^7.0.2"
   }
 }
