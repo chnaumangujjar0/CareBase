@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Tenant as PrismaTenant } from "../generated/prisma/client.js";
+import type { Tenant as PrismaTenant } from "../generated/prisma/index.js";
 
 export type Tenant = Pick<
   PrismaTenant,

@@ -4,7 +4,7 @@ import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/index.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { char36Schema } from "../types/tenant.types.js";
-import type { Prisma } from "../generated/prisma/client.js";
+import type { Prisma } from "../generated/prisma/index.js";
 import { z } from "zod";
 
 const createDepartmentSchema = z.object({
@@ -87,7 +87,7 @@ export const updateDepartment = asyncHandler(async (req: Request, res: Response)
     throw new ApiError(404, "Department not found");
   }
  
-  const payload: Prisma.DepartmentUpdateInput = {};
+  const payload: Prisma.DepartmentUncheckedUpdateInput = {};
  
   if (name !== undefined) {
     if (department.name === name) {

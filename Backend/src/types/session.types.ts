@@ -1,4 +1,4 @@
-import type { Session } from "../generated/prisma/client.js";
+import type { Session } from "../generated/prisma/index.js";
 
 export interface RefreshTokenPayload {
   sid: string;

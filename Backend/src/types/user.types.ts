@@ -1,4 +1,4 @@
-import type { Role, User } from "../generated/prisma/client.js";
+import type { Role, User } from "../generated/prisma/index.js";
 
 export type AuthenticatedUser = Pick<
   User,

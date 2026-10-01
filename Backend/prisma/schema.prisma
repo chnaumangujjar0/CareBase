@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client"
+  provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
@@ -7,28 +7,31 @@ datasource db {
   provider = "postgresql"
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model Appointment {
-  createdAt                        DateTime      @default(now()) @db.Timestamptz(6)
-  createdBy                        String?       @db.Char(36)
-  departmentId                     String        @db.Char(36)
-  doctorId                         String        @db.Char(36)
-  durationMinutes                  Int           @default(30)
-  id                               String        @id @default(uuid()) @db.Char(36)
-  notes                            String?
-  patientId                        String        @db.Char(36)
-  scheduledAt                      DateTime      @db.Timestamptz(6)
-  status                           String        @default("booked")
-  tenantId                         String        @db.Char(36)
-  updatedAt                        DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
-  updatedBy                        String?       @db.Char(36)
-  version                          Int           @default(1)
-  User_Appointment_createdByToUser User?         @relation("Appointment_createdByToUser", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
-  Department                       Department    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "appointment_departmentId_fkey")
-  DoctorProfile                    DoctorProfile @relation(fields: [doctorId], references: [id], onUpdate: NoAction, map: "appointment_doctorId_fkey")
-  Patient                          Patient       @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
-  Tenant                           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
-  User_Appointment_updatedByToUser User?         @relation("Appointment_updatedByToUser", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
+  id              String   @id @default(uuid()) @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  scheduledAt     DateTime @db.Timestamptz(6)
+  durationMinutes Int      @default(30)
+  status          String   @default("booked")
+  notes           String?
+  version         Int      @default(1)
+
+  // Foreign Keys
+  tenantId        String   @db.Uuid
+  departmentId    String   @db.Uuid
+  doctorId        String   @db.Uuid
+  patientId       String   @db.Uuid
+  createdBy       String?  @db.Uuid
+  updatedBy       String?  @db.Uuid
+
+  // Relations
+  Tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
+  Department      Department    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "appointment_departmentId_fkey")
+  DoctorProfile   DoctorProfile @relation(fields: [doctorId], references: [id], onUpdate: NoAction, map: "appointment_doctorId_fkey")
+  Patient         Patient       @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
+  Creator         User?         @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
+  Updater         User?         @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
 
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
   @@index([departmentId], map: "Appointment_departmentId_idx_8e261ed8")
@@ -41,17 +44,19 @@ model Appointment {
 }
 
 model AuditLog {
-  action     String
+  id         String   @id @default(uuid()) @db.Uuid
   createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  entityId   String?  @db.Char(36)
+  action     String
   entityType String
-  id         String   @id @default(uuid()) @db.Char(36)
-  ipAddress  String?
-  newValue   Json?
+  entityId   String?  @db.Uuid
   oldValue   Json?
-  tenantId   String?  @db.Char(36)
+  newValue   Json?
+  ipAddress  String?
   userAgent  String?
-  userId     String?  @db.Char(36)
+  
+  tenantId   String?  @db.Uuid
+  userId     String?  @db.Uuid
+
   Tenant     Tenant?  @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "auditLog_tenantId_fkey")
   User       User?    @relation(fields: [userId], references: [id], onUpdate: NoAction, map: "auditLog_userId_fkey")
 
@@ -61,20 +66,21 @@ model AuditLog {
   @@index([userId], map: "AuditLog_userId_idx_a489d58a")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model Bed {
-  code             String
+  id               String   @id @default(uuid()) @db.Uuid
   createdAt        DateTime @default(now()) @db.Timestamptz(6)
-  currentPatientId String?  @db.Char(36)
-  id               String   @id @default(uuid()) @db.Char(36)
-  roomId           String   @db.Char(36)
-  status           String   @default("available")
-  tenantId         String   @db.Char(36)
   updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  code             String
+  status           String   @default("available")
   version          Int      @default(1)
-  Patient          Patient? @relation(fields: [currentPatientId], references: [id], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
+
+  roomId           String   @db.Uuid
+  tenantId         String   @db.Uuid
+  currentPatientId String?  @db.Uuid
+
   Room             Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_roomId_fkey")
   Tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_tenantId_fkey")
+  Patient          Patient? @relation(fields: [currentPatientId], references: [id], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
 
   @@unique([roomId, code], map: "bed_room_code_key_aff24a4e")
   @@index([currentPatientId], map: "Bed_currentPatientId_idx_41689716")
@@ -83,14 +89,16 @@ model Bed {
 }
 
 model Department {
+  id            String          @id @default(uuid()) @db.Uuid
   createdAt     DateTime        @default(now()) @db.Timestamptz(6)
-  id            String          @id @default(uuid()) @db.Char(36)
-  isActive      Boolean         @default(true)
-  name          String
-  tenantId      String          @db.Char(36)
   updatedAt     DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
-  Appointment   Appointment[]
+  name          String
+  isActive      Boolean         @default(true)
+  
+  tenantId      String          @db.Uuid
   Tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "department_tenantId_fkey")
+  
+  Appointment   Appointment[]
   DoctorProfile DoctorProfile[]
   StaffProfile  StaffProfile[]
   Ward          Ward[]
@@ -100,50 +108,75 @@ model Department {
 }
 
 model DoctorProfile {
-  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
-  departmentId   String        @db.Char(36)
-  id             String        @id @default(uuid()) @db.Char(36)
-  isActive       Boolean       @default(true)
-  licenseNumber  String?
-  qualifications String?
-  specialization String
-  tenantId       String        @db.Char(36)
-  updatedAt      DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
-  userId         String        @unique @db.Char(36)
-  description    String?
-  designation    String?
-  phone          String        @unique
-  employeeId     String
-  Appointment    Appointment[]
-  Department     Department    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
-  Tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_tenantId_fkey")
-  User           User          @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_userId_fkey")
+  id                 String               @id @default(uuid()) @db.Uuid
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  isActive           Boolean              @default(true)
+  employeeId         String
+  designation        String?
+  specialization     String
+  qualifications     String?
+  licenseNumber      String?
+  description        String?
+  phone              String               @unique
+
+  userId             String               @unique @db.Uuid
+  tenantId           String               @db.Uuid
+  departmentId       String               @db.Uuid
+
+  User               User                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_userId_fkey")
+  Tenant             Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_tenantId_fkey")
+  Department         Department           @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
+  
+  Appointment        Appointment[]
+  DoctorAvailability DoctorAvailability[]
 
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "DoctorProfile_tenantId_idx_c93ed4f1")
+  @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// Day and minute bounds are enforced by CHECK constraints in SQL migrations.
+model DoctorAvailability {
+  id            String        @id @default(uuid()) @db.Uuid
+  dayOfWeek     Int           // 0 = Sunday ... 6 = Saturday
+  startMinute   Int           // Minutes after midnight
+  endMinute     Int           // Exclusive end, at most 1440
+  isActive      Boolean       @default(true)
+
+  doctorId      String        @db.Uuid
+  tenantId      String        @db.Uuid
+
+  DoctorProfile DoctorProfile @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction, map: "doctorAvailability_doctorId_fkey")
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorAvailability_tenantId_fkey")
+
+  @@index([tenantId, doctorId, dayOfWeek, isActive], map: "doctorAvailability_schedule_idx")
+  @@index([doctorId], map: "doctorAvailability_doctorId_idx")
+}
+
 model Patient {
-  address               String?
-  contactEmail          String?
-  contactPhone          String?
-  createdAt             DateTime      @default(now()) @db.Timestamptz(6)
-  deletedAt             DateTime?     @db.Timestamptz(6)
-  dob                   DateTime      @db.Timestamptz(6)
-  emergencyContactName  String?
+  id                   String        @id @default(uuid()) @db.Uuid
+  createdAt            DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  deletedAt            DateTime?     @db.Timestamptz(6)
+  isActive             Boolean       @default(true)
+  
+  mrn                  String
+  firstName            String
+  lastName             String
+  dob                  DateTime      @db.Timestamptz(6)
+  gender               String?
+  address              String?
+  contactEmail         String?
+  contactPhone         String?
+  emergencyContactName String?
   emergencyContactPhone String?
-  firstName             String
-  gender                String?
-  id                    String        @id @default(uuid()) @db.Char(36)
-  isActive              Boolean       @default(true)
-  lastName              String
-  mrn                   String
-  tenantId              String        @db.Char(36)
-  updatedAt             DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
-  Appointment           Appointment[]
-  Bed                   Bed[]
-  Tenant                Tenant        @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
+
+  tenantId             String        @db.Uuid
+  Tenant               Tenant        @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
+
+  Appointment          Appointment[]
+  Bed                  Bed[]
 
   @@unique([tenantId, mrn], map: "patient_tenant_mrn_key_0c21d836")
   @@index([tenantId], map: "Patient_tenantId_idx_c93ed4f1")
@@ -151,43 +184,47 @@ model Patient {
 }
 
 model Role {
+  id          String   @id @default(uuid()) @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
-  id          String   @id @default(uuid()) @db.Char(36)
-  name        String
-  permissions Json     @default("[]")
-  tenantId    String   @db.Char(36)
   updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  Tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_tenantId_fkey")
-  User      User[]
+  name        String
+  permissions Json     @default("[]") // Fallback to array JSON structure
+
+  tenantId    String   @db.Uuid
+  Tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_tenantId_fkey")
+  User        User[]
 
   @@unique([tenantId, name], map: "role_tenant_name_key_efdfefee")
   @@index([tenantId], map: "Role_tenantId_idx_c93ed4f1")
 }
 
 model Room {
+  id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
-  id        String   @id @default(uuid()) @db.Char(36)
-  name      String
-  tenantId  String   @db.Char(36)
   updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  wardId    String   @db.Char(36)
-  Bed       Bed[]
-  Tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_tenantId_fkey")
+  name      String
+
+  wardId    String   @db.Uuid
+  tenantId  String   @db.Uuid
+
   Ward      Ward     @relation(fields: [wardId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_wardId_fkey")
+  Tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_tenantId_fkey")
+  Bed       Bed[]
 
   @@index([tenantId], map: "Room_tenantId_idx_c93ed4f1")
   @@index([wardId], map: "Room_wardId_idx_6180a90a")
 }
 
 model Session {
+  id        String    @id @default(uuid()) @db.Uuid
   createdAt DateTime  @default(now()) @db.Timestamptz(6)
   expiresAt DateTime  @db.Timestamptz(6)
-  id        String    @id @default(uuid()) @db.Char(36)
-  ipAddress String?
   revokedAt DateTime? @db.Timestamptz(6)
   tokenHash String    @unique
+  ipAddress String?
   userAgent String?
-  userId    String    @db.Char(36)
+
+  userId    String    @db.Uuid
   User      User      @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_userId_fkey")
 
   @@index([expiresAt], map: "Session_expiresAt_idx_6b6b8c10")
@@ -195,96 +232,127 @@ model Session {
   @@index([userId], map: "Session_userId_idx_a489d58a")
 }
 
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model StaffProfile {
-  createdAt    DateTime    @default(now()) @db.Timestamptz(6)
-  departmentId String?     @db.Char(36)
-  employeeId   String
-  id           String      @id @default(uuid()) @db.Char(36)
-  isActive     Boolean     @default(true)
-  joiningDate  DateTime?   @db.Timestamptz(6)
-  phone        String?
-  shift        String?
-  tenantId     String      @db.Char(36)
-  updatedAt    DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
-  userId       String      @unique @db.Char(36)
-  wardId       String?     @db.Char(36)
-  description  String?
-  designation  String?
-  Department   Department? @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
-  Tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_tenantId_fkey")
-  User         User        @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
-  Ward         Ward?       @relation(fields: [wardId], references: [id], onUpdate: NoAction, map: "staffProfile_wardId_fkey")
+  id                String              @id @default(uuid()) @db.Uuid
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+  isActive          Boolean             @default(true)
+  employeeId        String
+  designation       String?
+  description       String?
+  phone             String?
+  joiningDate       DateTime?           @db.Timestamptz(6)
+
+  userId            String              @unique @db.Uuid
+  tenantId          String              @db.Uuid
+  departmentId      String?             @db.Uuid
+  wardId            String?             @db.Uuid
+
+  User              User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
+  Tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_tenantId_fkey")
+  Department        Department?         @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
+  Ward              Ward?               @relation(fields: [wardId], references: [id], onUpdate: NoAction, map: "staffProfile_wardId_fkey")
+  StaffAvailability StaffAvailability[]
 
   @@unique([tenantId, employeeId], map: "staffProfile_tenant_employeeId_key_c90418e2")
+  @@unique([id, tenantId], map: "staffProfile_id_tenantId_key")
   @@index([departmentId], map: "StaffProfile_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "StaffProfile_tenantId_idx_c93ed4f1")
   @@index([wardId], map: "StaffProfile_wardId_idx_6180a90a")
 }
 
+/// Day and minute bounds are enforced by CHECK constraints in SQL migrations.
+model StaffAvailability {
+  id          String       @id @default(uuid()) @db.Uuid
+  dayOfWeek   Int     // 0 = Sunday ... 6 = Saturday
+  startMinute Int     // Minutes after midnight
+  endMinute   Int     // Exclusive end, at most 1440
+  isActive    Boolean      @default(true)
+
+  staffId     String       @db.Uuid
+  tenantId    String       @db.Uuid
+
+  StaffProfile StaffProfile @relation(fields: [staffId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction, map: "staffAvailability_staffId_fkey")
+  Tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffAvailability_tenantId_fkey")
+
+  @@index([tenantId, staffId, dayOfWeek, isActive], map: "staffAvailability_schedule_idx")
+  @@index([staffId], map: "staffAvailability_staffId_idx")
+}
+
 model Tenant {
-  createdAt     DateTime        @default(now()) @db.Timestamptz(6)
-  id            String          @id @default(uuid()) @db.Char(36)
-  isActive      Boolean         @default(true)
-  name          String
-  slug          String          @unique
-  updatedAt     DateTime        @default(now()) @updatedAt @db.Timestamptz(6)
-  address       String?
-  city          String?
-  country       String          @default("PK")
-  postalCode    String?
-  state         String?
-  favicon       String
-  logo          String
-  Appointment   Appointment[]
-  AuditLog      AuditLog[]
-  Bed           Bed[]
-  Department    Department[]
-  DoctorProfile DoctorProfile[]
-  Patient       Patient[]
-  Role          Role[]
-  Room          Room[]
-  StaffProfile  StaffProfile[]
-  User          User[]
-  Ward          Ward[]
+  id                 String               @id @default(uuid()) @db.Uuid
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  isActive           Boolean              @default(true)
+  name               String
+  slug               String               @unique
+  address            String?
+  city               String?
+  state              String?
+  country            String               @default("PK")
+  postalCode         String?
+  favicon            String
+  logo               String
+
+  Appointment        Appointment[]
+  AuditLog           AuditLog[]
+  Bed                Bed[]
+  Department         Department[]
+  DoctorProfile      DoctorProfile[]
+  DoctorAvailability DoctorAvailability[]
+  Patient            Patient[]
+  Role               Role[]
+  Room               Room[]
+  StaffProfile       StaffProfile[]
+  StaffAvailability  StaffAvailability[]
+  User               User[]
+  Ward               Ward[]
 }
 
 model User {
-  createdAt                               DateTime       @default(now()) @db.Timestamptz(6)
-  email                                   String         @unique
-  id                                      String         @id @default(uuid()) @db.Char(36)
-  isActive                                Boolean        @default(true)
-  isSuperAdmin                            Boolean        @default(false)
-  name                                    String
-  passwordHash                            String
-  roleId                                  String?        @db.Char(36)
-  tenantId                                String?        @db.Char(36)
-  updatedAt                               DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
-  authProvider                            String?        @default("local")
-  Appointment_Appointment_createdByToUser Appointment[]  @relation("Appointment_createdByToUser")
-  Appointment_Appointment_updatedByToUser Appointment[]  @relation("Appointment_updatedByToUser")
-  AuditLog                                AuditLog[]
-  DoctorProfile                           DoctorProfile?
-  Session                                 Session[]
-  StaffProfile                            StaffProfile?
-  Role                                    Role?          @relation(fields: [roleId], references: [id], onUpdate: NoAction, map: "user_roleId_fkey")
-  Tenant                                  Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_tenantId_fkey")
+  id                  String         @id @default(uuid()) @db.Uuid
+  createdAt           DateTime       @default(now()) @db.Timestamptz(6)
+  updatedAt           DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  isActive            Boolean        @default(true)
+  isSuperAdmin        Boolean        @default(false)
+  name                String
+  email               String         @unique
+  passwordHash        String
+  authProvider        String?        @default("local")
+
+  roleId              String?        @db.Uuid
+  tenantId            String?        @db.Uuid
+
+  Role                Role?          @relation(fields: [roleId], references: [id], onUpdate: NoAction, map: "user_roleId_fkey")
+  Tenant              Tenant?        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_tenantId_fkey")
+
+  // Improved relation names
+  CreatedAppointments Appointment[]  @relation("AppointmentCreator")
+  UpdatedAppointments Appointment[]  @relation("AppointmentUpdater")
+  
+  AuditLog            AuditLog[]
+  DoctorProfile       DoctorProfile?
+  Session             Session[]
+  StaffProfile        StaffProfile?
 
   @@index([roleId], map: "User_roleId_idx_ffccc9a4")
   @@index([tenantId], map: "User_tenantId_idx_c93ed4f1")
 }
 
 model Ward {
+  id           String         @id @default(uuid()) @db.Uuid
   createdAt    DateTime       @default(now()) @db.Timestamptz(6)
-  departmentId String?        @db.Char(36)
-  id           String         @id @default(uuid()) @db.Char(36)
-  name         String
-  tenantId     String         @db.Char(36)
   updatedAt    DateTime       @default(now()) @updatedAt @db.Timestamptz(6)
+  name         String
+
+  tenantId     String         @db.Uuid
+  departmentId String?        @db.Uuid
+
+  Tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ward_tenantId_fkey")
+  Department   Department?    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "ward_departmentId_fkey")
+  
   Room         Room[]
   StaffProfile StaffProfile[]
-  Department   Department?    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "ward_departmentId_fkey")
-  Tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ward_tenantId_fkey")
 
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "Ward_tenantId_idx_c93ed4f1")
