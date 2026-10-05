@@ -171,16 +171,51 @@ model Patient {
   contactPhone         String?
   emergencyContactName String?
   emergencyContactPhone String?
+  insuranceProvider    String?
+  insurancePolicyNumber String?
 
   tenantId             String        @db.Uuid
   Tenant               Tenant        @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
 
   Appointment          Appointment[]
   Bed                  Bed[]
+  MedicalData          PatientMedicalData[]
 
   @@unique([tenantId, mrn], map: "patient_tenant_mrn_key_0c21d836")
+  @@unique([id, tenantId], map: "patient_id_tenantId_key")
   @@index([tenantId], map: "Patient_tenantId_idx_c93ed4f1")
   @@index([tenantId, lastName], map: "Patient_tenantId_lastName_idx_8d5f431c")
+}
+
+model PatientMedicalData {
+  id                     String   @id @default(uuid()) @db.Uuid
+  recordedAt             DateTime @default(now()) @db.Timestamptz(6)
+  heartRate              Int?
+  totalCholesterol       Int?
+  hemoglobin             Float?
+  systolicBloodPressure  Int?
+  diastolicBloodPressure Int?
+  bloodGlucose           Int?
+  whiteBloodCellCount    Int?
+  bodyMassIndex          Float?
+  respiratoryRate        Int?
+  plateletCount          Int?
+  allergies              String?
+  chronicConditions      String?
+  pastSurgeries          String?
+  note                   String?
+
+  patientId  String  @db.Uuid
+  tenantId   String  @db.Uuid
+  recordedBy String? @db.Uuid
+
+  Patient  Patient @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_patient_tenant_fkey")
+  Tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_tenantId_fkey")
+  Recorder User?   @relation("PatientMedicalDataRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "patientMedicalData_recordedBy_fkey")
+
+  @@index([tenantId, patientId, recordedAt], map: "patientMedicalData_tenant_patient_recordedAt_idx")
+  @@index([patientId, recordedAt], map: "patientMedicalData_patient_recordedAt_idx")
+  @@index([recordedBy], map: "patientMedicalData_recordedBy_idx")
 }
 
 model Role {
@@ -301,6 +336,7 @@ model Tenant {
   DoctorProfile      DoctorProfile[]
   DoctorAvailability DoctorAvailability[]
   Patient            Patient[]
+  PatientMedicalData PatientMedicalData[]
   Role               Role[]
   Room               Room[]
   StaffProfile       StaffProfile[]
@@ -331,6 +367,7 @@ model User {
   UpdatedAppointments Appointment[]  @relation("AppointmentUpdater")
   
   AuditLog            AuditLog[]
+  RecordedPatientMedicalData PatientMedicalData[] @relation("PatientMedicalDataRecorder")
   DoctorProfile       DoctorProfile?
   Session             Session[]
   StaffProfile        StaffProfile?
