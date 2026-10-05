@@ -1,0 +1,552 @@
+@import "variables";
+
+.patient-page {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.82fr) minmax(0, 2.05fr) minmax(250px, 0.9fr);
+  align-items: start;
+  gap: 0.85rem;
+  min-height: calc(100vh - 5rem);
+  padding: 1.25rem;
+  color: $body-color;
+}
+
+.patient-list-panel,
+.patient-medical-panel,
+.patient-chart-panel,
+.patient-side-panel,
+.patient-main-loading {
+  min-width: 0;
+  border: 1px solid $border-color;
+  border-radius: $border-radius;
+  background: #ffffff;
+  box-shadow: $box-shadow-sm;
+}
+
+.patient-list-panel {
+  display: flex;
+  min-height: calc(100vh - 7.5rem);
+  max-height: calc(100vh - 7.5rem);
+  flex-direction: column;
+  padding: 0.9rem;
+}
+
+.patient-list-heading,
+.patient-section-heading,
+.patient-side-heading,
+.patient-heading-actions,
+.patient-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.patient-list-heading {
+  margin-bottom: 0.85rem;
+
+  h1,
+  h2 {
+    margin: 0;
+    color: $dark;
+    font-size: $font-size-base;
+    font-weight: 600;
+  }
+}
+
+.patient-list-heading-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.patient-eyebrow {
+  margin: 0 0 0.15rem;
+  color: $primary;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.patient-count {
+  display: inline-grid;
+  min-width: 1.8rem;
+  height: 1.8rem;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba($primary, 0.1);
+  color: $primary;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.patient-list-controls {
+  display: grid;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.patient-list {
+  min-height: 8rem;
+  flex: 1;
+  overflow: auto;
+  margin: 0 -0.4rem;
+  padding: 0 0.4rem;
+}
+
+.patient-list-item {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 2.25rem minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.6rem 0.45rem;
+  border: 0;
+  border-bottom: 1px solid rgba($border-color, 0.75);
+  background: #ffffff;
+  color: $body-color;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease;
+
+  &:hover,
+  &.is-selected {
+    background: rgba($primary, 0.08);
+  }
+
+  &.is-selected {
+    box-shadow: inset 2px 0 0 $primary;
+  }
+}
+
+.patient-avatar {
+  display: inline-grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 2.25rem;
+  place-items: center;
+  border: 1px solid rgba($primary, 0.14);
+  border-radius: 50%;
+  background: rgba($primary, 0.1);
+  color: $primary;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.patient-list-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.1rem;
+
+  strong,
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: $dark;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  span {
+    color: $secondary;
+    font-size: 0.68rem;
+  }
+}
+
+.patient-list-date {
+  display: none;
+}
+
+.patient-list-panel .ant-pagination {
+  margin-top: 0.5rem;
+  text-align: center;
+}
+
+.patient-list-state,
+.patient-main-loading,
+.patient-side-loading {
+  display: grid;
+  min-height: 12rem;
+  place-items: center;
+}
+
+.patient-main-column,
+.patient-right-column {
+  display: grid;
+  min-width: 0;
+  gap: 0.85rem;
+}
+
+.patient-medical-panel,
+.patient-chart-panel,
+.patient-side-panel {
+  padding: 0.95rem;
+}
+
+.patient-section-heading {
+  margin-bottom: 0.8rem;
+
+  h2 {
+    margin: 0;
+    color: $dark;
+    font-size: $font-size-base;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0.2rem 0 0;
+    color: $secondary;
+    font-size: 0.7rem;
+  }
+}
+
+.patient-check-date {
+  color: $secondary;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.patient-heading-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.patient-metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid $border-color;
+  border-left: 1px solid $border-color;
+}
+
+.patient-metric {
+  display: flex;
+  min-width: 0;
+  min-height: 4.4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 0.55rem;
+  border-right: 1px solid $border-color;
+  border-bottom: 1px solid $border-color;
+}
+
+.patient-metric-copy {
+  display: grid;
+  min-width: 0;
+  gap: 0.15rem;
+
+  > span {
+    overflow: hidden;
+    color: $secondary;
+    font-size: 0.67rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  strong {
+    color: $dark;
+    font-size: 0.82rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  small {
+    margin-left: 0.2rem;
+    color: $secondary;
+    font-size: 0.63rem;
+    font-weight: 400;
+  }
+}
+
+.patient-sparkline {
+  display: block;
+  width: 3.25rem;
+  height: 1.35rem;
+  flex: 0 0 3.25rem;
+  color: $primary;
+}
+
+.patient-trend-empty {
+  width: 3.25rem;
+  color: rgba($secondary, 0.55);
+  text-align: center;
+}
+
+.patient-chart-legend {
+  justify-content: flex-end;
+  gap: 0.85rem;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: $secondary;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }
+
+  i {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+  }
+
+  .legend-systolic { background: $primary; }
+  .legend-diastolic { background: $warning; }
+}
+
+.patient-bp-chart-wrap {
+  width: 100%;
+  height: 10rem;
+  min-height: 10rem;
+  --patient-chart-grid: #{$border-color};
+  --patient-chart-label: #{$secondary};
+  --patient-chart-systolic: #{$primary};
+  --patient-chart-diastolic: #{$warning};
+}
+
+.patient-chart-empty {
+  display: grid;
+  min-height: 10rem;
+  place-items: center;
+  color: $secondary;
+  font-size: $font-size-sm;
+}
+
+.patient-side-heading {
+  margin-bottom: 0.7rem;
+  color: $dark;
+
+  h2 {
+    margin: 0;
+    color: $dark;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  > span {
+    color: $secondary;
+    font-size: 0.65rem;
+  }
+}
+
+.patient-profile-identity {
+  display: grid;
+  justify-items: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0 0.8rem;
+  border-bottom: 1px solid $border-color;
+
+  strong {
+    color: $dark;
+    font-size: 0.84rem;
+    font-weight: 600;
+  }
+
+  > span:last-child {
+    color: $secondary;
+    font-size: 0.68rem;
+  }
+}
+
+.patient-avatar-large {
+  width: 4rem;
+  height: 4rem;
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+}
+
+.patient-profile-details {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0;
+
+  div {
+    display: grid;
+    grid-template-columns: minmax(4.5rem, 0.8fr) minmax(0, 1.2fr);
+    gap: 0.4rem;
+  }
+
+  dt,
+  dd {
+    margin: 0;
+    font-size: 0.68rem;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  dt { color: $secondary; }
+  dd { color: $body-color; text-align: right; }
+}
+
+.patient-upcoming-list {
+  display: grid;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    gap: 0.15rem;
+    padding-left: 0.55rem;
+    border-left: 2px solid $primary;
+  }
+
+  strong {
+    color: $dark;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+
+  span,
+  time {
+    color: $secondary;
+    font-size: 0.66rem;
+  }
+}
+
+.patient-note-panel p,
+.patient-side-empty {
+  margin: 0;
+  padding: 0.55rem 0 0.2rem 0.6rem;
+  border-left: 2px solid $warning;
+  color: $body-color;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.patient-measurement-form {
+  display: grid;
+  gap: 0.5rem;
+  padding-top: 0.35rem;
+
+  > label {
+    margin-top: 0.35rem;
+    color: $secondary;
+    font-size: $font-size-sm;
+    font-weight: 600;
+  }
+}
+
+.patient-profile-form,
+.patient-history-fields {
+  display: grid;
+  gap: 0.5rem;
+
+  label {
+    margin-top: 0.25rem;
+    color: $secondary;
+    font-size: $font-size-sm;
+    font-weight: 600;
+  }
+}
+
+.patient-history-fields {
+  margin-top: 0.35rem;
+}
+
+.patient-measurement-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+
+  label {
+    display: grid;
+    min-width: 0;
+    gap: 0.25rem;
+    color: $secondary;
+    font-size: 0.7rem;
+    font-weight: 500;
+  }
+
+  small {
+    color: rgba($secondary, 0.8);
+    font-size: 0.65rem;
+    font-weight: 400;
+  }
+}
+
+@media (max-width: 1250px) {
+  .patient-page {
+    grid-template-columns: minmax(205px, 0.8fr) minmax(0, 2fr);
+  }
+
+  .patient-right-column {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 800px) {
+  .patient-page {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.8rem;
+  }
+
+  .patient-list-panel {
+    min-height: auto;
+    max-height: 24rem;
+  }
+
+  .patient-list-item {
+    grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  }
+
+  .patient-list-date {
+    display: block;
+    color: $secondary;
+    font-size: 0.63rem;
+  }
+
+  .patient-right-column {
+    grid-column: auto;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .patient-medical-panel,
+  .patient-chart-panel,
+  .patient-side-panel {
+    padding: 0.7rem;
+  }
+
+  .patient-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .patient-heading-actions {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .patient-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .patient-metric {
+    padding: 0.45rem;
+  }
+
+  .patient-sparkline,
+  .patient-trend-empty {
+    width: 2.4rem;
+    flex-basis: 2.4rem;
+  }
+
+  .patient-chart-legend {
+    justify-content: flex-start;
+  }
+}

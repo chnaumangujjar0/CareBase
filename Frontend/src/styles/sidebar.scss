@@ -124,10 +124,26 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 600;
     border-right: 3px solid #0F766E;
   }
+
+  &.disabled {
+    color: #94A3B8;
+    cursor: not-allowed;
+    user-select: none;
+
+    &:hover {
+      background-color: transparent;
+      color: #94A3B8;
+    }
+  }
 }
 
 .linkIcon {
   flex-shrink: 0;
+}
+
+.linkLock {
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .linkLabel {

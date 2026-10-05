@@ -58,12 +58,13 @@ export default function Departments() {
           if(dept.id === editingId){
             if(dept.name !== values.name.trim()){
               payload.name = values.name
-              if(dept.isActive !== values.isActive){
+            }
+            if(dept.isActive !== values.isActive){
                 payload.isActive = values.isActive
               }
-            }
           }
         })
+        console.log(payload)
         try {
           await updateDepartment(user.tenantId as string, editingId,payload)
           setDepartments((currentDepartments) =>
@@ -125,6 +126,7 @@ export default function Departments() {
       setDepartments((currentDepartments) =>
         (currentDepartments ?? []).filter((d) => d.id !== departmentToDelete)
       );
+      toast.success("Department Deleted Successfully!")
       setShowDeleteModal(false);
       setDepartmentToDelete(null);
     } catch (error) {

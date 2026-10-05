@@ -2,6 +2,24 @@ import axios from "axios"
 const API_URL = import.meta.env.VITE_API_URL;
 import api from "./axiosinstance.js"
 import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, SignupPayload } from "../types/auth.js";
+import type {
+  AvailabilityWindow,
+  AppointmentDoctorOption,
+  AppointmentRecord,
+  AppointmentStatus,
+  CreateAppointmentPayload,
+  CreatePatientPayload,
+  CreateStaffProfilePayload,
+  CreatedStaffProfileResponse,
+  CreatePatientMedicalDataPayload,
+  PatientDetail,
+  PatientListResponse,
+  PatientMedicalData,
+  PatientOption,
+  StaffDirectoryEntry,
+  UpdateAppointmentPayload,
+  UpdatePatientProfilePayload,
+} from "../types/global.types";
 
 // user apis
 
@@ -57,7 +75,7 @@ export const getTenantById = async (tenantId : string) => {
 // department Apis 
 interface DepartmentPayload {
   name: string;
-  isActive: Boolean;
+  isActive: boolean;
 }
 export const addDepartment = async (values:DepartmentPayload,tenantId:string) => {
   const res = await api.post(`/department/${tenantId}/add`,values)
@@ -70,7 +88,7 @@ export const getDepartments = async (tenantId:string) => {
   return res.data.data
 }
 
-export const updateDepartment = async (tenantId: string,deptId: string,values:any) => {
+export const updateDepartment = async (tenantId: string,deptId: string,values:Record<string, unknown>) => {
   const res = await api.patch(`/department/${tenantId}/update`,{departmentId: deptId,...values})
 
   return res.data.data
@@ -80,4 +98,95 @@ export const deleteDepartment = async (tenantId: string,deptId: string,) => {
   const res = await api.delete(`/department/${tenantId}/delete`, { data: { departmentId: deptId } })
 
   return res.data
+}
+
+
+// Staff apis
+
+export const createStaffProfile = async (values: CreateStaffProfilePayload) => {
+  const res = await api.post("/staff/add", values)
+  return res.data.data as CreatedStaffProfileResponse
+}
+
+export const getAllStaff = async (): Promise<StaffDirectoryEntry[]> => {
+  const res = await api.get("/staff/get-staff")
+
+  return (res.data.data as Omit<StaffDirectoryEntry, "image">[]).map((profile) => ({
+    ...profile,
+    availability: profile.availability as AvailabilityWindow[],
+    image: `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name)}&background=E2E8F0&color=0F766E`,
+  }))
+}
+
+export const updateStaffAvailability = async (
+  profileId: string,
+  type: "Doctor" | "Staff",
+  availability: AvailabilityWindow[],
+): Promise<AvailabilityWindow[]> => {
+  const res = await api.patch("/staff/availability", { profileId, type, availability })
+  return res.data.data as AvailabilityWindow[]
+}
+
+export const getPatients = async (params: {
+  search?: string;
+  page?: number;
+  limit?: number;
+  isActive?: "true" | "false";
+} = {}) => {
+  const res = await api.get("/patients", { params })
+  return res.data.data as PatientListResponse
+}
+
+export const createPatient = async (payload: CreatePatientPayload): Promise<PatientOption> => {
+  const res = await api.post("/patients", payload)
+  return res.data.data as PatientOption
+}
+
+export const getPatient = async (patientId: string): Promise<PatientDetail> => {
+  const res = await api.get(`/patients/${patientId}`)
+  return res.data.data as PatientDetail
+}
+
+export const updatePatient = async (
+  patientId: string,
+  payload: UpdatePatientProfilePayload,
+): Promise<PatientDetail> => {
+  const res = await api.patch(`/patients/${patientId}`, payload)
+  return res.data.data as PatientDetail
+}
+
+export const addPatientMedicalData = async (
+  patientId: string,
+  payload: CreatePatientMedicalDataPayload,
+): Promise<PatientMedicalData> => {
+  const res = await api.post(`/patients/${patientId}/medical-data`, payload)
+  return res.data.data as PatientMedicalData
+}
+
+export const getAppointmentOptions = async () => {
+  const res = await api.get("/appointments/options")
+  return res.data.data as { doctors: AppointmentDoctorOption[] }
+}
+
+export const getAppointments = async (params: {
+  doctorId?: string;
+  status?: AppointmentStatus;
+  from?: string;
+  to?: string;
+} = {}) => {
+  const res = await api.get("/appointments", { params })
+  return res.data.data as AppointmentRecord[]
+}
+
+export const createAppointment = async (payload: CreateAppointmentPayload) => {
+  const res = await api.post("/appointments", payload)
+  return res.data.data as AppointmentRecord
+}
+
+export const updateAppointment = async (
+  appointmentId: string,
+  payload: UpdateAppointmentPayload,
+) => {
+  const res = await api.patch(`/appointments/${appointmentId}`, payload)
+  return res.data.data as AppointmentRecord
 }
