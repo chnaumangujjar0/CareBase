@@ -6,6 +6,7 @@ import {
   getAppointmentById,
   getAppointmentOptions,
   getAppointments,
+  getAppointmentStats,
   updateAppointment,
 } from "../controllers/appointment.controller.js";
 
@@ -15,5 +16,5 @@ router.use(requireAuth, checkEligibilty);
 router.route("/options").get(getAppointmentOptions);
 router.route("/").get(getAppointments).post(createAppointment);
 router.route("/:appointmentId").get(getAppointmentById).patch(updateAppointment);
-
+router.route("/get-stats").get(getAppointmentStats)
 export default router;

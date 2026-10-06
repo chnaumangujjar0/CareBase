@@ -136,7 +136,6 @@ model DoctorProfile {
   @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
 }
 
-/// Day and minute bounds are enforced by CHECK constraints in SQL migrations.
 model DoctorAvailability {
   id            String        @id @default(uuid()) @db.Uuid
   dayOfWeek     Int           // 0 = Sunday ... 6 = Saturday
@@ -296,7 +295,6 @@ model StaffProfile {
   @@index([wardId], map: "StaffProfile_wardId_idx_6180a90a")
 }
 
-/// Day and minute bounds are enforced by CHECK constraints in SQL migrations.
 model StaffAvailability {
   id          String       @id @default(uuid()) @db.Uuid
   dayOfWeek   Int     // 0 = Sunday ... 6 = Saturday

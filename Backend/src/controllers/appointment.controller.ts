@@ -160,11 +160,7 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
   return res.status(201).json(new ApiResponse(201, result, "Appointment created successfully"));
 });
 
-export const getAppointments = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId;
-  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
-
-  const querySchema = z.object({
+const querySchema = z.object({
     doctorId: z.uuid().optional(),
     patientId: z.uuid().optional(),
     status: appointmentStatusSchema.optional(),
@@ -174,6 +170,12 @@ export const getAppointments = asyncHandler(async (req: Request, res: Response) 
     message: "The from date must be before the to date",
     path: ["to"],
   });
+
+export const getAppointments = asyncHandler(async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+
+  
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) {
     throw new ApiError(
@@ -310,3 +312,61 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
 
   return res.status(200).json(new ApiResponse(200, result, "Appointment updated successfully"));
 });
+
+export const getAppointmentStats = asyncHandler(async (req:Request,res:Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+
+  
+  const parsed = querySchema.safeParse(req.query);
+  if (!parsed.success) {
+    throw new ApiError(
+      400,
+      "Invalid appointment filters",
+      parsed.error.issues.map(({ path, message }) => ({ path: path.join("."), message })),
+    );
+  }
+
+  const { doctorId} = parsed.data;
+
+  const where = {
+    tenantId,
+    doctorId,
+    scheduledAt: { gte: new Date(Date.now() - 1) }, // TODO: confirm this is your actual datetime field name
+  };
+
+  const [appointments, statusCounts] = await Promise.all([
+    db.appointment.findMany({
+      where,
+      orderBy: { scheduledAt: "asc" },
+    }),
+    db.appointment.groupBy({
+      by: ["status"],
+      where,
+      _count: { _all: true },
+    }),
+  ]);
+
+  const byStatus = statusCounts.reduce<Record<string, number>>((acc, row) => {
+    acc[row.status] = row._count._all;
+    return acc;
+  }, {});
+
+  const total = statusCounts.reduce((sum, row) => sum + row._count._all, 0);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        appointments,
+        counts: {
+          total,
+          completed: byStatus.COMPLETED ?? 0,
+          pending: byStatus.PENDING ?? 0,
+          byStatus, // full breakdown for anything beyond the two you asked about
+        }
+      },
+      "Appointment stats fetched successfully!"
+    )
+  )
+})
