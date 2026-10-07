@@ -1,6 +1,8 @@
 import { useSelector } from "react-redux";
 import type { RootState } from "../../store/store";
 import { useNavigate } from "react-router";
+import { DoctorDashboard } from "./DoctorDashboard";
+import { AdminDashboard } from "./AdminDashboard";
 const Home = () => {
   const navigate = useNavigate()
    const user = useSelector((state: RootState) => state.auth.user);
@@ -9,7 +11,15 @@ const Home = () => {
       navigate("/onboarding")
     }
   return (
-    <div>Home</div>
+    <div>
+      {
+        user?.role == "Owner" && (<AdminDashboard/>)
+      }
+      {
+        user?.role == "Doctor" && (<DoctorDashboard/>)
+      }
+      
+    </div>
   )
 }
 

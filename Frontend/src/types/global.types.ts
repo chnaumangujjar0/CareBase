@@ -95,6 +95,38 @@ export interface AppointmentRecord {
   Department: { id: string; name: string };
 }
 
+export interface AppointmentStats {
+  appointments: AppointmentRecord[];
+  counts: {
+    total: number;
+    uniquePatients: number;
+    booked: number;
+    completed: number;
+    cancelled: number;
+    no_show: number;
+    byStatus: Partial<Record<AppointmentStatus, number>>;
+  };
+}
+
+export interface RoleRecord {
+  id: string;
+  code: string;
+  name: string;
+  permissions: string[];
+  userCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RoleListResponse {
+  roles: RoleRecord[];
+  page: number;
+  limit: number;
+  total: number;
+  showingFrom: number;
+  showingTo: number;
+}
+
 export interface AppointmentDoctorOption {
   id: string;
   departmentId: string;
@@ -197,6 +229,15 @@ export interface CreatePatientMedicalDataPayload {
 export interface UpdatePatientProfilePayload {
   insuranceProvider?: string | null;
   insurancePolicyNumber?: string | null;
+}
+
+export interface UpdateTenantDetailsPayload {
+  name: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
 }
 
 export interface CreateAppointmentPayload {

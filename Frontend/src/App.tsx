@@ -12,6 +12,8 @@ import Departments from './components/pages/Department';
 import { ToastContainer } from 'react-toastify';
 import Staff from './components/pages/Staff';
 import Appointments from './components/pages/Appointments';
+import { RolesPage } from './components/pages/RolesPage';
+import { HospitalProfile } from './components/pages/HospitalProfile';
 
 function App() {
   return (
@@ -41,14 +43,15 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Dashboard />} />
               <Route path='/patient' element={<Patient/>}/>
-              <Route path='/departments' element={<Departments/>} />
+              
               <Route path='/staff' element={<Staff/>} />
               <Route path='/appointments' element={<Appointments/>} />
             </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={["doctor", "admin"]} />}>
-              {/* <Route path="/clinical/surgery-schedule" element={<DoctorPortal />} />
-              <Route path="/clinical/prescriptions" element={<div>Prescription System</div>} /> */}
+            <Route element={<ProtectedRoute allowedRoles={["doctor", "admin","Owner"]} />}>
+              <Route path='/settings/departments' element={<Departments/>} />
+              <Route path='/settings/roles' element={<RolesPage/>} />
+              <Route path='/settings/profile' element={<HospitalProfile/>}/>
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

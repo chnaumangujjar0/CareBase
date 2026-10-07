@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router";
+import { NavLink, useNavigate, useLocation } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import {
   LayoutDashboard,
@@ -18,6 +18,11 @@ import {
   Settings,
   LogOut,
   Lock,
+  ChevronDown,
+  ChevronUp,
+  Shield,
+  Database,
+  Building2
 } from "lucide-react";
 import "../../styles/sidebar.scss";
 import { clearUser, selectCurrentUser } from "../../store/authSlice";
@@ -28,18 +33,17 @@ import Loader from "../common/Loader";
 import { toast } from "react-toastify";
 import { clearTenant } from "../../store/tenantSlice";
 import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
+import { ConfigProvider } from "antd";
 
 const navConfig = [
   {
     title: "Operations",
     items: [
-      { label: "Dashboard", path: "/", icon: LayoutDashboard, roles: ["Owner", "Admin"] },
+      { label: "Dashboard", path: "/", icon: LayoutDashboard, roles: ["Owner", "Admin","Doctor"] },
       { label: "Analytics", path: "/analytics", icon: BarChart2, roles: ["Owner", "Admin"] },
       { label: "Appointments", path: "/appointments", icon: Calendar, roles: ["Owner", "Admin", "Receptionist"] },
       { label: "Patients", path: "/patient", icon: Users, roles: ["Owner", "Admin", "Receptionist", "Nurse"] },
-      { label: "Doctors", path: "/doctors", icon: Stethoscope, roles: ["Owner", "Doctor"] },
-      { label: "Departments", path: "/departments", icon: Building, roles: ["Owner", "Admin"] },
-      { label: "Beds", path: "/beds", icon: Bed, roles: ["Owner", "Admin"] },
+      { label: "Doctors", path: "/doctors", icon: Stethoscope, roles: ["Owner", "Doctor"] },      { label: "Beds", path: "/beds", icon: Bed, roles: ["Owner", "Admin"] },
       { label: "Reports", path: "/reports", icon: FileText, roles: ["Owner", "Admin"] },
     ],
   },
@@ -57,17 +61,28 @@ const navConfig = [
     items: [
       { label: "Staff Management", path: "/staff", icon: UsersRound, roles: ["Owner", "Admin"] },
       { label: "Integrations", path: "/integrations", icon: Link2, roles: ["Owner", "Admin"] },
-      { label: "Settings", path: "/settings", icon: Settings, roles: ["Owner", "Admin"] },
     ],
   },
+];
+
+// Sub-items for the Settings dropdown matching your design reference
+const settingsSubItems = [
+  { label: "Hospital Profile", path: "/settings/profile", icon: Building2 },
+  { label: "Departments", path: "/settings/departments", icon: Building },
+  { label: "User Roles", path: "/settings/roles", icon: Shield },
+  { label: "Backup & Security", path: "/settings/security", icon: Database },
 ];
 
 export const Sidebar = () => {
   const { isReady, tenant } = useTenantBootstrap();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isloading, setIsloading] = useState(false);
-  const user = useSelector(selectCurrentUser)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(
+    location.pathname.startsWith("/settings")
+  );
+  const user = useSelector(selectCurrentUser);
 
   const handleLogout = async () => {
     setIsloading(true);
@@ -90,8 +105,21 @@ export const Sidebar = () => {
     }
   };
 
+  const isSettingsAllowed = user?.role != null && ["Owner", "Admin"].some((role) => role === user.role);
+  const isSettingsActive = location.pathname.startsWith("/settings");
+
+  // Ant Design Theme matching your exact enterprise variables
+  const themeConfig = {
+    token: {
+      colorPrimary: '#0F766E', // Deep Teal
+      colorTextBase: '#475569', // Slate gray-blue
+      fontFamily: '"Inter", sans-serif',
+      borderRadius: 8,
+    },
+  };
+
   return (
-    <>
+    <ConfigProvider theme={themeConfig}>
       <Loader isLoading={isloading || !isReady} />
       <aside className="sidebar">
         <div className="header">
@@ -107,7 +135,6 @@ export const Sidebar = () => {
         <nav className="navScroll">
           {navConfig.map((section, index) => (
             <div key={section.title} className="section">
-              {/* The title fades in on hover */}
               <div className="sectionTitle">{section.title}</div>
 
               {section.items.map((item) => {
@@ -143,7 +170,64 @@ export const Sidebar = () => {
               {index < navConfig.length - 1 && <div className="divider" />}
             </div>
           ))}
+
+          {/* System Settings Dropdown matching your reference image */}
+          <div className="section">
+            <div className="sectionTitle">System Settings</div>
+            {isSettingsAllowed ? (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div
+                  className={`link ${isSettingsActive && !isSettingsOpen ? "active" : ""}`}
+                  onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <Settings className="linkIcon" size={20} />
+                    <span className="linkLabel">System Settings</span>
+                  </div>
+                  {isSettingsOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </div>
+
+                {/* Dropdown Submenu */}
+                {isSettingsOpen && (
+                  <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '24px', position: 'relative', marginTop: '4px', gap: '2px' }}>
+                    {/* Vertical guideline indicator matching the image */}
+                    <div style={{ position: 'absolute', left: '20px', top: '0', bottom: '8px', width: '2px', backgroundColor: '#E2E8F0' }} />
+                    
+                    {settingsSubItems.map((subItem) => {
+                      const isSubActive = location.pathname === subItem.path;
+                      return (
+                        <NavLink
+                          key={subItem.label}
+                          to={subItem.path}
+                          className="link sub-link"
+                          style={{
+                            fontSize: '0.875rem',
+                            padding: '8px 12px',
+                            borderRadius: isSubActive ? '8px' : '6px',
+                            backgroundColor: isSubActive ? 'rgba(15, 118, 110, 0.08)' : 'transparent',
+                            color: isSubActive ? '#0F766E' : '#475569',
+                            fontWeight: isSubActive ? 600 : 400,
+                            borderLeft: isSubActive ? '3px solid #0F766E' : '3px solid transparent'
+                          }}
+                        >
+                          <span className="linkLabel">{subItem.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="link disabled" role="link" aria-disabled="true" title="Settings unavailable for your role">
+                <Settings className="linkIcon" size={20} />
+                <span className="linkLabel">System Settings</span>
+                <Lock className="linkLock" size={16} aria-hidden="true" />
+              </div>
+            )}
+          </div>
         </nav>
+
         <div className="logoutWrapper">
           <div className="divider" />
           <button className="link logoutBtn" onClick={handleLogout}>
@@ -153,6 +237,6 @@ export const Sidebar = () => {
         </div>
         <div className="divider" />
       </aside>
-    </>
+    </ConfigProvider>
   );
 };

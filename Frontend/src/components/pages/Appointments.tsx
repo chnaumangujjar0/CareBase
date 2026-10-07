@@ -221,8 +221,14 @@ function Appointments() {
       setShowForm(false);
       resetForm();
     } catch (error: unknown) {
-      const response = error as { response?: { data?: { message?: string } } };
-      toast.error(response.response?.data?.message || "Could not save appointment");
+      console.log(error)
+      const response = error as { response?: { data?: { message?: string }; status: number } };
+      if(response.response?.status == 409){
+        toast.error("Doctor is not available for this time stamp.")
+      }else{
+
+        toast.error(response.response?.data?.message || "Could not save appointment");
+      }
     } finally {
       setSaving(false);
     }

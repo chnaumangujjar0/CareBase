@@ -82,7 +82,7 @@ function TrendSparkline({ values }: { values: (number | null | undefined)[] }) {
             stroke="currentColor"
             strokeWidth={2}
             dot={false}
-            isAnimationActive={false}
+            isAnimationActive={true}
           />
         </LineChart>
       </ResponsiveContainer>
@@ -134,7 +134,7 @@ function BloodPressureChart({ records }: { records: PatientMedicalData[] }) {
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
-            isAnimationActive={false}
+            isAnimationActive={true}
           />
           <Line
             dataKey="diastolic"
@@ -144,7 +144,7 @@ function BloodPressureChart({ records }: { records: PatientMedicalData[] }) {
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4 }}
-            isAnimationActive={false}
+            isAnimationActive={true}
           />
         </LineChart>
       </ResponsiveContainer>

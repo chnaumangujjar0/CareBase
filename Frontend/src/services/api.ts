@@ -6,6 +6,7 @@ import type {
   AvailabilityWindow,
   AppointmentDoctorOption,
   AppointmentRecord,
+  AppointmentStats,
   AppointmentStatus,
   CreateAppointmentPayload,
   CreatePatientPayload,
@@ -19,7 +20,11 @@ import type {
   StaffDirectoryEntry,
   UpdateAppointmentPayload,
   UpdatePatientProfilePayload,
+  RoleRecord,
+  RoleListResponse,
+  UpdateTenantDetailsPayload,
 } from "../types/global.types";
+import type { Tenant } from "../types/auth";
 
 // user apis
 
@@ -70,6 +75,18 @@ export const getTenantById = async (tenantId : string) => {
   const res = await api.get(`/tenant/${tenantId}`)
 
   return res.data.data
+}
+
+export const updateTenantDetails = async (
+  values: UpdateTenantDetailsPayload | FormData,
+): Promise<Tenant> => {
+  const res = await api.patch("/tenant", values, {
+    headers: values instanceof FormData
+      ? { "Content-Type": "multipart/form-data" }
+      : undefined,
+  });
+
+  return res.data.data as Tenant;
 }
 
 // department Apis 
@@ -189,4 +206,33 @@ export const updateAppointment = async (
 ) => {
   const res = await api.patch(`/appointments/${appointmentId}`, payload)
   return res.data.data as AppointmentRecord
+}
+
+export const getAppointmentStat = async (params: { from: string; to: string }): Promise<AppointmentStats> => {
+  const res = await api.get("/appointments/get-stats", { params })
+  return res.data.data as AppointmentStats
+}
+
+export interface RolePayload {
+  name: string;
+  permissions: string[];
+}
+
+export const getRoles = async (params: { page: number; limit: number }): Promise<RoleListResponse> => {
+  const res = await api.get("/roles/get-roles", { params })
+  return res.data.data as RoleListResponse
+}
+
+export const createRole = async (payload: RolePayload): Promise<RoleRecord> => {
+  const res = await api.post("/roles/create", payload)
+  return res.data.data as RoleRecord
+}
+
+export const updateRole = async (roleId: string, payload: Partial<RolePayload>): Promise<RoleRecord> => {
+  const res = await api.patch(`/roles/${roleId}`, payload)
+  return res.data.data as RoleRecord
+}
+
+export const deleteRole = async (roleId: string): Promise<void> => {
+  await api.delete(`/roles/${roleId}`)
 }

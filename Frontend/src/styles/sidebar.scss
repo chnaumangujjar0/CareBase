@@ -24,9 +24,13 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     .link{
       margin-right: 5px;
     }
+    .sub-link{
+      display: block;
+    }
     .brandText,
     .sectionTitle,
     .linkLabel,
+    .sub-link
     .userInfo {
       opacity: 1;
       display: block;
@@ -153,7 +157,9 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   transition: opacity $transition-speed, transform $transition-speed;
   white-space: nowrap;
 }
-
+.sub-link{
+  display: none;
+}
 .divider {
   height: 1px;
   background-color: #E2E8F0;
