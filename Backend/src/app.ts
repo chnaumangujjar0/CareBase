@@ -35,6 +35,8 @@ import departmentRouter from "./routes/department.routes.js"
 import staffRouter from "./routes/staff.routes.js"
 import appointmentRouter from "./routes/appointment.routes.js"
 import patientRouter from "./routes/patient.routes.js"
+import roleRouter from "./routes/role.routes.js"
+
 // routes intialization
 app.use("/api/v1/user",userRouter)
 app.use(errorHandler)
@@ -43,4 +45,5 @@ app.use("/api/v1/department",departmentRouter)
 app.use("/api/v1/staff",staffRouter)
 app.use("/api/v1/appointments",appointmentRouter)
 app.use("/api/v1/patients",patientRouter)
+app.use("/api/v1/roles",roleRouter)
 export {httpServer,app}

@@ -6,6 +6,7 @@ export type Tenant = Pick<
   | "id"
   | "name"
   | "slug"
+  | "createdAt"
   | "logo"
   | "favicon"
   | "address"

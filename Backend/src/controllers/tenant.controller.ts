@@ -13,7 +13,7 @@ import {
 } from "../utils/tenant.utils.js";
 import { char36Schema } from "../types/tenant.types.js";
 import type { Tenant } from "../types/tenant.types.js";
-
+import z from "zod";
 type AuthenticatedRequest = Request & {
   user?: Request["user"] & { id: string };
 };
@@ -130,18 +130,6 @@ export const getTenantById = asyncHandler(async (req:Request,res:Response) => {
 
   const tenant = await db.tenant.findUnique({
     where: { id: parsedTenantId.data },
-    select: {
-      id: true,
-      name: true,
-      slug: true,
-      logo: true,
-      favicon: true,
-      address: true,
-      city: true,
-      state: true,
-      country: true,
-      postalCode: true,
-    },
   });
 
   if(!tenant) {
@@ -157,3 +145,93 @@ export const getTenantById = asyncHandler(async (req:Request,res:Response) => {
     )
   )
 })
+
+const updateTenantSchema = z.object({
+  name: z
+    .string()
+    .min(2, "Hospital name must be at least 2 characters")
+    .trim()
+    .optional(),
+  address: z.string().trim().optional().nullable(),
+  city: z.string().trim().optional().nullable(),
+  state: z.string().trim().optional().nullable(),
+  country: z.string().trim().optional(),
+  postalCode: z.string().trim().optional().nullable(),
+});
+
+export const updateTenantDetails = asyncHandler(
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.id;
+    const tenantId = req.user?.tenantId; 
+
+    if (!userId) {
+      throw new ApiError(401, "Authentication required");
+    }
+
+    if (!tenantId) {
+      throw new ApiError(403, "No hospital associated with this account");
+    }
+
+    // Assuming you have an update schema (e.g., updateTenantSchema) that makes fields optional
+    const parsedBody = updateTenantSchema.safeParse(req.body);
+    if (!parsedBody.success) {
+      const message = parsedBody.error.issues[0]?.message ?? "Invalid request body";
+      throw new ApiError(400, message);
+    }
+
+    const { name, address, city, state, country, postalCode } = parsedBody.data;
+
+    const files = req.files as
+      | { [fieldname: string]: Express.Multer.File[] }
+      | undefined;
+    const logoLocalPath = files?.logo?.[0]?.path;
+    const faviconLocalPath = files?.favicon?.[0]?.path;
+
+    // Build the update payload dynamically. 
+    // In Prisma, passing `undefined` ignores the field, while `null` sets it to null.
+    const updateData: any = {
+      ...(name && { name }),
+      ...(address !== undefined && { address }),
+      ...(city !== undefined && { city }),
+      ...(state !== undefined && { state }),
+      ...(country !== undefined && { country }),
+      ...(postalCode !== undefined && { postalCode }),
+    };
+
+    if (logoLocalPath) {
+      const logoUpload = await uploadToCloudinary(logoLocalPath);
+      if (!logoUpload) {
+        throw new ApiError(500, "Failed to upload new hospital logo");
+      }
+      updateData.logo = logoUpload.secure_url;
+    }
+
+    if (faviconLocalPath) {
+      const faviconUpload = await uploadToCloudinary(faviconLocalPath);
+      if (!faviconUpload) {
+        throw new ApiError(500, "Failed to upload new hospital favicon");
+      }
+      updateData.favicon = faviconUpload.secure_url;
+    }
+
+    // Ensure there is actually something to update to avoid empty database calls
+    if (Object.keys(updateData).length === 0) {
+      throw new ApiError(400, "No valid fields provided for update");
+    }
+
+    const updatedTenant = await db.tenant.update({
+      where: { id: tenantId },
+      data: updateData,
+    });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          updatedTenant,
+          "Hospital details updated successfully."
+        )
+      );
+  }
+);

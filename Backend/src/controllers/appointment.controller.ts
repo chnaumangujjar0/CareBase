@@ -171,6 +171,14 @@ const querySchema = z.object({
     path: ["to"],
   });
 
+const appointmentStatsQuerySchema = z.object({
+  from: z.coerce.date(),
+  to: z.coerce.date(),
+}).refine(({ from, to }) => from <= to, {
+  message: "The from date must be before the to date",
+  path: ["to"],
+});
+
 export const getAppointments = asyncHandler(async (req: Request, res: Response) => {
   const tenantId = req.user?.tenantId;
   if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
@@ -315,29 +323,34 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
 
 export const getAppointmentStats = asyncHandler(async (req:Request,res:Response) => {
   const tenantId = req.user?.tenantId;
-  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+  const userId = req.user?.id;
+  if (!tenantId || !userId) throw new ApiError(401, "Authenticated tenant context is required");
 
-  
-  const parsed = querySchema.safeParse(req.query);
+  const parsed = appointmentStatsQuerySchema.safeParse(req.query);
   if (!parsed.success) {
     throw new ApiError(
       400,
-      "Invalid appointment filters",
+      "Invalid appointment stats date range",
       parsed.error.issues.map(({ path, message }) => ({ path: path.join("."), message })),
     );
   }
 
-  const { doctorId} = parsed.data;
+  const doctor = await db.doctorProfile.findFirst({
+    where: { userId, tenantId, isActive: true },
+    select: { id: true },
+  });
+  if (!doctor) throw new ApiError(403, "An active doctor profile is required to view these stats");
 
   const where = {
     tenantId,
-    doctorId,
-    scheduledAt: { gte: new Date(Date.now() - 1) }, // TODO: confirm this is your actual datetime field name
+    doctorId: doctor.id,
+    scheduledAt: { gte: parsed.data.from, lte: parsed.data.to },
   };
 
-  const [appointments, statusCounts] = await Promise.all([
+  const [appointments, statusCounts, uniquePatients] = await Promise.all([
     db.appointment.findMany({
       where,
+      include: appointmentInclude,
       orderBy: { scheduledAt: "asc" },
     }),
     db.appointment.groupBy({
@@ -345,14 +358,18 @@ export const getAppointmentStats = asyncHandler(async (req:Request,res:Response)
       where,
       _count: { _all: true },
     }),
+    db.appointment.findMany({
+      where,
+      select: { patientId: true },
+      distinct: ["patientId"],
+    }),
   ]);
 
   const byStatus = statusCounts.reduce<Record<string, number>>((acc, row) => {
     acc[row.status] = row._count._all;
     return acc;
   }, {});
-
-  const total = statusCounts.reduce((sum, row) => sum + row._count._all, 0);
+  const total = Object.values(byStatus).reduce((sum, count) => sum + count, 0);
 
   return res.status(200).json(
     new ApiResponse(
@@ -361,9 +378,12 @@ export const getAppointmentStats = asyncHandler(async (req:Request,res:Response)
         appointments,
         counts: {
           total,
-          completed: byStatus.COMPLETED ?? 0,
-          pending: byStatus.PENDING ?? 0,
-          byStatus, // full breakdown for anything beyond the two you asked about
+          uniquePatients: uniquePatients.length,
+          booked: byStatus.booked ?? 0,
+          completed: byStatus.completed ?? 0,
+          cancelled: byStatus.cancelled ?? 0,
+          no_show: byStatus.no_show ?? 0,
+          byStatus,
         }
       },
       "Appointment stats fetched successfully!"
