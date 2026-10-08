@@ -36,14 +36,16 @@ import staffRouter from "./routes/staff.routes.js"
 import appointmentRouter from "./routes/appointment.routes.js"
 import patientRouter from "./routes/patient.routes.js"
 import roleRouter from "./routes/role.routes.js"
+import facilityRouter from "./routes/facility.routes.js"
 
 // routes intialization
 app.use("/api/v1/user",userRouter)
-app.use(errorHandler)
 app.use("/api/v1/tenant",tenantRouter)
 app.use("/api/v1/department",departmentRouter)
 app.use("/api/v1/staff",staffRouter)
 app.use("/api/v1/appointments",appointmentRouter)
 app.use("/api/v1/patients",patientRouter)
 app.use("/api/v1/roles",roleRouter)
+app.use("/api/v1/facility",facilityRouter)
+app.use(errorHandler)
 export {httpServer,app}

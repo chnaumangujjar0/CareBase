@@ -172,6 +172,7 @@ model Patient {
   emergencyContactPhone String?
   insuranceProvider    String?
   insurancePolicyNumber String?
+  type                 String        @default("Unknown")
 
   tenantId             String        @db.Uuid
   Tenant               Tenant        @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
@@ -247,6 +248,7 @@ model Room {
 
   @@index([tenantId], map: "Room_tenantId_idx_c93ed4f1")
   @@index([wardId], map: "Room_wardId_idx_6180a90a")
+  @@unique([wardId, name])
 }
 
 model Session {
@@ -391,4 +393,5 @@ model Ward {
 
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "Ward_tenantId_idx_c93ed4f1")
+  @@unique([tenantId, name])
 }
