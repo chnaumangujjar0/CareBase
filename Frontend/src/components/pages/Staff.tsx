@@ -17,8 +17,10 @@ import * as Yup from "yup";
 import dayjs from "dayjs";
 import {
   createStaffProfile,
+  getAllWards,
   getAllStaff,
   getDepartments,
+  getApiErrorMessage,
   updateStaffAvailability,
 } from "../../services/api";
 import { useSelector } from "react-redux";
@@ -205,17 +207,46 @@ function Staff() {
   const [staffList, setStaffList] = useState<StaffDirectoryEntry[]>([]);
   const [activeStaff, setActiveStaff] = useState<StaffDirectoryEntry | null>(null);
   const [departments,setDepartments] = useState<Department[] | null>(null)
+  const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
+  const [wardsLoading, setWardsLoading] = useState(false);
   const user = useSelector(selectCurrentUser) as AuthUser | null
 
   useEffect(() => {
     if (!showModal || !user?.tenantId) return;
 
     getDepartments(user.tenantId)
-      .then((res) => setDepartments(res))
+      .then((res: Department[]) => setDepartments(res))
       .catch((err: unknown) => {
-        const message = err instanceof Error ? err.message : "Failed to load departments";
-        toast.error(message);
+        toast.error(getApiErrorMessage(err, "Failed to load departments"));
       });
+  }, [showModal, user?.tenantId]);
+
+  useEffect(() => {
+    if (!showModal || !user?.tenantId) return;
+
+    let isCurrent = true;
+    const timer = window.setTimeout(() => {
+      setWardsLoading(true);
+      getAllWards()
+        .then((records) => {
+          if (isCurrent) {
+            setWards(records.map(({ id, name }) => ({ id, name })));
+          }
+        })
+        .catch((err: unknown) => {
+          if (isCurrent) {
+            toast.error(getApiErrorMessage(err, "Failed to load wards"));
+          }
+        })
+        .finally(() => {
+          if (isCurrent) setWardsLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timer);
+    };
   }, [showModal, user?.tenantId]);
 
   useEffect(() => {
@@ -882,6 +913,13 @@ function Staff() {
                       allowClear
                       value={formik.values.wardId || null}
                       onChange={(val) => formik.setFieldValue("wardId", val)}
+                      loading={wardsLoading}
+                      showSearch
+                      optionFilterProp="label"
+                      options={wards.map((ward) => ({
+                        value: ward.id,
+                        label: ward.name,
+                      }))}
                     />
                   </Col>
                   <Col md={6}>

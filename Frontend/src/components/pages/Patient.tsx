@@ -277,7 +277,7 @@ function Patient() {
       contactPhone: createPatientForm.contactPhone?.trim(),
       contactEmail: createPatientForm.contactEmail?.trim() || null,
     };
-    if (!payload.mrn || !payload.firstName || !payload.lastName || !payload.dob || !payload.contactPhone || payload.gender) {
+    if (!payload.mrn || !payload.firstName || !payload.lastName || !payload.dob || !payload.contactPhone || !payload.gender) {
       toast.error("All Fields are required");
       return;
     }

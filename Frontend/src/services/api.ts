@@ -23,6 +23,11 @@ import type {
   RoleRecord,
   RoleListResponse,
   UpdateTenantDetailsPayload,
+  BedRecord,
+  BedStatus,
+  FacilityListResponse,
+  RoomRecord,
+  WardRecord,
 } from "../types/global.types";
 import type { Tenant } from "../types/auth";
 
@@ -116,6 +121,142 @@ export const deleteDepartment = async (tenantId: string,deptId: string,) => {
 
   return res.data
 }
+
+// Facility APIs
+
+export const getWards = async (params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}): Promise<FacilityListResponse<WardRecord>> => {
+  const res = await api.get("/facility/wards", { params });
+  return res.data.data as FacilityListResponse<WardRecord>;
+};
+
+export const getAllWards = async (): Promise<WardRecord[]> => {
+  const result: WardRecord[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const response = await getWards({ page, limit: 100 });
+    result.push(...response.items);
+    totalPages = response.pagination.totalPages;
+    page += 1;
+  }
+
+  return result;
+};
+
+export const createWard = async (payload: {
+  name: string;
+  departmentId?: string | null;
+}): Promise<WardRecord> => {
+  const res = await api.post("/facility/wards", payload);
+  return res.data.data as WardRecord;
+};
+
+export const updateWard = async (
+  id: string,
+  payload: { name?: string; departmentId?: string | null },
+): Promise<WardRecord> => {
+  const res = await api.patch(`/facility/wards/${id}`, payload);
+  return res.data.data as WardRecord;
+};
+
+export const deleteWard = async (id: string): Promise<void> => {
+  await api.delete(`/facility/wards/${id}`);
+};
+
+export const getRooms = async (params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  wardId?: string;
+} = {}): Promise<FacilityListResponse<RoomRecord>> => {
+  const res = await api.get("/facility/rooms", { params });
+  return res.data.data as FacilityListResponse<RoomRecord>;
+};
+
+export const getAllRooms = async (): Promise<RoomRecord[]> => {
+  const result: RoomRecord[] = [];
+  let page = 1;
+  let totalPages = 1;
+
+  while (page <= totalPages) {
+    const response = await getRooms({ page, limit: 100 });
+    result.push(...response.items);
+    totalPages = response.pagination.totalPages;
+    page += 1;
+  }
+
+  return result;
+};
+
+export const createRoom = async (payload: {
+  name: string;
+  wardId: string;
+}): Promise<RoomRecord> => {
+  const res = await api.post("/facility/rooms", payload);
+  return res.data.data as RoomRecord;
+};
+
+export const updateRoom = async (
+  id: string,
+  payload: { name?: string; wardId?: string },
+): Promise<RoomRecord> => {
+  const res = await api.patch(`/facility/rooms/${id}`, payload);
+  return res.data.data as RoomRecord;
+};
+
+export const deleteRoom = async (id: string): Promise<void> => {
+  await api.delete(`/facility/rooms/${id}`);
+};
+
+export const getBeds = async (params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+  roomId?: string;
+  wardId?: string;
+  status?: BedStatus;
+} = {}): Promise<FacilityListResponse<BedRecord>> => {
+  const res = await api.get("/facility/beds", { params });
+  return res.data.data as FacilityListResponse<BedRecord>;
+};
+
+export const createBed = async (payload: {
+  code: string;
+  roomId: string;
+  status?: Exclude<BedStatus, "occupied">;
+}): Promise<BedRecord> => {
+  const res = await api.post("/facility/beds", payload);
+  return res.data.data as BedRecord;
+};
+
+export const updateBed = async (
+  id: string,
+  payload: {
+    version: number;
+    code?: string;
+    roomId?: string;
+    status?: Exclude<BedStatus, "occupied">;
+  },
+): Promise<BedRecord> => {
+  const res = await api.patch(`/facility/beds/${id}`, payload);
+  return res.data.data as BedRecord;
+};
+
+export const deleteBed = async (id: string): Promise<void> => {
+  await api.delete(`/facility/beds/${id}`);
+};
+
+export const getApiErrorMessage = (error: unknown, fallback: string): string => {
+  if (axios.isAxiosError<{ message?: string }>(error)) {
+    return error.response?.data?.message || fallback;
+  }
+  return error instanceof Error ? error.message : fallback;
+};
 
 
 // Staff apis
@@ -212,6 +353,9 @@ export const getAppointmentStat = async (params: { from: string; to: string }): 
   const res = await api.get("/appointments/get-stats", { params })
   return res.data.data as AppointmentStats
 }
+
+
+// role apis
 
 export interface RolePayload {
   name: string;

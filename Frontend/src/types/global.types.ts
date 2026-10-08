@@ -7,6 +7,59 @@ export interface Department {
   tenantId: string;
 }
 
+export interface FacilityPagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export interface FacilityListResponse<T> {
+  items: T[];
+  pagination: FacilityPagination;
+}
+
+export interface WardRecord {
+  id: string;
+  name: string;
+  departmentId: string | null;
+  tenantId: string;
+  Department?: { id: string; name: string } | null;
+  _count?: { Room: number };
+}
+
+export interface RoomRecord {
+  id: string;
+  name: string;
+  wardId: string;
+  tenantId: string;
+  Ward?: { id: string; name: string };
+  _count?: { Bed: number };
+}
+
+export type BedStatus =
+  | "available"
+  | "occupied"
+  | "cleaning"
+  | "maintenance"
+  | "reserved";
+
+export interface BedRecord {
+  id: string;
+  code: string;
+  status: BedStatus;
+  roomId: string;
+  tenantId: string;
+  currentPatientId: string | null;
+  version: number;
+  Room?: {
+    id: string;
+    name: string;
+    wardId?: string;
+    Ward?: { id: string; name: string };
+  };
+}
+
 export interface AvailabilityWindow {
   dayOfWeek: number;
   startMinute: number;

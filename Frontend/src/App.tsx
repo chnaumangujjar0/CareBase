@@ -14,6 +14,9 @@ import Staff from './components/pages/Staff';
 import Appointments from './components/pages/Appointments';
 import { RolesPage } from './components/pages/RolesPage';
 import { HospitalProfile } from './components/pages/HospitalProfile';
+import { Wards } from './components/pages/Ward';
+import { Room } from './components/pages/Room';
+import { Bed } from './components/pages/Bed';
 
 function App() {
   return (
@@ -43,8 +46,6 @@ function App() {
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Dashboard />} />
               <Route path='/patient' element={<Patient/>}/>
-              
-              <Route path='/staff' element={<Staff/>} />
               <Route path='/appointments' element={<Appointments/>} />
             </Route>
 
@@ -52,6 +53,13 @@ function App() {
               <Route path='/settings/departments' element={<Departments/>} />
               <Route path='/settings/roles' element={<RolesPage/>} />
               <Route path='/settings/profile' element={<HospitalProfile/>}/>
+            </Route>
+
+            <Route element={<ProtectedRoute allowedRoles={["Admin", "Owner"]} />}>
+              <Route path="/staff" element={<Staff />} />
+              <Route path="/facility/wards" element={<Wards />} />
+              <Route path="/facility/rooms" element={<Room />} />
+              <Route path="/facility/beds" element={<Bed />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

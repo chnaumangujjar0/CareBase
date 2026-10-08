@@ -27,6 +27,7 @@ import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
 import type { AppDispatch } from "../../store/store";
 import { updateTenantDetails } from "../../services/api";
 import dayjs from "dayjs";
+import { toast } from "react-toastify";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -122,14 +123,14 @@ export const HospitalProfile: React.FC = () => {
       dispatch(setTenant(updatedTenant));
       setLogoFile(null);
       setFaviconFile(null);
-      message.success("Hospital profile updated successfully!");
+      toast.success("Hospital profile updated successfully!");
     } catch (error: unknown) {
       const errorMessage = isAxiosError<{ message?: string }>(error)
         ? error.response?.data?.message ?? error.message
         : error instanceof Error
           ? error.message
           : "Failed to update profile. Please try again.";
-      message.error(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
