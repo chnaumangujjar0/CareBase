@@ -56,3 +56,27 @@ export const isUniqueViolation = (error: unknown): boolean =>
 
 export const isForeignKeyViolation = (error: unknown): boolean =>
   ["P2003", "23503"].includes(errorCode(error) ?? "");
+
+const errorText = (value: unknown, depth = 0, seen = new Set<object>()): string => {
+  if (typeof value === "string") return value;
+  if (depth >= 4 || typeof value !== "object" || value === null || seen.has(value)) return "";
+  seen.add(value);
+  const values = Array.isArray(value) ? value : Object.values(value);
+  return values.map((nested) => errorText(nested, depth + 1, seen)).join(" ");
+};
+
+export const appointmentOverlapConflict = (
+  error: unknown
+): "doctor" | "patient" | undefined => {
+  const errorRecord =
+    typeof error === "object" && error !== null
+      ? (error as Record<string, unknown>)
+      : undefined;
+  if (!errorRecord) return undefined;
+
+  const detail = errorText(error);
+
+  if (detail.includes("Appointment_no_doctor_overlap")) return "doctor";
+  if (detail.includes("Appointment_no_patient_overlap")) return "patient";
+  return undefined;
+};

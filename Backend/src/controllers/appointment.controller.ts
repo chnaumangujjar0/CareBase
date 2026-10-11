@@ -4,6 +4,7 @@ import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { appointmentOverlapConflict } from "../utils/facility.utils.js";
 
 const appointmentStatusSchema = z.enum(["booked", "completed", "cancelled", "no_show"]);
 
@@ -53,6 +54,23 @@ const appointmentInclude = {
 } as const;
 
 type AppointmentTransaction = Parameters<Parameters<typeof db.$transaction>[0]>[0];
+
+const withAppointmentConflictHandling = async <T>(
+  operation: (transaction: AppointmentTransaction) => Promise<T>,
+): Promise<T> => {
+  try {
+    return await db.$transaction(operation);
+  } catch (error) {
+    const conflict = appointmentOverlapConflict(error);
+    if (conflict === "doctor") {
+      throw new ApiError(409, "The doctor already has a booked appointment during this time");
+    }
+    if (conflict === "patient") {
+      throw new ApiError(409, "The patient already has a booked appointment during this time");
+    }
+    throw error;
+  }
+};
 
 const ensureNoConflict = async (
   transaction: AppointmentTransaction,
@@ -109,7 +127,7 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
   }
 
   const input = parsed.data;
-  const result = await db.$transaction(async (transaction) => {
+  const result = await withAppointmentConflictHandling(async (transaction) => {
     const [patient, doctor, department] = await Promise.all([
       transaction.patient.findFirst({
         where: { id: input.patientId, tenantId, isActive: true, deletedAt: null },
@@ -265,7 +283,7 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
   }
 
   const input = parsed.data;
-  const result = await db.$transaction(async (transaction) => {
+  const result = await withAppointmentConflictHandling(async (transaction) => {
     const current = await transaction.appointment.findFirst({
       where: { id: parsedId.data, tenantId },
     });

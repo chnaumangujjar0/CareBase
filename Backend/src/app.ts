@@ -37,6 +37,7 @@ import appointmentRouter from "./routes/appointment.routes.js"
 import patientRouter from "./routes/patient.routes.js"
 import roleRouter from "./routes/role.routes.js"
 import facilityRouter from "./routes/facility.routes.js"
+import clinicalRouter from "./routes/clinical.routes.js"
 
 // routes intialization
 app.use("/api/v1/user",userRouter)
@@ -47,5 +48,6 @@ app.use("/api/v1/appointments",appointmentRouter)
 app.use("/api/v1/patients",patientRouter)
 app.use("/api/v1/roles",roleRouter)
 app.use("/api/v1/facility",facilityRouter)
+app.use("/api/v1/clinical",clinicalRouter)
 app.use(errorHandler)
 export {httpServer,app}

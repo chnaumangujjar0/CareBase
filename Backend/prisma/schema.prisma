@@ -32,6 +32,7 @@ model Appointment {
   Patient         Patient       @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
   Creator         User?         @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
   Updater         User?         @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
+  Encounter       Encounter?
 
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
   @@index([departmentId], map: "Appointment_departmentId_idx_8e261ed8")
@@ -41,6 +42,7 @@ model Appointment {
   @@index([tenantId, scheduledAt], map: "Appointment_tenantId_scheduledAt_idx_31e2839e")
   @@index([updatedBy], map: "Appointment_updatedBy_idx_0780dcde")
   @@index([doctorId, scheduledAt], map: "appointment_doctor_schedule_idx_23b246b0")
+  @@unique([id, tenantId])
 }
 
 model AuditLog {
@@ -80,9 +82,11 @@ model Bed {
 
   Room             Room     @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_roomId_fkey")
   Tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_tenantId_fkey")
-  Patient          Patient? @relation(fields: [currentPatientId], references: [id], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
+  Patient          Patient? @relation(fields: [currentPatientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
+  BedAssignment    BedAssignment[]
 
   @@unique([roomId, code], map: "bed_room_code_key_aff24a4e")
+  @@unique([id, tenantId])
   @@index([currentPatientId], map: "Bed_currentPatientId_idx_41689716")
   @@index([roomId], map: "Bed_roomId_idx_fe51d647")
   @@index([tenantId], map: "Bed_tenantId_idx_c93ed4f1")
@@ -99,11 +103,14 @@ model Department {
   Tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "department_tenantId_fkey")
   
   Appointment   Appointment[]
+  Encounter     Encounter[]
+  Admission     Admission[]
   DoctorProfile DoctorProfile[]
   StaffProfile  StaffProfile[]
   Ward          Ward[]
 
   @@unique([tenantId, name], map: "department_tenant_name_key_efdfefee")
+  @@unique([id, tenantId])
   @@index([tenantId], map: "Department_tenantId_idx_c93ed4f1")
 }
 
@@ -129,6 +136,12 @@ model DoctorProfile {
   Department         Department           @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
   
   Appointment        Appointment[]
+  Encounter          Encounter[]
+  Consultation       Consultation[]
+  Prescriptions      Prescription[]
+  Admissions         Admission[]
+  Surgeries          SurgeryCase[]
+  DischargeSummaries DischargeSummary[]
   DoctorAvailability DoctorAvailability[]
 
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
@@ -178,6 +191,7 @@ model Patient {
   Tenant               Tenant        @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
 
   Appointment          Appointment[]
+  Encounter            Encounter[]
   Bed                  Bed[]
   MedicalData          PatientMedicalData[]
 
@@ -207,15 +221,18 @@ model PatientMedicalData {
 
   patientId  String  @db.Uuid
   tenantId   String  @db.Uuid
+  encounterId String? @db.Uuid
   recordedBy String? @db.Uuid
 
   Patient  Patient @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_patient_tenant_fkey")
   Tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_tenantId_fkey")
   Recorder User?   @relation("PatientMedicalDataRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "patientMedicalData_recordedBy_fkey")
+  Encounter Encounter? @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([tenantId, patientId, recordedAt], map: "patientMedicalData_tenant_patient_recordedAt_idx")
   @@index([patientId, recordedAt], map: "patientMedicalData_patient_recordedAt_idx")
   @@index([recordedBy], map: "patientMedicalData_recordedBy_idx")
+  @@index([encounterId, tenantId])
 }
 
 model Role {
@@ -343,6 +360,17 @@ model Tenant {
   StaffAvailability  StaffAvailability[]
   User               User[]
   Ward               Ward[]
+  Encounter          Encounter[]
+  Consultation       Consultation[]
+  Medicine           Medicine[]
+  Prescription       Prescription[]
+  PrescriptionItem   PrescriptionItem[]
+  Admission          Admission[]
+  BedAssignment      BedAssignment[]
+  OperatingTheatre   OperatingTheatre[]
+  SurgeryCase        SurgeryCase[]
+  SurgeryTeamMember  SurgeryTeamMember[]
+  DischargeSummary   DischargeSummary[]
 }
 
 model User {
@@ -368,6 +396,9 @@ model User {
   
   AuditLog            AuditLog[]
   RecordedPatientMedicalData PatientMedicalData[] @relation("PatientMedicalDataRecorder")
+  TriagedEncounters Encounter[] @relation("EncounterTriagedBy")
+  AssignedBedAssignments BedAssignment[] @relation("BedAssignmentAssignedBy")
+  SurgeryTeamMemberships SurgeryTeamMember[]
   DoctorProfile       DoctorProfile?
   Session             Session[]
   StaffProfile        StaffProfile?
@@ -394,4 +425,336 @@ model Ward {
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "Ward_tenantId_idx_c93ed4f1")
   @@unique([tenantId, name])
+}
+
+
+// ============================================================
+// NEW MODELS
+//
+// Delete rules used below, in plain words:
+//   Restrict = "refuse to delete while records still point here"
+//              (used for medical records, so history can't vanish)
+//   Cascade  = "delete the children together with the parent"
+//              (used only for pure line items like prescription rows)
+//   SetNull  = "keep the row, just clear the link"
+//
+// Where a link uses both an id and a tenantId, the database itself
+// refuses a record that points at another hospital's data.
+// ============================================================
+
+/// One row per visit. Booked, walk-in and emergency patients all get one.
+/// An Appointment is only a booking; the Encounter is what actually happened.
+model Encounter {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  type           String    @default("outpatient") // outpatient | inpatient | emergency
+  source         String    @default("appointment") // appointment | walk_in | emergency | referral
+  status         String    @default("waiting") // waiting | in_progress | closed
+  disposition    String? // how it ended: discharged_home | admitted | transferred | referred_out | left_without_being_seen | deceased
+  chiefComplaint String?
+  startedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  endedAt        DateTime? @db.Timestamptz(6)
+  version        Int       @default(1)
+
+  // Waiting-room token. Resets every day, separately per department.
+  queueDate   DateTime? @db.Date
+  queueNumber Int?
+
+  // Emergency fields (empty for normal visits)
+  triageLevel String? // critical | urgent | normal
+  triagedAt   DateTime? @db.Timestamptz(6)
+  triagedBy   String?   @db.Uuid
+  arrivalMode String? // walk_in | ambulance | referral
+
+  tenantId      String  @db.Uuid
+  patientId     String  @db.Uuid
+  departmentId  String  @db.Uuid
+  doctorId      String? @db.Uuid // can be empty at arrival, e.g. in emergency
+  appointmentId String? @unique @db.Uuid // empty for walk-ins and emergencies
+
+  Tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Patient       Patient        @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Department    Department     @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  DoctorProfile DoctorProfile? @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Appointment   Appointment?   @relation(fields: [appointmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  TriagedByUser User?          @relation("EncounterTriagedBy", fields: [triagedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  Consultation       Consultation[]
+  Prescription       Prescription[]
+  Admission          Admission?
+  BedAssignment      BedAssignment[]
+  SurgeryCase        SurgeryCase[]
+  PatientMedicalData PatientMedicalData[]
+
+  @@unique([id, tenantId])
+  @@unique([appointmentId, tenantId])
+  @@unique([tenantId, departmentId, queueDate, queueNumber])
+  @@index([tenantId, departmentId, status, startedAt])
+  @@index([tenantId, patientId, startedAt])
+  @@index([tenantId, status, triageLevel, startedAt])
+  @@index([doctorId, status])
+}
+
+/// What the doctor found and decided. One encounter can have many
+/// (an admitted patient gets one every ward round).
+model Consultation {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  kind           String    @default("initial") // initial | ward_round | pre_operative
+  chiefComplaint String?
+  findings       String?
+  diagnosis      String?
+  notes          String?
+  followUpDate   DateTime? @db.Date
+
+  tenantId    String @db.Uuid
+  encounterId String @db.Uuid
+  doctorId    String @db.Uuid
+
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Encounter     Encounter     @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  DoctorProfile DoctorProfile @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([encounterId, createdAt])
+  @@index([doctorId, createdAt])
+  @@index([tenantId])
+}
+
+/// The hospital's medicine list. Prescriptions point here instead of
+/// free text, so "Panadol", "panadol" and "Paracetamol" don't turn into
+/// three different medicines. Deactivate a medicine instead of deleting it.
+model Medicine {
+  id          String   @id @default(uuid()) @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  name        String
+  genericName String?
+  form        String? // tablet | syrup | injection ...
+  strength    String? // e.g. 500 mg
+  isActive    Boolean  @default(true)
+
+  tenantId String @db.Uuid
+
+  Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  PrescriptionItem PrescriptionItem[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, name])
+}
+
+model Prescription {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  status    String   @default("active") // active | cancelled
+  notes     String? // general advice
+
+  tenantId    String @db.Uuid
+  encounterId String @db.Uuid
+  doctorId    String @db.Uuid
+
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Encounter     Encounter     @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  DoctorProfile DoctorProfile @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  PrescriptionItem PrescriptionItem[]
+
+  @@unique([id, tenantId])
+  @@index([encounterId])
+  @@index([doctorId, createdAt])
+  @@index([tenantId])
+}
+
+model PrescriptionItem {
+  id           String   @id @default(uuid()) @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  dose         String // e.g. 500 mg
+  frequency    String // e.g. twice daily
+  durationDays Int?
+  instructions String?
+
+  tenantId       String @db.Uuid
+  prescriptionId String @db.Uuid
+  medicineId     String @db.Uuid
+
+  Tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Prescription Prescription @relation(fields: [prescriptionId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
+  Medicine     Medicine     @relation(fields: [medicineId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([prescriptionId])
+  @@index([medicineId])
+  @@index([tenantId])
+}
+
+/// A hospital stay. Always starts from an Encounter (one admission per encounter).
+model Admission {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  status             String    @default("admitted") // admitted | discharged
+  reason             String
+  admissionDiagnosis String?
+  admittedAt         DateTime  @default(now()) @db.Timestamptz(6)
+  dischargedAt       DateTime? @db.Timestamptz(6)
+  dischargeType      String? // routine | against_medical_advice | transferred | deceased
+  version            Int       @default(1)
+
+  tenantId          String @db.Uuid
+  encounterId       String @db.Uuid
+  admittingDoctorId String @db.Uuid
+  departmentId      String @db.Uuid
+
+  Tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Encounter      Encounter     @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  AdmittingDoctor DoctorProfile @relation(fields: [admittingDoctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Department     Department    @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  BedAssignment    BedAssignment[]
+  SurgeryCase      SurgeryCase[]
+  DischargeSummary DischargeSummary?
+
+  @@unique([id, tenantId])
+  @@unique([encounterId, tenantId])
+  @@index([tenantId, status, admittedAt])
+  @@index([departmentId])
+  @@index([admittingDoctorId])
+}
+
+/// Bed history. A transfer closes one row (releasedAt) and opens another.
+/// "One active assignment per bed" is enforced in post-migration.sql.
+/// Linked to the Encounter (not only the Admission) because emergency
+/// patients can occupy an ER bed before any formal admission.
+model BedAssignment {
+  id         String    @id @default(uuid()) @db.Uuid
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  assignedAt DateTime  @default(now()) @db.Timestamptz(6)
+  releasedAt DateTime? @db.Timestamptz(6)
+  reason     String? // admission | transfer | emergency ...
+
+  tenantId    String  @db.Uuid
+  bedId       String  @db.Uuid
+  encounterId String  @db.Uuid
+  admissionId String? @db.Uuid
+  assignedBy  String? @db.Uuid
+
+  Tenant         Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Bed            Bed        @relation(fields: [bedId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Encounter      Encounter  @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Admission      Admission? @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  AssignedByUser User?      @relation("BedAssignmentAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([bedId, releasedAt])
+  @@index([encounterId, releasedAt])
+  @@index([admissionId])
+  @@index([tenantId])
+}
+
+model OperatingTheatre {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  name      String
+  isActive  Boolean  @default(true)
+
+  tenantId String @db.Uuid
+
+  Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  SurgeryCase SurgeryCase[]
+
+  @@unique([tenantId, name])
+  @@unique([id, tenantId])
+}
+
+/// One planned or completed operation. No two active surgeries may
+/// overlap in the same theatre or with the same surgeon
+/// (enforced in post-migration.sql).
+model SurgeryCase {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  procedureName   String
+  status          String    @default("scheduled") // scheduled | in_progress | completed | cancelled | postponed
+  scheduledAt     DateTime  @db.Timestamptz(6)
+  durationMinutes Int       @default(60)
+  startedAt       DateTime? @db.Timestamptz(6)
+  endedAt         DateTime? @db.Timestamptz(6)
+  anesthesiaType  String? // general | regional | local | sedation
+  preOpNotes      String?
+  outcomeNotes    String?
+  version         Int       @default(1)
+
+  tenantId    String  @db.Uuid
+  encounterId String  @db.Uuid
+  admissionId String? @db.Uuid // empty for day surgery
+  theatreId   String  @db.Uuid
+  surgeonId   String  @db.Uuid
+
+  Tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Encounter        Encounter        @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Admission     Admission?       @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  OperatingTheatre OperatingTheatre @relation(fields: [theatreId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Surgeon          DoctorProfile    @relation(fields: [surgeonId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  SurgeryTeamMember SurgeryTeamMember[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, scheduledAt])
+  @@index([theatreId, scheduledAt])
+  @@index([surgeonId, scheduledAt])
+  @@index([encounterId])
+}
+
+/// Everyone in the room besides the lead surgeon. Points at User, so it
+/// works for doctors (assistant, anaesthetist) and staff (nurses) alike.
+model SurgeryTeamMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  role      String // assistant_surgeon | anesthetist | scrub_nurse | circulating_nurse
+
+  tenantId  String @db.Uuid
+  surgeryId String @db.Uuid
+  userId    String @db.Uuid
+
+  Tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  SurgeryCase SurgeryCase @relation(fields: [surgeryId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
+  User        User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([surgeryId, userId])
+  @@index([userId])
+  @@index([tenantId])
+}
+
+/// One per admission. Medicines to take home are a normal Prescription on
+/// the same Encounter, so they are not duplicated here.
+model DischargeSummary {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  finalDiagnosis       String?
+  proceduresPerformed  String?
+  courseInHospital     String?
+  conditionAtDischarge String?
+  followUpInstructions String?
+  followUpDate         DateTime? @db.Date
+
+  tenantId    String @db.Uuid
+  admissionId String @db.Uuid
+  doctorId    String @db.Uuid
+
+  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Admission     Admission     @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  DoctorProfile DoctorProfile @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([admissionId, tenantId])
+  @@index([doctorId])
+  @@index([tenantId])
 }

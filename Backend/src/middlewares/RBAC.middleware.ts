@@ -59,3 +59,23 @@ export const checkAuthorizationForSuperRoles = asyncHandler(
   }
 );
 
+export const requirePermissions = (...requiredPermissions: string[]) =>
+  asyncHandler(async (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.role) {
+      throw new ApiError(403, "Role not resolved for this request");
+    }
+
+    const permissions = req.role.permissions;
+    const hasWildcard =
+      Array.isArray(permissions) && permissions.some((permission) => permission === "*");
+    const hasAllRequired =
+      hasWildcard ||
+      (Array.isArray(permissions) &&
+        requiredPermissions.every((required) => permissions.includes(required)));
+
+    if (!hasAllRequired) {
+      throw new ApiError(403, "You do not have permission to perform this clinical action.");
+    }
+
+    next();
+  });
