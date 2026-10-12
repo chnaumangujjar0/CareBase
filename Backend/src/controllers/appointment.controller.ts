@@ -182,6 +182,7 @@ const querySchema = z.object({
     doctorId: z.uuid().optional(),
     patientId: z.uuid().optional(),
     status: appointmentStatusSchema.optional(),
+    onlyNotCheckedIn: z.preprocess((value) => value === true || value === "true", z.boolean()).default(false),
     from: z.coerce.date().optional(),
     to: z.coerce.date().optional(),
   }).refine(({ from, to }) => !from || !to || from <= to, {
@@ -211,13 +212,14 @@ export const getAppointments = asyncHandler(async (req: Request, res: Response) 
     );
   }
 
-  const { doctorId, patientId, status, from, to } = parsed.data;
+  const { doctorId, patientId, status, from, to, onlyNotCheckedIn } = parsed.data;
   const appointments = await db.appointment.findMany({
     where: {
       tenantId,
       ...(doctorId ? { doctorId } : {}),
       ...(patientId ? { patientId } : {}),
       ...(status ? { status } : {}),
+      ...(onlyNotCheckedIn ? { Encounter: { is: null } } : {}),
       ...(from || to
         ? { scheduledAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
         : {}),

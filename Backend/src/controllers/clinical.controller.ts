@@ -277,6 +277,7 @@ export const getEncounter = asyncHandler(async (req: Request, res: Response) => 
       Consultation: { orderBy: { createdAt: "asc" } },
       Prescription: { include: { PrescriptionItem: { include: { Medicine: true } } } },
       Admission: { include: { BedAssignment: { where: { releasedAt: null }, include: { Bed: true } }, DischargeSummary: true } },
+      BedAssignment: { where: { releasedAt: null }, include: { Bed: true } },
       SurgeryCase: { include: { OperatingTheatre: true, SurgeryTeamMember: true } },
       PatientMedicalData: { orderBy: { recordedAt: "desc" } },
     },
@@ -412,11 +413,14 @@ const medicineSchema = z.object({
 
 export const listMedicines = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId } = tenantContext(req);
-  const query = parseBody(z.object({ search: z.string().trim().max(100).optional() }), req.query);
+  const query = parseBody(z.object({
+    search: z.string().trim().max(100).optional(),
+    includeInactive: z.preprocess((value) => value === true || value === "true", z.boolean()).default(false),
+  }), req.query);
   const medicines = await db.medicine.findMany({
     where: {
       tenantId,
-      isActive: true,
+      ...(query.includeInactive ? {} : { isActive: true }),
       ...(query.search ? { OR: [
         { name: { contains: query.search, mode: "insensitive" } },
         { genericName: { contains: query.search, mode: "insensitive" } },
@@ -437,6 +441,23 @@ export const createMedicine = asyncHandler(async (req: Request, res: Response) =
     return created;
   });
   return res.status(201).json(new ApiResponse(201, medicine, "Medicine added successfully."));
+});
+
+export const updateMedicine = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const medicineId = paramUuid(req, "medicineId");
+  const input = parseBody(z.object({ isActive: z.boolean() }), req.body);
+  const updated = await db.$transaction(async (tx) => {
+    const result = await tx.medicine.updateMany({
+      where: { id: medicineId, tenantId },
+      data: { isActive: input.isActive },
+    });
+    if (!result.count) throw new ApiError(404, "Medicine not found.");
+    const medicine = await tx.medicine.findFirst({ where: { id: medicineId, tenantId } });
+    await writeAudit(tx, req, "update", "Medicine", medicineId, { isActive: input.isActive });
+    return medicine;
+  });
+  return res.status(200).json(new ApiResponse(200, updated, "Medicine updated successfully."));
 });
 
 const prescriptionSchema = z.object({
@@ -492,6 +513,34 @@ export const createPrescription = asyncHandler(async (req: Request, res: Respons
   return res.status(201).json(new ApiResponse(201, prescription, "Prescription created successfully."));
 });
 
+export const cancelPrescription = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const prescriptionId = paramUuid(req, "prescriptionId");
+  const result = await db.$transaction(async (tx) => {
+    const updated = await tx.prescription.updateMany({
+      where: { id: prescriptionId, tenantId, status: "active" },
+      data: { status: "cancelled" },
+    });
+    if (!updated.count) {
+      const exists = await tx.prescription.findFirst({
+        where: { id: prescriptionId, tenantId },
+        select: { id: true },
+      });
+      if (!exists) throw new ApiError(404, "Prescription not found.");
+      throw new ApiError(409, "Only an active prescription can be cancelled.");
+    }
+    const prescription = await tx.prescription.findFirst({
+      where: { id: prescriptionId, tenantId },
+      include: { PrescriptionItem: { include: { Medicine: true } } },
+    });
+    await writeAudit(tx, req, "cancel", "Prescription", prescriptionId, {
+      status: "cancelled",
+    });
+    return prescription;
+  });
+  return res.status(200).json(new ApiResponse(200, result, "Prescription cancelled successfully."));
+});
+
 const admissionSchema = z.object({
   reason: z.string().trim().min(1).max(4000),
   admissionDiagnosis: z.string().trim().max(4000).nullish(),
@@ -530,6 +579,50 @@ export const createAdmission = asyncHandler(async (req: Request, res: Response) 
     return created;
   }, { isolationLevel: "Serializable" }));
   return res.status(201).json(new ApiResponse(201, admission, "Admission created successfully."));
+});
+
+export const listAdmissions = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const filters = parseBody(z.object({
+    status: z.enum(["admitted", "discharged"]).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+  }), req.query);
+  const where = {
+    tenantId,
+    ...(filters.status ? { status: filters.status } : {}),
+  };
+  const [items, total] = await Promise.all([
+    db.admission.findMany({
+      where,
+      include: {
+        Encounter: {
+          select: {
+            id: true,
+            type: true,
+            status: true,
+            startedAt: true,
+            Patient: { select: { id: true, mrn: true, firstName: true, lastName: true } },
+            Department: { select: { id: true, name: true } },
+          },
+        },
+        AdmittingDoctor: { select: { User: { select: { id: true, name: true } } } },
+        BedAssignment: {
+          orderBy: { assignedAt: "desc" },
+          include: { Bed: { include: { Room: { include: { Ward: true } } } } },
+        },
+        DischargeSummary: true,
+      },
+      orderBy: [{ status: "asc" }, { admittedAt: "desc" }],
+      skip: (filters.page - 1) * filters.limit,
+      take: filters.limit,
+    }),
+    db.admission.count({ where }),
+  ]);
+  return res.status(200).json(new ApiResponse(200, {
+    items,
+    pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) },
+  }, "Admissions fetched successfully."));
 });
 
 const bedAssignmentSchema = z.object({
@@ -752,15 +845,64 @@ export const transferEncounterBed = asyncHandler(async (req: Request, res: Respo
   return res.status(201).json(new ApiResponse(201, assignment, "Emergency bed transfer completed successfully."));
 });
 
+export const listAvailableBeds = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const beds = await db.bed.findMany({
+    where: {
+      tenantId,
+      status: "available",
+      BedAssignment: { none: { releasedAt: null } },
+    },
+    orderBy: [{ Room: { Ward: { name: "asc" } } }, { Room: { name: "asc" } }, { code: "asc" }],
+    select: {
+      id: true,
+      code: true,
+      status: true,
+      roomId: true,
+      tenantId: true,
+      currentPatientId: true,
+      version: true,
+      Room: {
+        select: {
+          id: true,
+          name: true,
+          Ward: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+  return res.status(200).json(new ApiResponse(200, beds, "Available beds fetched successfully."));
+});
+
 const theatreSchema = z.object({ name: z.string().trim().min(1).max(120) });
 
 export const listTheatres = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId } = tenantContext(req);
+  const query = parseBody(z.object({
+    includeInactive: z.preprocess((value) => value === true || value === "true", z.boolean()).default(false),
+  }), req.query);
   const theatres = await db.operatingTheatre.findMany({
-    where: { tenantId, isActive: true },
+    where: { tenantId, ...(query.includeInactive ? {} : { isActive: true }) },
     orderBy: { name: "asc" },
   });
   return res.status(200).json(new ApiResponse(200, theatres, "Operating theatres fetched successfully."));
+});
+
+export const listSurgeryTeamOptions = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const users = await db.user.findMany({
+    where: {
+      tenantId,
+      isActive: true,
+      OR: [
+        { DoctorProfile: { is: { isActive: true } } },
+        { StaffProfile: { is: { isActive: true } } },
+      ],
+    },
+    select: { id: true, name: true, DoctorProfile: { select: { id: true } }, StaffProfile: { select: { id: true } } },
+    orderBy: { name: "asc" },
+  });
+  return res.status(200).json(new ApiResponse(200, users, "Surgery team options fetched successfully."));
 });
 
 export const createTheatre = asyncHandler(async (req: Request, res: Response) => {
@@ -772,6 +914,64 @@ export const createTheatre = asyncHandler(async (req: Request, res: Response) =>
     return created;
   }));
   return res.status(201).json(new ApiResponse(201, theatre, "Operating theatre created successfully."));
+});
+
+export const updateTheatre = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const theatreId = paramUuid(req, "theatreId");
+  const input = parseBody(z.object({
+    name: z.string().trim().min(1).max(120).optional(),
+    isActive: z.boolean().optional(),
+  }).refine((value) => value.name !== undefined || value.isActive !== undefined), req.body);
+  const theatre = await withDbConflictHandling(db.$transaction(async (tx) => {
+    const result = await tx.operatingTheatre.updateMany({
+      where: { id: theatreId, tenantId },
+      data: input,
+    });
+    if (!result.count) throw new ApiError(404, "Operating theatre not found.");
+    const updated = await tx.operatingTheatre.findFirst({ where: { id: theatreId, tenantId } });
+    await writeAudit(tx, req, "update", "OperatingTheatre", theatreId, {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+    });
+    return updated;
+  }));
+  return res.status(200).json(new ApiResponse(200, theatre, "Operating theatre updated successfully."));
+});
+
+export const listSurgeryCases = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = tenantContext(req);
+  const filters = parseBody(z.object({
+    status: surgeryStatusSchema.optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+  }), req.query);
+  const where = { tenantId, ...(filters.status ? { status: filters.status } : {}) };
+  const [items, total] = await Promise.all([
+    db.surgeryCase.findMany({
+      where,
+      include: {
+        Encounter: {
+          select: {
+            id: true,
+            Patient: { select: { id: true, mrn: true, firstName: true, lastName: true } },
+            Department: { select: { id: true, name: true } },
+          },
+        },
+        OperatingTheatre: { select: { id: true, name: true } },
+        Surgeon: { select: { id: true, User: { select: { id: true, name: true } } } },
+        SurgeryTeamMember: { select: { id: true, role: true, userId: true, User: { select: { name: true } } } },
+      },
+      orderBy: [{ scheduledAt: "desc" }, { id: "asc" }],
+      skip: (filters.page - 1) * filters.limit,
+      take: filters.limit,
+    }),
+    db.surgeryCase.count({ where }),
+  ]);
+  return res.status(200).json(new ApiResponse(200, {
+    items,
+    pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) },
+  }, "Surgery cases fetched successfully."));
 });
 
 const surgerySchema = z.object({
@@ -831,7 +1031,7 @@ export const createSurgeryCase = asyncHandler(async (req: Request, res: Response
         admissionId: input.admissionId ?? null,
         anesthesiaType: input.anesthesiaType ?? null,
         preOpNotes: input.preOpNotes ?? null,
-        SurgeryTeamMember: { create: input.team.map((member) => ({ ...member, tenantId })) },
+        SurgeryTeamMember: { create: input.team },
       },
       include: {
         OperatingTheatre: true,
@@ -850,9 +1050,12 @@ export const createSurgeryCase = asyncHandler(async (req: Request, res: Response
 });
 
 const updateSurgerySchema = z.object({
-  status: surgeryStatusSchema,
+  status: surgeryStatusSchema.optional(),
+  scheduledAt: z.coerce.date().optional(),
   version: z.number().int().positive(),
   outcomeNotes: z.string().trim().max(10000).nullish(),
+}).refine((input) => input.status !== undefined || input.scheduledAt !== undefined || input.outcomeNotes !== undefined, {
+  message: "Provide a surgery field to update.",
 });
 
 export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response) => {
@@ -863,6 +1066,7 @@ export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response
     const current = await tx.surgeryCase.findFirst({ where: { id: surgeryId, tenantId } });
     if (!current) throw new ApiError(404, "Surgery case not found.");
     if (current.version !== input.version) throw new ApiError(409, "Surgery case changed; refresh and try again.");
+    const nextStatus = input.status ?? current.status;
     const allowed: Record<string, string[]> = {
       scheduled: ["in_progress", "cancelled", "postponed"],
       in_progress: ["completed"],
@@ -870,16 +1074,23 @@ export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response
       completed: [],
       cancelled: [],
     };
-    if (input.status !== current.status && !allowed[current.status]?.includes(input.status)) {
+    if (input.status && input.status !== current.status && !allowed[current.status]?.includes(input.status)) {
       throw new ApiError(409, "Invalid surgery status transition.");
+    }
+    if (input.scheduledAt && !["scheduled", "postponed"].includes(current.status)) {
+      throw new ApiError(409, "Only scheduled or postponed surgeries can be rescheduled.");
+    }
+    if (current.status === "postponed" && nextStatus === "scheduled" && !input.scheduledAt) {
+      throw new ApiError(400, "Choose a new scheduled date and time when rescheduling.");
     }
     const updated = await tx.surgeryCase.updateMany({
       where: { id: surgeryId, tenantId, version: input.version },
       data: {
-        status: input.status,
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
         ...(input.outcomeNotes !== undefined ? { outcomeNotes: input.outcomeNotes } : {}),
-        ...(input.status === "in_progress" && !current.startedAt ? { startedAt: new Date() } : {}),
-        ...(input.status === "completed" ? { endedAt: new Date() } : {}),
+        ...(nextStatus === "in_progress" && !current.startedAt ? { startedAt: new Date() } : {}),
+        ...(nextStatus === "completed" ? { endedAt: new Date() } : {}),
         version: { increment: 1 },
       },
     });
@@ -892,7 +1103,10 @@ export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response
         SurgeryTeamMember: true,
       },
     });
-    await writeAudit(tx, req, "update", "SurgeryCase", surgeryId, { status: input.status });
+    await writeAudit(tx, req, "update", "SurgeryCase", surgeryId, {
+      status: nextStatus,
+      ...(input.scheduledAt ? { scheduledAt: input.scheduledAt.toISOString() } : {}),
+    });
     return surgery;
   }, { isolationLevel: "Serializable" }));
   return res.status(200).json(new ApiResponse(200, result, "Surgery case updated successfully."));

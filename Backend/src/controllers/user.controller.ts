@@ -185,7 +185,11 @@ export const currentUser = asyncHandler(async (req:Request, res:Response) => {
       ? await db.role.findUnique({ where: { id: req.user.roleId } })
       : null;
 
-      const user = {...req.user, role: ownerRole?.name}
+      const user = {
+        ...req.user,
+        role: ownerRole?.name,
+        permissions: ownerRole?.permissions,
+      };
   return res
     .status(200)
     .json(new ApiResponse(200, 
