@@ -6,7 +6,7 @@ import { Card, Form, Button, Alert, Spinner } from "react-bootstrap";
 import { setUser } from "../../store/authSlice";
 import { toast } from "react-toastify";
 import Logo from "../../assets/carebase-logo-full.svg"
-import { registerUser } from "../../services/api";
+import { getApiErrorMessage, registerUser } from "../../services/api";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
 import Loader from "../common/Loader";
@@ -40,9 +40,11 @@ export const SignUp = () => {
       setIsLoading(true)
       try {
         
-        const { confirmPassword, ...submitData } = values;
-        console.log(submitData);
-        const userData = await registerUser(submitData);
+        const userData = await registerUser({
+          name: values.name,
+          email: values.email,
+          password: values.password,
+        });
         const userDetails = userData.user;
         const role = userData.role?.name ?? userDetails.role ?? "user";
         const user: AuthUser = { ...userDetails, role };
@@ -58,8 +60,8 @@ export const SignUp = () => {
         
         toast.success("Account created successfully!");
         navigate("/onboarding");
-      } catch (err: any) {
-        const errorMsg = err?.data?.message || "Registration failed. Please try again.";
+      } catch (err: unknown) {
+        const errorMsg = getApiErrorMessage(err, "Registration failed. Please try again.");
         setStatus(errorMsg);
         toast.error(errorMsg);
       }finally{

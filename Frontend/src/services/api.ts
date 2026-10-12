@@ -28,6 +28,16 @@ import type {
   FacilityListResponse,
   RoomRecord,
   WardRecord,
+  ClinicalEncounter,
+  ClinicalEncounterDetail,
+  ClinicalEncounterList,
+  ClinicalAdmissionList,
+  ClinicalSurgeryList,
+  DashboardSummary,
+  ClinicalMedicine,
+  ClinicalPrescription,
+  ClinicalConsultation,
+  ClinicalSurgeryCase,
 } from "../types/global.types";
 import type { Tenant } from "../types/auth";
 
@@ -331,6 +341,7 @@ export const getAppointments = async (params: {
   status?: AppointmentStatus;
   from?: string;
   to?: string;
+  onlyNotCheckedIn?: boolean;
 } = {}) => {
   const res = await api.get("/appointments", { params })
   return res.data.data as AppointmentRecord[]
@@ -353,6 +364,260 @@ export const getAppointmentStat = async (params: { from: string; to: string }): 
   const res = await api.get("/appointments/get-stats", { params })
   return res.data.data as AppointmentStats
 }
+
+export const getDashboardSummary = async (): Promise<DashboardSummary> => {
+  const res = await api.get("/dashboard/summary");
+  return res.data.data as DashboardSummary;
+};
+
+// Clinical workflow APIs
+export const getClinicalEncounters = async (params: {
+  page?: number;
+  limit?: number;
+  departmentId?: string;
+  doctorId?: string;
+  status?: "waiting" | "in_progress" | "closed";
+  triageLevel?: "critical" | "urgent" | "normal";
+} = {}): Promise<ClinicalEncounterList> => {
+  const res = await api.get("/clinical/encounters", { params });
+  return res.data.data as ClinicalEncounterList;
+};
+
+export const createClinicalEncounter = async (payload: {
+  patientId?: string;
+  departmentId?: string;
+  doctorId?: string | null;
+  appointmentId?: string | null;
+  type?: "outpatient" | "inpatient" | "emergency";
+  source?: "appointment" | "walk_in" | "emergency" | "referral";
+  chiefComplaint?: string | null;
+  arrivalMode?: "walk_in" | "ambulance" | "referral" | null;
+  triageLevel?: "critical" | "urgent" | "normal" | null;
+}): Promise<ClinicalEncounter> => {
+  const res = await api.post("/clinical/encounters", payload);
+  return res.data.data as ClinicalEncounter;
+};
+
+export const getClinicalEncounter = async (encounterId: string): Promise<ClinicalEncounterDetail> => {
+  const res = await api.get(`/clinical/encounters/${encounterId}`);
+  return res.data.data as ClinicalEncounterDetail;
+};
+
+export const getClinicalAdmissions = async (params: {
+  status?: "admitted" | "discharged";
+  page?: number;
+  limit?: number;
+} = {}): Promise<ClinicalAdmissionList> => {
+  const res = await api.get("/clinical/admissions", { params });
+  return res.data.data as ClinicalAdmissionList;
+};
+
+export const getClinicalSurgeries = async (params: {
+  status?: "scheduled" | "in_progress" | "completed" | "cancelled" | "postponed";
+  page?: number;
+  limit?: number;
+} = {}): Promise<ClinicalSurgeryList> => {
+  const res = await api.get("/clinical/surgeries", { params });
+  return res.data.data as ClinicalSurgeryList;
+};
+
+export const updateClinicalEncounter = async (
+  encounterId: string,
+  payload: {
+    status?: "waiting" | "in_progress" | "closed";
+    disposition?: "discharged_home" | "admitted" | "transferred" | "referred_out" | "left_without_being_seen" | "deceased" | null;
+    doctorId?: string | null;
+    triageLevel?: "critical" | "urgent" | "normal" | null;
+    chiefComplaint?: string | null;
+    version: number;
+  },
+): Promise<ClinicalEncounter> => {
+  const res = await api.patch(`/clinical/encounters/${encounterId}`, payload);
+  return res.data.data as ClinicalEncounter;
+};
+
+export const createClinicalConsultation = async (
+  encounterId: string,
+  payload: {
+    kind?: "initial" | "ward_round" | "pre_operative";
+    chiefComplaint?: string | null;
+    findings?: string | null;
+    diagnosis?: string | null;
+    notes?: string | null;
+    followUpDate?: string | null;
+  },
+): Promise<ClinicalConsultation> => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/consultations`, payload);
+  return res.data.data as ClinicalConsultation;
+};
+
+export const getClinicalMedicines = async (
+  search?: string,
+  includeInactive = false,
+): Promise<ClinicalMedicine[]> => {
+  const res = await api.get("/clinical/medicines", {
+    params: { ...(search ? { search } : {}), ...(includeInactive ? { includeInactive: true } : {}) },
+  });
+  return res.data.data as ClinicalMedicine[];
+};
+
+export const createClinicalMedicine = async (payload: {
+  name: string;
+  genericName?: string | null;
+  form?: string | null;
+  strength?: string | null;
+}): Promise<ClinicalMedicine> => {
+  const res = await api.post("/clinical/medicines", payload);
+  return res.data.data as ClinicalMedicine;
+};
+
+export const setClinicalMedicineActive = async (medicineId: string, isActive: boolean): Promise<ClinicalMedicine> => {
+  const res = await api.patch(`/clinical/medicines/${medicineId}`, { isActive });
+  return res.data.data as ClinicalMedicine;
+};
+
+export const getClinicalAvailableBeds = async (): Promise<BedRecord[]> => {
+  const res = await api.get("/clinical/beds");
+  return res.data.data as BedRecord[];
+};
+
+export const createClinicalPrescription = async (
+  encounterId: string,
+  payload: {
+    notes?: string | null;
+    items: Array<{
+      medicineId: string;
+      dose: string;
+      frequency: string;
+      durationDays?: number | null;
+      instructions?: string | null;
+    }>;
+  },
+): Promise<ClinicalPrescription> => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/prescriptions`, payload);
+  return res.data.data as ClinicalPrescription;
+};
+
+export const cancelClinicalPrescription = async (prescriptionId: string): Promise<ClinicalPrescription> => {
+  const res = await api.post(`/clinical/prescriptions/${prescriptionId}/cancel`);
+  return res.data.data as ClinicalPrescription;
+};
+
+export const createClinicalAdmission = async (
+  encounterId: string,
+  payload: { reason: string; admissionDiagnosis?: string | null },
+) => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/admissions`, payload);
+  return res.data.data as { id: string; status: "admitted" | "discharged" };
+};
+
+export const assignClinicalAdmissionBed = async (admissionId: string, bedId: string) => {
+  const res = await api.post(`/clinical/admissions/${admissionId}/bed-assignments`, { bedId });
+  return res.data.data;
+};
+
+export const assignClinicalEncounterBed = async (encounterId: string, bedId: string) => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/bed-assignments`, { bedId });
+  return res.data.data;
+};
+
+export const transferClinicalEncounterBed = async (
+  encounterId: string,
+  bedId: string,
+  targetBedId: string,
+) => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/bed-transfers`, { bedId, targetBedId });
+  return res.data.data;
+};
+
+export const releaseClinicalEncounterBed = async (encounterId: string, bedId: string): Promise<void> => {
+  await api.post(`/clinical/encounters/${encounterId}/bed-release`, { bedId });
+};
+
+export const transferClinicalAdmissionBed = async (
+  admissionId: string,
+  bedId: string,
+  targetBedId: string,
+) => {
+  const res = await api.post(`/clinical/admissions/${admissionId}/bed-transfers`, { bedId, targetBedId });
+  return res.data.data;
+};
+
+export const dischargeClinicalAdmission = async (
+  admissionId: string,
+  payload: {
+    dischargeType: "routine" | "against_medical_advice" | "transferred" | "deceased";
+    finalDiagnosis?: string | null;
+    proceduresPerformed?: string | null;
+    courseInHospital?: string | null;
+    conditionAtDischarge?: string | null;
+    followUpInstructions?: string | null;
+    followUpDate?: string | null;
+  },
+) => {
+  const res = await api.post(`/clinical/admissions/${admissionId}/discharge`, payload);
+  return res.data.data;
+};
+
+export interface ClinicalTheatre {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export const getClinicalTheatres = async (includeInactive = false): Promise<ClinicalTheatre[]> => {
+  const res = await api.get("/clinical/theatres", { params: includeInactive ? { includeInactive: true } : undefined });
+  return res.data.data as Array<{ id: string; name: string; isActive: boolean }>;
+};
+
+export const getClinicalSurgeryTeamOptions = async (): Promise<Array<{ id: string; name: string }>> => {
+  const res = await api.get("/clinical/surgery-team-options");
+  return res.data.data as Array<{ id: string; name: string }>;
+};
+
+export const createClinicalTheatre = async (name: string): Promise<ClinicalTheatre> => {
+  const res = await api.post("/clinical/theatres", { name });
+  return res.data.data as ClinicalTheatre;
+};
+
+export const updateClinicalTheatre = async (
+  theatreId: string,
+  payload: { name?: string; isActive?: boolean },
+): Promise<ClinicalTheatre> => {
+  const res = await api.patch(`/clinical/theatres/${theatreId}`, payload);
+  return res.data.data as ClinicalTheatre;
+};
+
+export const createClinicalSurgery = async (
+  encounterId: string,
+  payload: {
+    procedureName: string;
+    scheduledAt: string;
+    durationMinutes: number;
+    theatreId: string;
+    surgeonId: string;
+    admissionId?: string | null;
+    anesthesiaType?: "general" | "regional" | "local" | "sedation" | null;
+    preOpNotes?: string | null;
+    team?: Array<{ userId: string; role: "assistant_surgeon" | "anesthetist" | "scrub_nurse" | "circulating_nurse" }>;
+  },
+): Promise<ClinicalSurgeryCase> => {
+  const res = await api.post(`/clinical/encounters/${encounterId}/surgeries`, payload);
+  return res.data.data as ClinicalSurgeryCase;
+};
+
+export const updateClinicalSurgery = async (
+  surgeryId: string,
+  payload: {
+    status?: "scheduled" | "in_progress" | "completed" | "cancelled" | "postponed";
+    scheduledAt?: string;
+    version: number;
+    outcomeNotes?: string | null;
+  },
+) => {
+  const res = await api.patch(`/clinical/surgeries/${surgeryId}`, payload);
+  return res.data.data as ClinicalSurgeryCase;
+};
 
 
 // role apis

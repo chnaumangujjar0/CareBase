@@ -1,26 +1,19 @@
+import { Navigate } from "react-router";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../store/store";
-import { useNavigate } from "react-router";
 import { DoctorDashboard } from "./DoctorDashboard";
-import { AdminDashboard } from "./AdminDashboard";
-const Home = () => {
-  const navigate = useNavigate()
-   const user = useSelector((state: RootState) => state.auth.user);
+import HospitalDashboard from "./HospitalDashboard";
 
-   if(user?.isSuperAdmin && user.roleId == null){
-      navigate("/onboarding")
-    }
-  return (
-    <div>
-      {
-        user?.role == "Owner" && (<AdminDashboard/>)
-      }
-      {
-        user?.role == "Doctor" && (<DoctorDashboard/>)
-      }
-      
-    </div>
-  )
-}
+const Dashboard = () => {
+  const user = useSelector((state: RootState) => state.auth.user);
 
-export default Home
+  if (user?.isSuperAdmin && user.roleId == null) {
+    return <Navigate to="/onboarding" replace />;
+  }
+  if (user?.role?.toLowerCase() === "doctor") {
+    return <DoctorDashboard />;
+  }
+  return <HospitalDashboard role={user?.role ?? "Staff"} />;
+};
+
+export default Dashboard;

@@ -23,6 +23,21 @@ import type { RoleRecord } from '../../types/global.types';
 
 const { Title, Text } = Typography;
 
+const clinicalPermissions = [
+  "clinical:encounters:read",
+  "clinical:encounters:write",
+  "clinical:consultations:write",
+  "clinical:prescriptions:write",
+  "clinical:admissions:write",
+  "clinical:admissions:read",
+  "clinical:admissions:discharge",
+  "clinical:beds:write",
+  "clinical:surgeries:read",
+  "clinical:surgeries:write",
+  "clinical:medicines:read",
+  "clinical:medicines:write",
+];
+
 const themeConfig = {
   token: {
     colorPrimary: '#0F766E',
@@ -268,13 +283,16 @@ export const RolesPage = () => {
               autoFocus
             />
             <Text strong style={{ marginTop: 12 }}>Permissions</Text>
+            <Text type="secondary">
+              Clinical actions are enforced by the API. Grant the matching read or write permissions to each role.
+            </Text>
             <Select
               mode="tags"
               value={permissions}
               onChange={setPermissions}
               tokenSeparators={[',']}
               placeholder="Type a permission and press Enter"
-              options={Array.from(new Set(roles.flatMap((role) => role.permissions))).map((permission) => ({
+              options={Array.from(new Set([...clinicalPermissions, ...roles.flatMap((role) => role.permissions)])).map((permission) => ({
                 label: permission,
                 value: permission,
               }))}

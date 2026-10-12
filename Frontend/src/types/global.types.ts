@@ -309,3 +309,184 @@ export interface UpdateAppointmentPayload {
   notes?: string | null;
   version: number;
 }
+
+export type EncounterType = "outpatient" | "inpatient" | "emergency";
+export type EncounterSource = "appointment" | "walk_in" | "emergency" | "referral";
+export type EncounterStatus = "waiting" | "in_progress" | "closed";
+export type TriageLevel = "critical" | "urgent" | "normal";
+export type EncounterDisposition =
+  | "discharged_home"
+  | "admitted"
+  | "transferred"
+  | "referred_out"
+  | "left_without_being_seen"
+  | "deceased";
+
+export interface ClinicalEncounter {
+  id: string;
+  type: EncounterType;
+  source: EncounterSource;
+  status: EncounterStatus;
+  disposition: EncounterDisposition | null;
+  chiefComplaint: string | null;
+  startedAt: string;
+  endedAt: string | null;
+  version: number;
+  queueDate: string | null;
+  queueNumber: number | null;
+  triageLevel: TriageLevel | null;
+  patientId: string;
+  departmentId: string;
+  doctorId: string | null;
+  appointmentId: string | null;
+  Patient: Pick<PatientOption, "id" | "mrn" | "firstName" | "lastName" | "contactPhone">;
+  Department: { id: string; name: string };
+  DoctorProfile: { id: string; User: { id: string; name: string } } | null;
+  Appointment: { id: string; scheduledAt: string; status: AppointmentStatus } | null;
+}
+
+export interface ClinicalConsultation {
+  id: string;
+  kind: "initial" | "ward_round" | "pre_operative";
+  chiefComplaint: string | null;
+  findings: string | null;
+  diagnosis: string | null;
+  notes: string | null;
+  followUpDate: string | null;
+  createdAt: string;
+  DoctorProfile?: { User: { name: string } };
+}
+
+export interface ClinicalMedicine {
+  id: string;
+  name: string;
+  genericName: string | null;
+  form: string | null;
+  strength: string | null;
+  isActive: boolean;
+}
+
+export interface ClinicalPrescriptionItem {
+  id: string;
+  dose: string;
+  frequency: string;
+  durationDays: number | null;
+  instructions: string | null;
+  Medicine: ClinicalMedicine;
+}
+
+export interface ClinicalPrescription {
+  id: string;
+  status: "active" | "cancelled";
+  notes: string | null;
+  createdAt: string;
+  PrescriptionItem: ClinicalPrescriptionItem[];
+}
+
+export interface ClinicalAdmission {
+  id: string;
+  status: "admitted" | "discharged";
+  reason: string;
+  admissionDiagnosis: string | null;
+  admittedAt: string;
+  dischargedAt: string | null;
+  dischargeType: string | null;
+  version: number;
+  BedAssignment: Array<{
+    id: string;
+    bedId: string;
+    assignedAt: string;
+    releasedAt: string | null;
+    Bed: BedRecord;
+  }>;
+  Encounter?: Pick<ClinicalEncounter, "id" | "type" | "status" | "startedAt"> & {
+    Patient: Pick<PatientOption, "id" | "mrn" | "firstName" | "lastName">;
+    Department: { id: string; name: string };
+  };
+  AdmittingDoctor?: { User: { id: string; name: string } };
+  DischargeSummary: {
+    finalDiagnosis: string | null;
+    proceduresPerformed: string | null;
+    courseInHospital: string | null;
+    conditionAtDischarge: string | null;
+    followUpInstructions: string | null;
+    followUpDate: string | null;
+  } | null;
+}
+
+export interface ClinicalSurgeryCase {
+  id: string;
+  procedureName: string;
+  status: "scheduled" | "in_progress" | "completed" | "cancelled" | "postponed";
+  scheduledAt: string;
+  durationMinutes: number;
+  startedAt: string | null;
+  endedAt: string | null;
+  anesthesiaType: string | null;
+  preOpNotes: string | null;
+  outcomeNotes: string | null;
+  version: number;
+  Encounter?: {
+    id: string;
+    Patient: Pick<PatientOption, "id" | "mrn" | "firstName" | "lastName">;
+    Department: { id: string; name: string };
+  };
+  OperatingTheatre: { id: string; name: string };
+  Surgeon?: { id: string; User: { id: string; name: string } };
+  SurgeryTeamMember: Array<{ id: string; role: string; userId: string; User?: { name: string } }>;
+}
+
+export interface ClinicalEncounterDetail extends ClinicalEncounter {
+  Consultation: ClinicalConsultation[];
+  Prescription: ClinicalPrescription[];
+  Admission: ClinicalAdmission | null;
+  BedAssignment: ClinicalAdmission["BedAssignment"];
+  SurgeryCase: ClinicalSurgeryCase[];
+  PatientMedicalData: PatientMedicalData[];
+}
+
+export interface ClinicalEncounterList {
+  items: ClinicalEncounter[];
+  pagination: FacilityPagination;
+}
+
+export interface ClinicalAdmissionList {
+  items: ClinicalAdmission[];
+  pagination: FacilityPagination;
+}
+
+export interface ClinicalSurgeryList {
+  items: ClinicalSurgeryCase[];
+  pagination: FacilityPagination;
+}
+
+export interface DashboardSummary {
+  generatedAt: string;
+  scope: "hospital" | "doctor";
+  stats: {
+    activePatients: number;
+    newPatientsToday: number;
+    activeDoctors: number;
+    activeStaff: number;
+    appointmentsToday: number;
+    bookedAppointmentsToday: number;
+    completedAppointmentsToday: number;
+    cancelledAppointmentsToday: number;
+    noShowAppointmentsToday: number;
+    availableBeds: number;
+    occupiedBeds: number;
+    totalBeds: number;
+    activeAdmissions: number;
+    waitingEncounters: number;
+    openEncountersToday: number;
+  };
+  appointments: Array<{
+    id: string;
+    scheduledAt: string;
+    durationMinutes: number;
+    status: AppointmentStatus;
+    Patient: Pick<PatientOption, "id" | "mrn" | "firstName" | "lastName">;
+    Department: { id: string; name: string };
+    DoctorProfile: { id: string; User: { name: string } };
+  }>;
+}

@@ -209,11 +209,7 @@ export const DoctorDashboard = () => {
                 <Title level={4} style={{ margin: 0, color: themeConfig.token.colorPrimary }}>
                   {currentDate.format('MMMM YYYY')}
                 </Title>
-                <Space>
-                  <Button type="primary">Month</Button>
-                  <Button>Week</Button>
-                  <Button>Day</Button>
-                </Space>
+                <Text type="secondary">Month view</Text>
               </Flex>
 
               <Calendar 

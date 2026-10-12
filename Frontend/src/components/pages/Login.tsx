@@ -34,7 +34,11 @@ const Login = () => {
         const userData = await loginUser(values);
         const userDetails = userData.user;
         const role = userData.role?.name ?? userDetails.role ?? "user";
-        const user: AuthUser = { ...userDetails, role };
+        const user: AuthUser = {
+          ...userDetails,
+          role,
+          permissions: userData.role?.permissions,
+        };
 
         dispatch(setUser(user));
         localStorage.setItem("accessToken", userData.accessToken);

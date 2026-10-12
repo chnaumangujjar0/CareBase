@@ -17,6 +17,8 @@ import { HospitalProfile } from './components/pages/HospitalProfile';
 import { Wards } from './components/pages/Ward';
 import { Room } from './components/pages/Room';
 import { Bed } from './components/pages/Bed';
+import ClinicalDesk from './components/pages/ClinicalDesk';
+import ClinicalOperations from './components/pages/ClinicalOperations';
 
 function App() {
   return (
@@ -47,6 +49,8 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path='/patient' element={<Patient/>}/>
               <Route path='/appointments' element={<Appointments/>} />
+              <Route path='/clinical' element={<ClinicalDesk />} />
+              <Route path='/clinical/operations' element={<ClinicalOperations />} />
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["doctor", "admin","Owner"]} />}>

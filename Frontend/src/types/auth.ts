@@ -12,12 +12,12 @@ export interface AuthUser {
   createdAt: string;
   updatedAt: string;
   role?: string | null;
-  permissions?: string;
+  permissions?: string[];
 }
 interface role {
   id: string;
   name: string;
-  permissions: string;
+  permissions: string[];
 }
 
 export interface Tenant {

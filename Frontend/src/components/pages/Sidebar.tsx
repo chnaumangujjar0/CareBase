@@ -2,26 +2,19 @@ import { NavLink, useNavigate, useLocation } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 import {
   LayoutDashboard,
-  BarChart2,
   Calendar,
   Users,
   Stethoscope,
   Building,
-  Bed,
-  FileText,
   Activity,
-  FlaskConical,
   Pill,
-  Receipt,
   UsersRound,
-  Link2,
   Settings,
   LogOut,
   Lock,
   ChevronDown,
   ChevronUp,
   Shield,
-  Database,
   Building2,
   Hospital
 } from "lucide-react";
@@ -40,28 +33,23 @@ const navConfig = [
   {
     title: "Operations",
     items: [
-      { label: "Dashboard", path: "/", icon: LayoutDashboard, roles: ["Owner", "Admin","Doctor"] },
-      { label: "Analytics", path: "/analytics", icon: BarChart2, roles: ["Owner", "Admin"] },
-      { label: "Appointments", path: "/appointments", icon: Calendar, roles: ["Owner", "Admin", "Receptionist"] },
+      { label: "Dashboard", path: "/", icon: LayoutDashboard, roles: ["Owner", "Admin", "Doctor", "Receptionist", "Nurse"] },
+      { label: "Appointments", path: "/appointments", icon: Calendar, roles: ["Owner", "Admin", "Doctor", "Receptionist"] },
+      { label: "Clinical Desk", path: "/clinical", icon: Stethoscope, roles: ["Owner", "Admin", "Doctor", "Receptionist", "Nurse"] },
+      { label: "Clinical Operations", path: "/clinical/operations", icon: Activity, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
       { label: "Patients", path: "/patient", icon: Users, roles: ["Owner", "Admin", "Receptionist", "Nurse"] },
-      { label: "Doctors", path: "/doctors", icon: Stethoscope, roles: ["Owner", "Doctor"] },
-      { label: "Reports", path: "/reports", icon: FileText, roles: ["Owner", "Admin"] },
     ],
   },
   {
     title: "Care & Services",
     items: [
-      { label: "Emergency", path: "/emergency", icon: Activity, roles: ["Owner", "Admin"] },
-      { label: "Lab", path: "/lab", icon: FlaskConical, roles: ["Owner", "Admin", "Lab Technician"] },
-      { label: "Pharmacy", path: "/pharmacy", icon: Pill, roles: ["Owner", "Admin", "Pharmacist"] },
-      { label: "Billing", path: "/billing", icon: Receipt, roles: ["Owner", "Admin", "Billing Specialist"] },
+      { label: "Medicine catalogue", path: "/clinical/operations", icon: Pill, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
     ],
   },
   {
     title: "System",
     items: [
       { label: "Staff Management", path: "/staff", icon: UsersRound, roles: ["Owner", "Admin"] },
-      { label: "Integrations", path: "/integrations", icon: Link2, roles: ["Owner", "Admin"] },
     ],
   },
 ];
@@ -71,7 +59,6 @@ const settingsSubItems = [
   { label: "Hospital Profile", path: "/settings/profile", icon: Building2 },
   { label: "Departments", path: "/settings/departments", icon: Building },
   { label: "User Roles", path: "/settings/roles", icon: Shield },
-  { label: "Backup & Security", path: "/settings/security", icon: Database },
 ];
 const facilitySubItems = [
   { label: "Wards", path: "/facility/wards" },
@@ -116,8 +103,9 @@ export const Sidebar = () => {
     }
   };
 
-  const isSettingsAllowed = user?.role != null && ["Owner", "Admin"].some((role) => role === user.role);
-  const isFacilityAllowed = user?.role != null && ["Owner", "Admin"].some((role) => role === user.role);   
+  const roleName = user?.role?.toLowerCase();
+  const isSettingsAllowed = roleName != null && ["owner", "admin"].includes(roleName);
+  const isFacilityAllowed = roleName != null && ["owner", "admin"].includes(roleName);
   const isSettingsActive = location.pathname.startsWith("/settings");
   const isFacilityActive = location.pathname.startsWith("/facility");
 
@@ -151,7 +139,7 @@ export const Sidebar = () => {
               <div className="sectionTitle">{section.title}</div>
 
               {section.items.map((item) => {
-                const isAllowed = user?.role != null && item.roles.some((role) => role === user.role);
+                const isAllowed = roleName != null && item.roles.some((role) => role.toLowerCase() === roleName);
                 const contents = (
                   <>
                     <item.icon className="linkIcon" size={20} />
