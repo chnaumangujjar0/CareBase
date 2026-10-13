@@ -66,6 +66,7 @@ export const requirePermissions = (...requiredPermissions: string[]) =>
     }
 
     const permissions = req.role.permissions;
+
     const hasWildcard =
       Array.isArray(permissions) && permissions.some((permission) => permission === "*");
     const hasAllRequired =

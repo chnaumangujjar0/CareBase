@@ -13,6 +13,7 @@ import {
   uuidSchema,
 } from "../utils/facility.utils";
 import { db } from "../db";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const roomNameSchema = z
   .string()
@@ -58,6 +59,12 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
 
   try {
     const room = await db.room.create({ data: { name, wardId, tenantId } });
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Room",
+      entityId: room.id,
+      newValue: { name: room.name, wardId: room.wardId },
+    });
     return res
       .status(201)
       .json(new ApiResponse(201, room, "Room created successfully."));
@@ -140,6 +147,8 @@ export const updateRoom = asyncHandler(async (req: Request, res: Response) => {
     await assertWardInTenant(data.wardId, tenantId);
   }
 
+  const current = await db.room.findFirst({ where: { id, tenantId } });
+  if (!current) throw new ApiError(404, "Room not found.");
   try {
     const { count } = await db.room.updateMany({
       where: { id, tenantId },
@@ -157,6 +166,15 @@ export const updateRoom = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const room = await db.room.findFirst({ where: { id, tenantId } });
+  if (room) {
+    await writeAuditLog(req, {
+      action: "update",
+      entityType: "Room",
+      entityId: room.id,
+      oldValue: { name: current.name, wardId: current.wardId },
+      newValue: { name: room.name, wardId: room.wardId },
+    });
+  }
   return res
     .status(200)
     .json(new ApiResponse(200, room, "Room updated successfully."));
@@ -168,7 +186,7 @@ export const deleteRoom = asyncHandler(async (req: Request, res: Response) => {
 
   const room = await db.room.findFirst({
     where: { id, tenantId },
-    select: { id: true, _count: { select: { Bed: true } } },
+    select: { id: true, name: true, wardId: true, _count: { select: { Bed: true } } },
   });
 
   if (!room) {
@@ -201,6 +219,12 @@ export const deleteRoom = asyncHandler(async (req: Request, res: Response) => {
     throw error;
   }
 
+  await writeAuditLog(req, {
+    action: "delete",
+    entityType: "Room",
+    entityId: room.id,
+    oldValue: { name: room.name, wardId: room.wardId },
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Room deleted successfully."));

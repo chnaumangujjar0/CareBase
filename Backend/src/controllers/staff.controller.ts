@@ -6,6 +6,7 @@ import { db } from "../db/index.js";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import { char36Schema } from "../types/tenant.types.js";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const optionalText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullish().transform((value) => value || null);
@@ -213,6 +214,21 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
       };
     });
 
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: input.type === "Doctor" ? "DoctorProfile" : "StaffProfile",
+      entityId: result.profile.id,
+      newValue: {
+        userId: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.role.name,
+        employeeId: normalizedEmployeeId,
+        departmentId: input.departmentId,
+        isActive: result.user.isActive,
+        availabilityCount: input.availability.length,
+      },
+    });
     return res
       .status(201)
       .json(new ApiResponse(201, { ...result, type: input.type }, `${input.type} created successfully`));
@@ -291,6 +307,11 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
     })),
   ].sort((left, right) => left.name.localeCompare(right.name));
 
+  await writeAuditLog(req, {
+    action: "list",
+    entityType: "StaffDirectory",
+    newValue: { resultCount: directory.length },
+  });
   return res.status(200).json(new ApiResponse(200, directory, "Staff fetched successfully"));
 });
 
@@ -316,38 +337,59 @@ export const updateAvailability = asyncHandler(async (req: Request, res: Respons
   }
 
   const { profileId, type, availability } = parsed.data;
-  const savedAvailability = await db.$transaction(async (trx) => {
+  const { oldAvailability, savedAvailability } = await db.$transaction(async (trx) => {
     if (type === "Doctor") {
       const doctor = await trx.doctorProfile.findFirst({ where: { id: profileId, tenantId } });
       if (!doctor) throw new ApiError(404, "Doctor profile not found");
 
+      const oldAvailability = await trx.doctorAvailability.findMany({
+        where: { doctorId: profileId, tenantId, isActive: true },
+        select: { dayOfWeek: true, startMinute: true, endMinute: true },
+      });
       await trx.doctorAvailability.deleteMany({ where: { doctorId: profileId, tenantId } });
       if (availability.length > 0) {
         await trx.doctorAvailability.createMany({
           data: availability.map((slot) => ({ ...slot, doctorId: profileId, tenantId })),
         });
       }
-      return trx.doctorAvailability.findMany({
+      const savedAvailability = await trx.doctorAvailability.findMany({
         where: { doctorId: profileId, tenantId, isActive: true },
         orderBy: { dayOfWeek: "asc" },
       });
+      return { oldAvailability, savedAvailability };
     }
 
     const staffProfile = await trx.staffProfile.findFirst({ where: { id: profileId, tenantId } });
     if (!staffProfile) throw new ApiError(404, "Staff profile not found");
 
+    const oldAvailability = await trx.staffAvailability.findMany({
+      where: { staffId: profileId, tenantId, isActive: true },
+      select: { dayOfWeek: true, startMinute: true, endMinute: true },
+    });
     await trx.staffAvailability.deleteMany({ where: { staffId: profileId, tenantId } });
     if (availability.length > 0) {
       await trx.staffAvailability.createMany({
         data: availability.map((slot) => ({ ...slot, staffId: profileId, tenantId })),
       });
     }
-    return trx.staffAvailability.findMany({
+    const savedAvailability = await trx.staffAvailability.findMany({
       where: { staffId: profileId, tenantId, isActive: true },
       orderBy: { dayOfWeek: "asc" },
     });
+    return { oldAvailability, savedAvailability };
   });
 
+  await writeAuditLog(req, {
+    action: "update",
+    entityType: type === "Doctor" ? "DoctorAvailability" : "StaffAvailability",
+    entityId: profileId,
+    oldValue: oldAvailability,
+    newValue: savedAvailability.map(({ dayOfWeek, startMinute, endMinute }) => ({
+      dayOfWeek,
+      startMinute,
+      endMinute,
+    })),
+  });
   return res.status(200).json(
     new ApiResponse(200, savedAvailability, "Availability updated successfully"),
   );

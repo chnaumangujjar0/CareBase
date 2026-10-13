@@ -34,6 +34,7 @@ model Appointment {
   Updater         User?         @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
   Encounter       Encounter?
 
+  @@unique([id, tenantId])
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
   @@index([departmentId], map: "Appointment_departmentId_idx_8e261ed8")
   @@index([doctorId], map: "Appointment_doctorId_idx_04369053")
@@ -42,7 +43,6 @@ model Appointment {
   @@index([tenantId, scheduledAt], map: "Appointment_tenantId_scheduledAt_idx_31e2839e")
   @@index([updatedBy], map: "Appointment_updatedBy_idx_0780dcde")
   @@index([doctorId, scheduledAt], map: "appointment_doctor_schedule_idx_23b246b0")
-  @@unique([id, tenantId])
 }
 
 model AuditLog {
@@ -144,9 +144,9 @@ model DoctorProfile {
   DischargeSummaries DischargeSummary[]
   DoctorAvailability DoctorAvailability[]
 
+  @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "DoctorProfile_tenantId_idx_c93ed4f1")
-  @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
 }
 
 model DoctorAvailability {
@@ -263,9 +263,9 @@ model Room {
   Tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_tenantId_fkey")
   Bed       Bed[]
 
+  @@unique([wardId, name])
   @@index([tenantId], map: "Room_tenantId_idx_c93ed4f1")
   @@index([wardId], map: "Room_wardId_idx_6180a90a")
-  @@unique([wardId, name])
 }
 
 model Session {
@@ -371,6 +371,7 @@ model Tenant {
   SurgeryCase        SurgeryCase[]
   SurgeryTeamMember  SurgeryTeamMember[]
   DischargeSummary   DischargeSummary[]
+  StockTransaction   StockTransaction[]
 }
 
 model User {
@@ -399,6 +400,7 @@ model User {
   TriagedEncounters Encounter[] @relation("EncounterTriagedBy")
   AssignedBedAssignments BedAssignment[] @relation("BedAssignmentAssignedBy")
   SurgeryTeamMemberships SurgeryTeamMember[]
+  RecordedStockTransactions  StockTransaction[]   @relation("StockTransactionRecorder")
   DoctorProfile       DoctorProfile?
   Session             Session[]
   StaffProfile        StaffProfile?
@@ -422,28 +424,11 @@ model Ward {
   Room         Room[]
   StaffProfile StaffProfile[]
 
+  @@unique([tenantId, name])
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
   @@index([tenantId], map: "Ward_tenantId_idx_c93ed4f1")
-  @@unique([tenantId, name])
 }
 
-
-// ============================================================
-// NEW MODELS
-//
-// Delete rules used below, in plain words:
-//   Restrict = "refuse to delete while records still point here"
-//              (used for medical records, so history can't vanish)
-//   Cascade  = "delete the children together with the parent"
-//              (used only for pure line items like prescription rows)
-//   SetNull  = "keep the row, just clear the link"
-//
-// Where a link uses both an id and a tenantId, the database itself
-// refuses a record that points at another hospital's data.
-// ============================================================
-
-/// One row per visit. Booked, walk-in and emergency patients all get one.
-/// An Appointment is only a booking; the Encounter is what actually happened.
 model Encounter {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -497,8 +482,6 @@ model Encounter {
   @@index([doctorId, status])
 }
 
-/// What the doctor found and decided. One encounter can have many
-/// (an admitted patient gets one every ward round).
 model Consultation {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -524,9 +507,6 @@ model Consultation {
   @@index([tenantId])
 }
 
-/// The hospital's medicine list. Prescriptions point here instead of
-/// free text, so "Panadol", "panadol" and "Paracetamol" don't turn into
-/// three different medicines. Deactivate a medicine instead of deleting it.
 model Medicine {
   id          String   @id @default(uuid()) @db.Uuid
   createdAt   DateTime @default(now()) @db.Timestamptz(6)
@@ -542,6 +522,7 @@ model Medicine {
   Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   PrescriptionItem PrescriptionItem[]
+  StockTransaction StockTransaction[]
 
   @@unique([id, tenantId])
   @@index([tenantId, name])
@@ -577,21 +558,40 @@ model PrescriptionItem {
   frequency    String // e.g. twice daily
   durationDays Int?
   instructions String?
+  medicineName String
 
   tenantId       String @db.Uuid
   prescriptionId String @db.Uuid
-  medicineId     String @db.Uuid
+  medicineId     String? @db.Uuid
 
   Tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   Prescription Prescription @relation(fields: [prescriptionId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
-  Medicine     Medicine     @relation(fields: [medicineId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Medicine     Medicine?    @relation(fields: [medicineId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([prescriptionId])
   @@index([medicineId])
   @@index([tenantId])
 }
 
-/// A hospital stay. Always starts from an Encounter (one admission per encounter).
+model StockTransaction {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  type      String
+  quantity  Int
+  reason    String?
+
+  tenantId   String  @db.Uuid
+  medicineId String  @db.Uuid
+  recordedBy String? @db.Uuid
+
+  Tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Medicine Medicine @relation(fields: [medicineId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  User     User?    @relation("StockTransactionRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@index([medicineId, createdAt])
+  @@index([tenantId])
+}
+
 model Admission {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -626,10 +626,6 @@ model Admission {
   @@index([admittingDoctorId])
 }
 
-/// Bed history. A transfer closes one row (releasedAt) and opens another.
-/// "One active assignment per bed" is enforced in post-migration.sql.
-/// Linked to the Encounter (not only the Admission) because emergency
-/// patients can occupy an ER bed before any formal admission.
 model BedAssignment {
   id         String    @id @default(uuid()) @db.Uuid
   createdAt  DateTime  @default(now()) @db.Timestamptz(6)
@@ -672,9 +668,6 @@ model OperatingTheatre {
   @@unique([id, tenantId])
 }
 
-/// One planned or completed operation. No two active surgeries may
-/// overlap in the same theatre or with the same surgeon
-/// (enforced in post-migration.sql).
 model SurgeryCase {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -712,8 +705,6 @@ model SurgeryCase {
   @@index([encounterId])
 }
 
-/// Everyone in the room besides the lead surgeon. Points at User, so it
-/// works for doctors (assistant, anaesthetist) and staff (nurses) alike.
 model SurgeryTeamMember {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)
@@ -732,8 +723,6 @@ model SurgeryTeamMember {
   @@index([tenantId])
 }
 
-/// One per admission. Medicines to take home are a normal Prescription on
-/// the same Encounter, so they are not duplicated here.
 model DischargeSummary {
   id        String   @id @default(uuid()) @db.Uuid
   createdAt DateTime @default(now()) @db.Timestamptz(6)

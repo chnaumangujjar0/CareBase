@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/index.js";
 import { ApiResponse } from "../utils/apiResponse.js";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const createRoleSchema = z.object({
   name: z
@@ -64,6 +65,12 @@ export const createRole = asyncHandler(async (req:Request,res:Response) => {
   const role = await db.role.create({
     data: { tenantId, name, permissions },
   });
+  await writeAuditLog(req, {
+    action: "create",
+    entityType: "Role",
+    entityId: role.id,
+    newValue: { name: role.name, permissions: Array.isArray(role.permissions) ? role.permissions : [] },
+  });
 
   return res
     .status(201)
@@ -95,6 +102,16 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
       ...(permissions !== undefined ? { permissions } : {}),
     },
     include: { _count: { select: { User: true } } },
+  });
+  await writeAuditLog(req, {
+    action: "update",
+    entityType: "Role",
+    entityId: updated.id,
+    oldValue: {
+      name: existing.name,
+      permissions: Array.isArray(existing.permissions) ? existing.permissions : [],
+    },
+    newValue: { name: updated.name, permissions: Array.isArray(updated.permissions) ? updated.permissions : [] },
   });
 
   return res.status(200).json(new ApiResponse(200, serializeRole(updated), "Role updated successfully"));
@@ -153,6 +170,12 @@ export const deleteRole = asyncHandler(async (req: Request, res: Response) => {
   }
 
   await db.role.delete({ where: { id: parsedId.data } });
+  await writeAuditLog(req, {
+    action: "delete",
+    entityType: "Role",
+    entityId: role.id,
+    oldValue: { name: role.name, permissions: Array.isArray(role.permissions) ? role.permissions : [] },
+  });
 
   return res.status(200).json(new ApiResponse(200, { id: parsedId.data }, "Role deleted successfully"));
 });

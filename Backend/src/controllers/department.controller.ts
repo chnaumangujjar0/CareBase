@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { char36Schema } from "../types/tenant.types.js";
 import type { Prisma } from "../generated/prisma/index.js";
 import { z } from "zod";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const createDepartmentSchema = z.object({
   name: z.string().trim().min(1, "Department name is required"),
@@ -29,6 +30,12 @@ export const addDepartment = asyncHandler(async(req:Request,res:Response) => {
     if(!dep){
         throw new ApiError(400,"Error while creating this department.")
     }
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Department",
+      entityId: dep.id,
+      newValue: { name: dep.name, isActive: dep.isActive },
+    });
 
     return res.status(200).json(
         new ApiResponse(
@@ -106,6 +113,13 @@ export const updateDepartment = asyncHandler(async (req: Request, res: Response)
     where: { id: deptId, tenantId },
     data: payload,
   });
+  await writeAuditLog(req, {
+    action: "update",
+    entityType: "Department",
+    entityId: updated.id,
+    oldValue: { name: department.name, isActive: department.isActive },
+    newValue: { name: updated.name, isActive: updated.isActive },
+  });
  
   return res
     .status(200)
@@ -146,6 +160,12 @@ export const deleteDepartment = asyncHandler(async (req: Request, res: Response)
   }
  
   await db.department.delete({ where: { id: deptId, tenantId } });
+  await writeAuditLog(req, {
+    action: "delete",
+    entityType: "Department",
+    entityId: department.id,
+    oldValue: { name: department.name, isActive: department.isActive },
+  });
  
   return res
     .status(200)

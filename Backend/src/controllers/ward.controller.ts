@@ -13,6 +13,7 @@ import {
   uuidSchema,
 } from "../utils/facility.utils";
 import { db } from "../db";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 
 const createWardSchema = z.object({
@@ -56,6 +57,12 @@ export const createWard = asyncHandler(async (req: Request, res: Response) => {
   try {
     const ward = await db.ward.create({
       data: { name, tenantId, departmentId: departmentId ?? null },
+    });
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Ward",
+      entityId: ward.id,
+      newValue: { name: ward.name, departmentId: ward.departmentId },
     });
     return res
       .status(201)
@@ -139,6 +146,8 @@ export const updateWard = asyncHandler(async (req: Request, res: Response) => {
     await assertDepartmentInTenant(data.departmentId, tenantId);
   }
 
+  const current = await db.ward.findFirst({ where: { id, tenantId } });
+  if (!current) throw new ApiError(404, "Ward not found.");
   try {
    
     const { count } = await db.ward.updateMany({
@@ -157,6 +166,15 @@ export const updateWard = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const ward = await db.ward.findFirst({ where: { id, tenantId } });
+  if (ward) {
+    await writeAuditLog(req, {
+      action: "update",
+      entityType: "Ward",
+      entityId: ward.id,
+      oldValue: { name: current.name, departmentId: current.departmentId },
+      newValue: { name: ward.name, departmentId: ward.departmentId },
+    });
+  }
   return res
     .status(200)
     .json(new ApiResponse(200, ward, "Ward updated successfully."));
@@ -168,7 +186,7 @@ export const deleteWard = asyncHandler(async (req: Request, res: Response) => {
 
   const ward = await db.ward.findFirst({
     where: { id, tenantId },
-    select: { id: true, _count: { select: { Room: true } } },
+    select: { id: true, name: true, departmentId: true, _count: { select: { Room: true } } },
   });
 
   if (!ward) {
@@ -199,6 +217,12 @@ export const deleteWard = asyncHandler(async (req: Request, res: Response) => {
     throw error;
   }
 
+  await writeAuditLog(req, {
+    action: "delete",
+    entityType: "Ward",
+    entityId: ward.id,
+    oldValue: { name: ward.name, departmentId: ward.departmentId },
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Ward deleted successfully."));

@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
+import { writeAuditLog } from "../utils/audit.utils.js";
 import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -116,6 +117,11 @@ export const getPatients = asyncHandler(async (req: Request, res: Response) => {
     db.patient.count({ where }),
   ]);
 
+  await writeAuditLog(req, {
+    action: "list",
+    entityType: "Patient",
+    newValue: { page, limit, resultCount: items.length, filters: { isActive: isActive ?? null } },
+  });
   return res.status(200).json(
     new ApiResponse(200, { items, total, page, limit, totalPages: Math.ceil(total / limit) }, "Patients fetched successfully"),
   );
@@ -136,6 +142,12 @@ export const createPatient = asyncHandler(async (req: Request, res: Response) =>
 
   try {
     const patient = await db.patient.create({ data: { ...parsed.data, tenantId } });
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Patient",
+      entityId: patient.id,
+      newValue: { mrn: patient.mrn, changedFields: Object.keys(parsed.data) },
+    });
     return res.status(201).json(new ApiResponse(201, patient, "Patient created successfully"));
   } catch (error: unknown) {
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
@@ -173,6 +185,11 @@ export const getPatientById = asyncHandler(async (req: Request, res: Response) =
   });
   if (!patient) throw new ApiError(404, "Patient not found");
 
+  await writeAuditLog(req, {
+    action: "read",
+    entityType: "Patient",
+    entityId: patient.id,
+  });
   return res.status(200).json(new ApiResponse(200, patient, "Patient fetched successfully"));
 });
 
@@ -205,6 +222,16 @@ export const createPatientMedicalData = asyncHandler(async (req: Request, res: R
     },
   });
 
+  await writeAuditLog(req, {
+    action: "create",
+    entityType: "PatientMedicalData",
+    entityId: medicalData.id,
+    newValue: {
+      patientId,
+      recordedAt: medicalData.recordedAt.toISOString(),
+      recordedFields: Object.keys(parsed.data).filter((key) => key !== "recordedAt"),
+    },
+  });
   return res.status(201).json(
     new ApiResponse(201, medicalData, "Patient medical data recorded successfully"),
   );
@@ -225,6 +252,11 @@ export const updatePatient = asyncHandler(async (req: Request, res: Response) =>
   }
 
   try {
+    const current = await db.patient.findFirst({
+      where: { id: patientId, tenantId, deletedAt: null },
+      select: { id: true, isActive: true, mrn: true },
+    });
+    if (!current) throw new ApiError(404, "Patient not found");
     const updated = await db.patient.updateMany({
       where: { id: patientId, tenantId, deletedAt: null },
       data: parsed.data,
@@ -232,6 +264,13 @@ export const updatePatient = asyncHandler(async (req: Request, res: Response) =>
     if (updated.count === 0) throw new ApiError(404, "Patient not found");
 
     const patient = await db.patient.findFirst({ where: { id: patientId, tenantId } });
+    await writeAuditLog(req, {
+      action: "update",
+      entityType: "Patient",
+      entityId: patientId,
+      oldValue: { isActive: current.isActive, mrn: current.mrn },
+      newValue: { changedFields: Object.keys(parsed.data) },
+    });
     return res.status(200).json(new ApiResponse(200, patient, "Patient updated successfully"));
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
@@ -253,5 +292,12 @@ export const deletePatient = asyncHandler(async (req: Request, res: Response) =>
   });
   if (result.count === 0) throw new ApiError(404, "Patient not found");
 
+  await writeAuditLog(req, {
+    action: "archive",
+    entityType: "Patient",
+    entityId: patientId,
+    oldValue: { isActive: true, archived: false },
+    newValue: { isActive: false, archived: true },
+  });
   return res.status(200).json(new ApiResponse(200, { id: patientId }, "Patient archived successfully"));
 });

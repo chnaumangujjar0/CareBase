@@ -8,6 +8,7 @@ import { generateAccessAndRefreshToken, verifySessionFromRefreshToken,revokeSess
 import { ApiResponse } from "../utils/apiResponse.js";
 import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
 import jwt from "jsonwebtoken";
+import { writeAuditLog } from "../utils/audit.utils.js";
 const options = {
   httpOnly: true,
   secure: true,
@@ -78,6 +79,13 @@ const MIN_PASSWORD_LENGTH = 8;
     where: { id: newUser.id },
     select: SAFE_USER_SELECT,
   });
+  await writeAuditLog(req, {
+    action: "register",
+    entityType: "User",
+    entityId: newUser.id,
+    userId: newUser.id,
+    newValue: { isSuperAdmin: true },
+  });
  
   return res.status(201).json(
     new ApiResponse(
@@ -126,6 +134,14 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
   const userRole = loggedInUser?.roleId
     ? await db.role.findUnique({ where: { id: loggedInUser.roleId } })
     : null;
+  await writeAuditLog(req, {
+    action: "login",
+    entityType: "User",
+    entityId: user.id,
+    tenantId: user.tenantId,
+    userId: user.id,
+    newValue: { isActive: user.isActive },
+  });
     
   return res
     .status(200)

@@ -15,6 +15,7 @@ import {
   uuidSchema,
 } from "../utils/facility.utils";
 import { db } from "../db";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const bedCodeSchema = z
   .string()
@@ -68,6 +69,12 @@ export const createBed = asyncHandler(async (req: Request, res: Response) => {
 
   try {
     const bed = await db.bed.create({ data: { code, roomId, tenantId, status } });
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Bed",
+      entityId: bed.id,
+      newValue: { code: bed.code, roomId: bed.roomId, status: bed.status },
+    });
     return res
       .status(201)
       .json(new ApiResponse(201, bed, "Bed created successfully."));
@@ -201,6 +208,17 @@ export const updateBed = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const updated = await db.bed.findFirst({ where: { id, tenantId } });
+  await writeAuditLog(req, {
+    action: "update",
+    entityType: "Bed",
+    entityId: id,
+    oldValue: { code: bed.code, roomId: bed.roomId, status: bed.status },
+    newValue: {
+      code: updated?.code ?? bed.code,
+      roomId: updated?.roomId ?? bed.roomId,
+      status: updated?.status ?? bed.status,
+    },
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, updated, "Bed updated successfully."));
@@ -212,7 +230,7 @@ export const deleteBed = asyncHandler(async (req: Request, res: Response) => {
 
   const bed = await db.bed.findFirst({
     where: { id, tenantId },
-    select: { id: true, currentPatientId: true },
+    select: { id: true, code: true, roomId: true, status: true, currentPatientId: true },
   });
 
   if (!bed) {
@@ -251,6 +269,12 @@ export const deleteBed = asyncHandler(async (req: Request, res: Response) => {
     throw error;
   }
 
+  await writeAuditLog(req, {
+    action: "delete",
+    entityType: "Bed",
+    entityId: bed.id,
+    oldValue: { code: bed.code, roomId: bed.roomId, status: bed.status },
+  });
   return res
     .status(200)
     .json(new ApiResponse(200, {}, "Bed deleted successfully."));

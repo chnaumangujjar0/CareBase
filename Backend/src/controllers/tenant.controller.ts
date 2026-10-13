@@ -14,6 +14,7 @@ import {
 import { char36Schema } from "../types/tenant.types.js";
 import type { Tenant } from "../types/tenant.types.js";
 import z from "zod";
+import { writeAuditLog } from "../utils/audit.utils.js";
 type AuthenticatedRequest = Request & {
   user?: Request["user"] & { id: string };
 };
@@ -107,6 +108,14 @@ export const completeOnboarding = asyncHandler(
       return { user: { ...safeUser, role: ownerRole.name }, tenant };
     });
 
+    await writeAuditLog(req, {
+      action: "create",
+      entityType: "Tenant",
+      entityId: result.tenant.id,
+      tenantId: result.tenant.id,
+      userId,
+      newValue: { name: result.tenant.name, slug: result.tenant.slug, ownerRoleId: result.user.roleId },
+    });
     return res
       .status(201)
       .json(
@@ -219,9 +228,37 @@ export const updateTenantDetails = asyncHandler(
       throw new ApiError(400, "No valid fields provided for update");
     }
 
+    const currentTenant = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { name: true, address: true, city: true, state: true, country: true, postalCode: true },
+    });
+    if (!currentTenant) throw new ApiError(404, "Hospital not found.");
     const updatedTenant = await db.tenant.update({
       where: { id: tenantId },
       data: updateData,
+    });
+    await writeAuditLog(req, {
+      action: "update",
+      entityType: "Tenant",
+      entityId: tenantId,
+      oldValue: {
+        name: currentTenant.name,
+        address: currentTenant.address,
+        city: currentTenant.city,
+        state: currentTenant.state,
+        country: currentTenant.country,
+        postalCode: currentTenant.postalCode,
+      },
+      newValue: {
+        name: updatedTenant.name,
+        address: updatedTenant.address,
+        city: updatedTenant.city,
+        state: updatedTenant.state,
+        country: updatedTenant.country,
+        postalCode: updatedTenant.postalCode,
+        logoUpdated: Boolean(logoLocalPath),
+        faviconUpdated: Boolean(faviconLocalPath),
+      },
     });
 
     return res

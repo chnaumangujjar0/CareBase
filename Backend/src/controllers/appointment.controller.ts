@@ -5,6 +5,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { appointmentOverlapConflict } from "../utils/facility.utils.js";
+import { writeAuditLog } from "../utils/audit.utils.js";
 
 const appointmentStatusSchema = z.enum(["booked", "completed", "cancelled", "no_show"]);
 
@@ -175,6 +176,19 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
     });
   });
 
+  await writeAuditLog(req, {
+    action: "create",
+    entityType: "Appointment",
+    entityId: result.id,
+    newValue: {
+      patientId: input.patientId,
+      doctorId: input.doctorId,
+      departmentId: input.departmentId,
+      scheduledAt: input.scheduledAt.toISOString(),
+      durationMinutes: input.durationMinutes,
+      status: result.status,
+    },
+  });
   return res.status(201).json(new ApiResponse(201, result, "Appointment created successfully"));
 });
 
@@ -228,6 +242,18 @@ export const getAppointments = asyncHandler(async (req: Request, res: Response) 
     orderBy: { scheduledAt: "asc" },
   });
 
+  await writeAuditLog(req, {
+    action: "list",
+    entityType: "Appointment",
+    newValue: {
+      resultCount: appointments.length,
+      filters: {
+        doctorId: doctorId ?? null,
+        patientId: patientId ?? null,
+        status: status ?? null,
+      },
+    },
+  });
   return res.status(200).json(new ApiResponse(200, appointments, "Appointments fetched successfully"));
 });
 
@@ -264,6 +290,11 @@ export const getAppointmentById = asyncHandler(async (req: Request, res: Respons
   });
   if (!appointment) throw new ApiError(404, "Appointment not found");
 
+  await writeAuditLog(req, {
+    action: "read",
+    entityType: "Appointment",
+    entityId: appointment.id,
+  });
   return res.status(200).json(new ApiResponse(200, appointment, "Appointment fetched successfully"));
 });
 
@@ -293,6 +324,12 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
     if (current.version !== input.version) {
       throw new ApiError(409, "Appointment was changed by another user; refresh and try again");
     }
+    const oldValue = {
+      scheduledAt: current.scheduledAt.toISOString(),
+      durationMinutes: current.durationMinutes,
+      status: current.status,
+      notesPresent: Boolean(current.notes),
+    };
 
     const scheduledAt = input.scheduledAt ?? current.scheduledAt;
     const durationMinutes = input.durationMinutes ?? current.durationMinutes;
@@ -332,13 +369,26 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
       throw new ApiError(409, "Appointment was changed by another user; refresh and try again");
     }
 
-    return transaction.appointment.findFirst({
+    const updatedAppointment = await transaction.appointment.findFirst({
       where: { id: current.id, tenantId },
       include: appointmentInclude,
     });
+    return { appointment: updatedAppointment, oldValue };
   });
 
-  return res.status(200).json(new ApiResponse(200, result, "Appointment updated successfully"));
+  await writeAuditLog(req, {
+    action: "update",
+    entityType: "Appointment",
+    entityId: result.appointment?.id ?? parsedId.data,
+    oldValue: result.oldValue,
+    newValue: result.appointment ? {
+      scheduledAt: result.appointment.scheduledAt.toISOString(),
+      durationMinutes: result.appointment.durationMinutes,
+      status: result.appointment.status,
+      notesPresent: Boolean(result.appointment.notes),
+    } : {},
+  });
+  return res.status(200).json(new ApiResponse(200, result.appointment, "Appointment updated successfully"));
 });
 
 export const getAppointmentStats = asyncHandler(async (req:Request,res:Response) => {

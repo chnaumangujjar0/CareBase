@@ -13,6 +13,7 @@ import {
   createConsultation,
   createEncounter,
   createMedicine,
+  createMedicineStockTransaction,
   createPrescription,
   createSurgeryCase,
   createTheatre,
@@ -23,6 +24,7 @@ import {
   listSurgeryCases,
   listAvailableBeds,
   listMedicines,
+  listMedicineStockTransactions,
   listTheatres,
   listSurgeryTeamOptions,
   releaseEncounterBed,
@@ -70,6 +72,9 @@ router.route("/medicines")
   .post(requirePermissions("clinical:medicines:write"), checkAuthorizationForSuperRoles, createMedicine);
 router.route("/medicines/:medicineId")
   .patch(requirePermissions("clinical:medicines:write"), checkAuthorizationForSuperRoles, updateMedicine);
+router.route("/medicines/:medicineId/stock-transactions")
+  .get(requirePermissions("clinical:medicines:read"), listMedicineStockTransactions)
+  .post(requirePermissions("clinical:medicines:write"), createMedicineStockTransaction);
 router.route("/theatres")
   .get(requirePermissions("clinical:surgeries:read"), listTheatres)
   .post(requirePermissions("clinical:surgeries:write"), checkAuthorizationForSuperRoles, createTheatre);
