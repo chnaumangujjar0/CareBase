@@ -96,6 +96,7 @@ interface ClinicalFormValues {
   medicineId?: string;
   prescriptionItems?: Array<{
     medicineId?: string;
+    medicineName?: string;
     dose?: string;
     frequency?: string;
     durationDays?: number;
@@ -363,7 +364,8 @@ export default function ClinicalDesk() {
         toast.success("Consultation saved");
       } else if (action === "prescription") {
         const items = (values.prescriptionItems ?? []).map((item) => ({
-          medicineId: item.medicineId!,
+          ...(item.medicineId ? { medicineId: item.medicineId } : {}),
+          medicineName: item.medicineName!.trim(),
           dose: item.dose!.trim(),
           frequency: item.frequency!.trim(),
           durationDays: item.durationDays ?? null,
@@ -611,11 +613,30 @@ export default function ClinicalDesk() {
                     <Card key={field.key} size="small" title={`Medicine ${field.name + 1}`} extra={
                       fields.length > 1 ? <Button danger type="link" onClick={() => remove(field.name)}>Remove</Button> : null
                     }>
-                      <Form.Item {...field} name={[field.name, "medicineId"]} label="Medicine" rules={[{ required: true }]}>
-                        <Select showSearch optionFilterProp="label" placeholder="Choose medicine" options={medicines.map((medicine) => ({
+                      <Form.Item {...field} name={[field.name, "medicineId"]} label="Catalogue medicine (optional)">
+                        <Select
+                          allowClear
+                          showSearch
+                          optionFilterProp="label"
+                          placeholder="Select a catalogue medicine or enter one below"
+                          onChange={(medicineId?: string) => {
+                            const selectedMedicine = medicines.find((medicine) => medicine.id === medicineId);
+                            if (selectedMedicine) {
+                              form.setFieldValue(["prescriptionItems", field.name, "medicineName"], selectedMedicine.name);
+                            }
+                          }}
+                          options={medicines.map((medicine) => ({
                           value: medicine.id,
                           label: `${medicine.name}${medicine.strength ? ` · ${medicine.strength}` : ""}`,
-                        }))} />
+                          }))}
+                        />
+                      </Form.Item>
+                      <Form.Item {...field} name={[field.name, "medicineName"]} label="Medicine name" rules={[{ required: true, whitespace: true }]}>
+                        <Input
+                          placeholder="Enter any prescribed medicine"
+                          maxLength={200}
+                          onChange={() => form.setFieldValue(["prescriptionItems", field.name, "medicineId"], undefined)}
+                        />
                       </Form.Item>
                       <Space align="start" style={{ width: "100%" }}>
                         <Form.Item {...field} name={[field.name, "dose"]} label="Dose" rules={[{ required: true }]}><Input placeholder="500 mg" /></Form.Item>
@@ -972,7 +993,7 @@ export default function ClinicalDesk() {
                     >
                       {prescription.PrescriptionItem.map((item) => (
                         <Text key={item.id} style={{ display: "block" }}>
-                          {item.Medicine.name} {item.Medicine.strength ?? ""} — {item.dose}, {item.frequency}
+                          {item.medicineName}{item.Medicine?.strength ? ` ${item.Medicine.strength}` : ""} — {item.dose}, {item.frequency}
                           {item.durationDays ? ` for ${item.durationDays} days` : ""}
                         </Text>
                       ))}

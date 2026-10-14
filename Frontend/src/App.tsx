@@ -19,6 +19,8 @@ import { Room } from './components/pages/Room';
 import { Bed } from './components/pages/Bed';
 import ClinicalDesk from './components/pages/ClinicalDesk';
 import ClinicalOperations from './components/pages/ClinicalOperations';
+import Pharmacy from './components/pages/Pharmacy';
+import AuditLogs from './components/pages/AuditLogs';
 
 function App() {
   return (
@@ -51,19 +53,18 @@ function App() {
               <Route path='/appointments' element={<Appointments/>} />
               <Route path='/clinical' element={<ClinicalDesk />} />
               <Route path='/clinical/operations' element={<ClinicalOperations />} />
+              <Route path='/pharmacy' element={<Pharmacy />} />
             </Route>
 
-            <Route element={<ProtectedRoute allowedRoles={["doctor", "admin","Owner"]} />}>
+            <Route element={<ProtectedRoute allowedRoles={["Admin","Owner"]} />}>
               <Route path='/settings/departments' element={<Departments/>} />
               <Route path='/settings/roles' element={<RolesPage/>} />
               <Route path='/settings/profile' element={<HospitalProfile/>}/>
-            </Route>
-
-            <Route element={<ProtectedRoute allowedRoles={["Admin", "Owner"]} />}>
               <Route path="/staff" element={<Staff />} />
               <Route path="/facility/wards" element={<Wards />} />
               <Route path="/facility/rooms" element={<Room />} />
               <Route path="/facility/beds" element={<Bed />} />
+              <Route path='/audit-logs' element={<AuditLogs />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

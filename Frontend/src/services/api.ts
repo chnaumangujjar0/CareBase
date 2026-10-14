@@ -36,6 +36,8 @@ import type {
   DashboardSummary,
   ClinicalMedicine,
   ClinicalPrescription,
+  ClinicalStockTransaction,
+  AuditLogList,
   ClinicalConsultation,
   ClinicalSurgeryCase,
 } from "../types/global.types";
@@ -72,6 +74,16 @@ export const logoutUser = async () => {
   
   return res.data
 } 
+
+export const getAuditLogs = async (params: {
+  page: number;
+  limit: number;
+  action?: string;
+  entityType?: string;
+}): Promise<AuditLogList> => {
+  const res = await api.get("/audit-logs", { params });
+  return res.data.data as AuditLogList;
+};
 
 // Tenant Apis
 
@@ -476,6 +488,21 @@ export const setClinicalMedicineActive = async (medicineId: string, isActive: bo
   return res.data.data as ClinicalMedicine;
 };
 
+export const getClinicalMedicineStockTransactions = async (
+  medicineId: string,
+): Promise<{ balance: number; transactions: ClinicalStockTransaction[] }> => {
+  const res = await api.get(`/clinical/medicines/${medicineId}/stock-transactions`);
+  return res.data.data as { balance: number; transactions: ClinicalStockTransaction[] };
+};
+
+export const createClinicalMedicineStockTransaction = async (
+  medicineId: string,
+  payload: { type: "IN" | "OUT"; quantity: number; reason?: string | null },
+): Promise<{ balance: number; transaction: ClinicalStockTransaction }> => {
+  const res = await api.post(`/clinical/medicines/${medicineId}/stock-transactions`, payload);
+  return res.data.data as { balance: number; transaction: ClinicalStockTransaction };
+};
+
 export const getClinicalAvailableBeds = async (): Promise<BedRecord[]> => {
   const res = await api.get("/clinical/beds");
   return res.data.data as BedRecord[];
@@ -486,7 +513,8 @@ export const createClinicalPrescription = async (
   payload: {
     notes?: string | null;
     items: Array<{
-      medicineId: string;
+      medicineId?: string | null;
+      medicineName: string;
       dose: string;
       frequency: string;
       durationDays?: number | null;

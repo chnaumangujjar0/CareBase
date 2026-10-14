@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Container, Row, Col, Card, Badge } from "react-bootstrap";
 import {
   Modal,
   Input,
@@ -10,6 +9,15 @@ import {
   ConfigProvider,
   Checkbox,
   TimePicker,
+  Row,
+  Col,
+  Card,
+  Tag,
+  Typography,
+  Flex,
+  Avatar,
+  Empty,
+  Divider
 } from "antd";
 import { Search, Calendar, Plus, Mail, Phone } from "lucide-react";
 import { useFormik } from "formik";
@@ -34,32 +42,41 @@ import type {
 } from "../../types/global.types";
 
 const { TextArea, Password } = Input;
+const { Title, Text, Paragraph } = Typography;
+
+// --- Your Exact Theme Configuration ---
+const themeConfig = {
+  token: {
+    colorPrimary: '#0F766E',
+    colorInfo: '#0284C7',
+    colorSuccess: '#16A34A',
+    colorWarning: '#D97706',
+    colorError: '#DC2626',
+    colorTextBase: '#1E293B',
+    colorBgLayout: '#F1F5F9',
+    borderRadius: 8,
+    fontFamily: '"Inter", sans-serif',
+    boxShadowTertiary: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  },
+  components: {
+    Card: { borderRadiusLG: 12 },
+  }
+};
 
 const staffRoleEnum = [
-  // WARD-BASED STAFF 
-  // These roles are commonly assigned to a ward.
   { value: "Nurse", label: "Nurse" },
   { value: "Head Nurse", label: "Head Nurse" },
   { value: "Patient Care Technician", label: "Patient Care Technician" },
   { value: "Ward Clerk", label: "Ward Clerk" },
-
-  // DEPARTMENT-BASED CLINICAL 
-  // These roles are commonly assigned to a department.
   { value: "Pharmacist", label: "Pharmacist" },
   { value: "Lab Technician", label: "Lab Technician" },
   { value: "Radiology Technician", label: "Radiology Technician" },
   { value: "Physiotherapist", label: "Physiotherapist" },
-
-  // ADMINISTRATIVE & SUPPORT 
-  // Administrative roles are commonly department-based.
   { value: "Admin", label: "Admin" },
   { value: "Receptionist", label: "Receptionist" },
   { value: "Billing Specialist", label: "Billing Specialist" },
   { value: "HR Manager", label: "HR Manager" },
   { value: "IT Support", label: "IT Support" },
-
-  // FACILITY OPERATIONS 
-  // Facility roles may be assigned to a ward or department.
   { value: "Housekeeping", label: "Housekeeping" },
   { value: "Security", label: "Security" },
   { value: "Maintenance", label: "Maintenance" }
@@ -81,7 +98,6 @@ const availabilityValidationSchema = Yup.array()
   .max(7)
   .required();
 
-// 1. Dynamic Validation Schema
 const profileSchema = Yup.object().shape({
   type: Yup.string()
     .oneOf(["Doctor", "Staff"])
@@ -124,8 +140,7 @@ const profileSchema = Yup.object().shape({
 
 const weekDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const minuteToTime = (minute: number) =>
-  dayjs().startOf("day").add(minute, "minute");
+const minuteToTime = (minute: number) => dayjs().startOf("day").add(minute, "minute");
 
 const formatAvailability = (availability: AvailabilityWindow[]) =>
   availability
@@ -140,13 +155,17 @@ function WeeklyAvailabilityEditor({
   onChange: (availability: AvailabilityWindow[]) => void;
 }) {
   return (
-    <div className="border rounded p-3">
+    <div style={{ border: `1px solid #E2E8F0`, borderRadius: 8, padding: 16 }}>
       {weekDays.map((day, dayOfWeek) => {
         const slot = value.find((entry) => entry.dayOfWeek === dayOfWeek);
 
         return (
-          <div
-            className="d-flex flex-wrap align-items-center justify-content-between gap-2 py-2 border-bottom"
+          <Flex
+            align="center"
+            justify="space-between"
+            wrap="wrap"
+            gap={8}
+            style={{ padding: '12px 0', borderBottom: dayOfWeek !== 6 ? `1px solid #E2E8F0` : 'none' }}
             key={day}
           >
             <Checkbox
@@ -194,7 +213,7 @@ function WeeklyAvailabilityEditor({
                 );
               }}
             />
-          </div>
+          </Flex>
         );
       })}
     </div>
@@ -206,10 +225,11 @@ function Staff() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<StaffDirectoryEntry[]>([]);
   const [activeStaff, setActiveStaff] = useState<StaffDirectoryEntry | null>(null);
-  const [departments,setDepartments] = useState<Department[] | null>(null)
+  const [departments, setDepartments] = useState<Department[] | null>(null);
   const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
   const [wardsLoading, setWardsLoading] = useState(false);
-  const user = useSelector(selectCurrentUser) as AuthUser | null
+  const [searchQuery, setSearchQuery] = useState("");
+  const user = useSelector(selectCurrentUser) as AuthUser | null;
 
   useEffect(() => {
     if (!showModal || !user?.tenantId) return;
@@ -264,7 +284,7 @@ function Staff() {
         toast.error(message);
       });
   }, [user?.tenantId]);
-  // 2. Formik Initialization
+
   const formik = useFormik({
     initialValues: {
       type: "Doctor",
@@ -394,139 +414,131 @@ function Staff() {
 
   const errorMessage = (name: keyof typeof formik.values) =>
     formik.touched[name] && formik.errors[name] ? (
-      <div className="text-danger small mt-1">
+      <Text type="danger" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
         {formik.errors[name] as string}
-      </div>
+      </Text>
     ) : null;
 
+  const filteredStaff = staffList.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.role.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <ConfigProvider
-      theme={{ token: { colorPrimary: "#0F766E", borderRadius: 8 } }}
-    >
-      <Container fluid className="p-4 bg-light min-vh-100 staff-page">
+    <ConfigProvider theme={themeConfig}>
+      <div style={{ padding: 24, minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
+        
         {/* Header Bar */}
-        <div className="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border-0">
-          <h3 className="fw-bold mb-0 me-4 text-dark">Staff</h3>
+        <Flex justify="space-between" align="center" style={{ backgroundColor: '#fff', padding: '16px 24px', borderRadius: 8, marginBottom: 24, boxShadow: themeConfig.token.boxShadowTertiary }}>
+          <Title level={4} style={{ margin: 0, fontWeight: 700 }}>Staff Directory</Title>
 
           <Input
-            prefix={<Search size={18} className="text-muted" />}
+            prefix={<Search size={16} color="#94A3B8" />}
             placeholder="Search staff members..."
-            className="w-25 me-auto bg-light border-0"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{ width: 320, borderRadius: 8 }}
             size="large"
+            allowClear
           />
 
-          <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center text-muted bg-light px-3 py-2 rounded border border-light">
-              <Calendar size={16} className="me-2" />
-              <span className="small fw-medium">
+          <Flex align="center" gap={12}>
+            <Flex align="center" gap={8} style={{ backgroundColor: themeConfig.token.colorBgLayout, padding: '8px 16px', borderRadius: 8 }}>
+              <Calendar size={16} color="#64748B" />
+              <Text strong style={{ color: themeConfig.token.colorTextBase, fontSize: 13 }}>
                 {dayjs().format("dddd, DD MMMM YYYY")}
-              </span>
-            </div>
+              </Text>
+            </Flex>
             <Button size="large">Export</Button>
             <Button
               type="primary"
               size="large"
               icon={<Plus size={18} />}
               onClick={() => setShowModal(true)}
+              style={{ fontWeight: 600 }}
             >
               Add Staff
             </Button>
-          </div>
-        </div>
+          </Flex>
+        </Flex>
 
-        {/* --- Main Layout --- */}
-        <Row className="g-4">
+        {/* Main Layout */}
+        <Row gutter={[24, 24]}>
           {/* Left Column: Scrollable Staff Cards Grid */}
-          <Col lg={8}>
-            <div className="staff-scroll-container">
-              <Row xs={1} md={2} className="g-4">
-                {staffList.map((staff) => (
-                  <Col key={staff.id}>
-                    <Card
-                      className={`h-100 shadow-sm staff-card-hover ${activeStaff?.id === staff.id ? "active-staff-card" : ""}`}
-                      onClick={() => setActiveStaff(staff)}
-                    >
-                      <Card.Body className="d-flex gap-3 p-4">
-                        <img
-                          src={staff.image}
-                          alt={staff.name}
-                          style={{
-                            width: 72,
-                            height: 96,
-                            borderRadius: 10,
-                            objectFit: "cover",
-                          }}
-                          className="shadow-sm"
-                        />
-
-                        <div className="d-flex flex-column w-100">
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <span className="text-muted small fw-medium">
-                              {staff.role}
-                            </span>
-                            <Badge
-                              bg={
-                                staff.type === "Doctor" ? "primary" : "warning"
-                              }
-                              text={staff.type === "Doctor" ? "white" : "dark"}
-                              className={`bg-opacity-25 rounded-pill fw-normal px-2 ${staff.type === "Doctor" ? "text-primary border border-primary" : "border border-warning"}`}
-                            >
-                              {staff.type}
-                            </Badge>
-                          </div>
-
-                          <h6 className="fw-bold mb-1 text-dark">
-                            {staff.name}
-                          </h6>
-                          <p
-                            className="text-muted small mb-2"
-                            style={{
-                              display: "-webkit-box",
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: "vertical",
-                              overflow: "hidden",
-                              lineHeight: "1.5",
-                            }}
-                          >
-                            {staff.bio}
-                          </p>
-
-                          <div className="mt-auto d-flex justify-content-between align-items-end">
+          <Col xs={24} lg={16}>
+            <div style={{ maxHeight: 'calc(100vh - 160px)', overflowY: 'auto', paddingRight: 8 }}>
+              <Row gutter={[16, 16]}>
+                {filteredStaff.map((staff) => {
+                  const isActive = activeStaff?.id === staff.id;
+                  return (
+                    <Col xs={24} sm={12} xl={12} key={staff.id}>
+                      <Card
+                        hoverable
+                        onClick={() => setActiveStaff(staff)}
+                        style={{
+                          height: '100%',
+                          border: isActive ? `2px solid ${themeConfig.token.colorPrimary}` : `1px solid #E2E8F0`,
+                          boxShadow: isActive ? '0 4px 12px rgba(15, 118, 110, 0.15)' : themeConfig.token.boxShadowTertiary,
+                          transition: 'all 0.2s ease',
+                        }}
+                        bodyStyle={{ padding: 20 }}
+                      >
+                        <Flex gap={16}>
+                          <Avatar 
+                            src={staff.image} 
+                            shape="square" 
+                            size={72} 
+                            style={{ borderRadius: 8, minWidth: 72 }} 
+                          />
+                          <Flex vertical justify="space-between" style={{ width: '100%' }}>
                             <div>
-                              <div className="text-muted small d-flex align-items-center mb-1">
-                                <Mail
-                                  size={12}
-                                  className="me-2 text-secondary"
-                                />{" "}
-                                {staff.email}
-                              </div>
-                              <div className="text-muted small d-flex align-items-center">
-                                <Phone
-                                  size={12}
-                                  className="me-2 text-secondary"
-                                />{" "}
-                                {staff.phone}
-                              </div>
+                              <Flex justify="space-between" align="flex-start" style={{ marginBottom: 4 }}>
+                                <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
+                                  {staff.role}
+                                </Text>
+                                <Tag color={staff.type === "Doctor" ? "blue" : "orange"} style={{ margin: 0, borderRadius: 12, border: 'none' }}>
+                                  {staff.type}
+                                </Tag>
+                              </Flex>
+                              <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
+                                {staff.name}
+                              </Text>
+                              <Paragraph 
+                                type="secondary" 
+                                style={{ fontSize: 13, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                              >
+                                {staff.bio}
+                              </Paragraph>
                             </div>
-                            <Button
-                              type="default"
-                              shape="round"
-                              size="small"
-                              onClick={(e) => handleEdit(staff, e)}
-                            >
-                              Edit
-                            </Button>
-                          </div>
-                        </div>
-                      </Card.Body>
-                    </Card>
-                  </Col>
-                ))}
-                {staffList.length === 0 && (
-                  <Col>
-                    <p className="text-muted py-5 text-center">
-                      No doctors or staff profiles have been added yet.
-                    </p>
+
+                            <Flex justify="space-between" align="flex-end" style={{ marginTop: 12 }}>
+                              <Flex vertical gap={4}>
+                                <Flex align="center" gap={6}>
+                                  <Mail size={12} color="#94A3B8" />
+                                  <Text type="secondary" style={{ fontSize: 12 }}>{staff.email}</Text>
+                                </Flex>
+                                <Flex align="center" gap={6}>
+                                  <Phone size={12} color="#94A3B8" />
+                                  <Text type="secondary" style={{ fontSize: 12 }}>{staff.phone}</Text>
+                                </Flex>
+                              </Flex>
+                              <Button 
+                                size="small" 
+                                shape="round" 
+                                onClick={(e) => handleEdit(staff, e)}
+                              >
+                                Edit
+                              </Button>
+                            </Flex>
+                          </Flex>
+                        </Flex>
+                      </Card>
+                    </Col>
+                  );
+                })}
+                {filteredStaff.length === 0 && (
+                  <Col span={24}>
+                    <Empty description="No staff members found" style={{ marginTop: 60 }} />
                   </Col>
                 )}
               </Row>
@@ -534,465 +546,344 @@ function Staff() {
           </Col>
 
           {/* Right Column: Active Profile Detail View */}
-          <Col lg={4}>
-            <Card
-              className="border-0 shadow-sm sticky-top"
-              style={{ top: "0", borderRadius: 16, zIndex: "auto" }}
-            >
-              <Card.Body className="p-4">
+          <Col xs={24} lg={8}>
+            <div style={{ position: 'sticky', top: 24 }}>
+              <Card bordered={false} style={{ boxShadow: themeConfig.token.boxShadowTertiary }}>
                 {activeStaff ? (
                   <>
-                <div className="d-flex justify-content-between align-items-start mb-4">
-                  <h5 className="fw-bold mb-0 text-dark">Profile Staff</h5>
-                  <Badge
-                    bg={activeStaff.type === "Doctor" ? "primary" : "warning"}
-                    text={activeStaff.type === "Doctor" ? "white" : "dark"}
-                    className={`bg-opacity-25 rounded-pill px-3 py-1 fw-normal ${activeStaff.type === "Doctor" ? "text-primary border border-primary" : "border border-warning"}`}
-                  >
-                    {activeStaff.type}
-                  </Badge>
-                </div>
+                    <Flex justify="space-between" align="flex-start" style={{ marginBottom: 24 }}>
+                      <Title level={5} style={{ margin: 0 }}>Profile Details</Title>
+                      <Tag color={activeStaff.type === "Doctor" ? "blue" : "orange"} style={{ margin: 0, borderRadius: 12, border: 'none', padding: '2px 12px', fontWeight: 500 }}>
+                        {activeStaff.type}
+                      </Tag>
+                    </Flex>
 
-                <div className="text-center mb-4">
-                  <img
-                    src={activeStaff.image}
-                    alt={activeStaff.name}
-                    className="mb-3 shadow-sm"
-                    style={{
-                      width: 110,
-                      height: 110,
-                      borderRadius: "50%",
-                      objectFit: "cover",
-                      border: "4px solid #F8FAFC",
-                    }}
-                  />
-                  <h5 className="fw-bold mb-1 text-dark">{activeStaff.name}</h5>
-                  <p className="text-muted small mb-0">{activeStaff.role}</p>
-                </div>
+                    <Flex vertical align="center" style={{ marginBottom: 24 }}>
+                      <Avatar 
+                        src={activeStaff.image} 
+                        size={120} 
+                        style={{ border: `4px solid ${themeConfig.token.colorBgLayout}`, marginBottom: 16 }} 
+                      />
+                      <Title level={4} style={{ margin: 0 }}>{activeStaff.name}</Title>
+                      <Text type="secondary">{activeStaff.role}</Text>
+                    </Flex>
 
-                <div className="profile-details mt-4 bg-light p-3 rounded-3 border border-light">
-                  <div className="mb-3">
-                    <span className="d-block small fw-bold text-dark mb-1">
-                      Specialization
-                    </span>
-                    <span className="small text-muted">{activeStaff.role}</span>
-                  </div>
-                  <div className="mb-3">
-                    <span className="d-block small fw-bold text-dark mb-1">
-                      Weekly Availability
-                    </span>
-                    {formatAvailability(activeStaff.availability).length > 0 ? (
-                      <ul className="list-unstyled small text-muted mb-0">
-                        {formatAvailability(activeStaff.availability).map((slot) => (
-                          <li key={slot}>{slot}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <span className="small text-muted">Not configured</span>
-                    )}
-                  </div>
-                  <div className="mb-3">
-                    <span className="d-block small fw-bold text-dark mb-1">
-                      Contact
-                    </span>
-                    <span className="small text-muted d-block">
-                      {activeStaff.email}
-                    </span>
-                    <span className="small text-muted">
-                      {activeStaff.phone}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="d-block small fw-bold text-dark mb-1">
-                      Responsibilities
-                    </span>
-                    <p
-                      className="small text-muted mb-0"
-                      style={{ lineHeight: "1.6" }}
-                    >
-                      {activeStaff.bio}
-                    </p>
-                  </div>
-                </div>
+                    <div style={{ backgroundColor: themeConfig.token.colorBgLayout, padding: 20, borderRadius: 8 }}>
+                      <div style={{ marginBottom: 16 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Specialization</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>{activeStaff.role}</Text>
+                      </div>
+                      
+                      <div style={{ marginBottom: 16 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Weekly Availability</Text>
+                        {formatAvailability(activeStaff.availability).length > 0 ? (
+                          <ul style={{ paddingLeft: 16, margin: 0 }}>
+                            {formatAvailability(activeStaff.availability).map((slot) => (
+                              <li key={slot}><Text type="secondary" style={{ fontSize: 13 }}>{slot}</Text></li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <Text type="secondary" style={{ fontSize: 13 }}>Not configured</Text>
+                        )}
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Contact</Text>
+                        <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>{activeStaff.email}</Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>{activeStaff.phone}</Text>
+                      </div>
+
+                      <div>
+                        <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Responsibilities</Text>
+                        <Paragraph type="secondary" style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}>
+                          {activeStaff.bio}
+                        </Paragraph>
+                      </div>
+                    </div>
                   </>
                 ) : (
-                  <div className="py-5 text-center text-muted">
-                    Select a profile to view its weekly availability.
-                  </div>
+                  <Empty description="Select a profile to view details" style={{ margin: '60px 0' }} />
                 )}
-              </Card.Body>
-            </Card>
+              </Card>
+            </div>
           </Col>
         </Row>
 
         {/* --- Ant Design Modal --- */}
         <Modal
-          zIndex={1100}
-          title={
-            <span className="fw-bold h5 text-dark">
-              {editingId ? "Edit Availability" : "Add New Profile"}
-            </span>
-          }
+          title={<Title level={4} style={{ margin: 0 }}>{editingId ? "Edit Availability" : "Add New Profile"}</Title>}
           open={showModal}
           onCancel={handleClose}
           width={800}
           centered
-          
+          destroyOnClose
+          zIndex={1100}
           footer={[
-            <Button key="back" onClick={handleClose}>
+            <Button key="back" size="large" onClick={handleClose}>
               Cancel
             </Button>,
             <Button
               key="submit"
               type="primary"
+              size="large"
               loading={formik.isSubmitting}
               onClick={() => formik.handleSubmit()}
+              style={{ fontWeight: 600 }}
             >
-                  {editingId ? "Save Availability" : "Create Profile"}
+              {editingId ? "Save Availability" : "Create Profile"}
             </Button>,
           ]}
         >
-          <div className="pt-3">
-            {!editingId && <>
-            <Row className="mb-4">
-              <Col md={12}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Profile Type
-                </label>
-                <Select
-                  className="w-100"
-                  size="large"
-                  value={formik.values.type}
-                  onChange={(val) => formik.setFieldValue("type", val)}
-                  options={[
-                    { value: "Doctor", label: "Medical Doctor" },
-                    {
-                      value: "Staff",
-                      label: "Hospital Staff (Nurse, Admin, etc.)",
-                    },
-                  ]}
-                />
-              </Col>
-            </Row>
-
-            <h6 className="fw-bold text-dark border-bottom pb-2 mb-3">
-              General Information
-            </h6>
-            <Row className="g-3 mb-4">
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">Full Name</label>
-                <Input
-                  size="large"
-                  name="name"
-                  placeholder="Full name"
-                  value={formik.values.name}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  status={formik.touched.name && formik.errors.name ? "error" : ""}
-                />
-                {errorMessage("name")}
-              </Col>
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Email
-                </label>
-                <Input
-                  size="large"
-                  name="email"
-                  placeholder="johndeo@gmail.com"
-                  value={formik.values.email}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  status={
-                    formik.touched.email && formik.errors.email
-                      ? "error"
-                      : ""
-                  }
-                />
-                {errorMessage("email")}
-              </Col>
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Password
-                </label>
-                <Password
-                  size="large"
-                  name="password"
-                  placeholder="Enter a password"
-                  value={formik.values.password}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  status={
-                    formik.touched.password && formik.errors.password
-                      ? "error"
-                      : ""
-                  }
-                />
-                {errorMessage("password")}
-              </Col>
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Employee ID
-                </label>
-                <Input
-                  size="large"
-                  name="employeeId"
-                  placeholder="e.g. EMP-1042"
-                  value={formik.values.employeeId}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  status={
-                    formik.touched.employeeId && formik.errors.employeeId
-                      ? "error"
-                      : ""
-                  }
-                />
-                {errorMessage("employeeId")}
-              </Col>
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Department
-                </label>
-                <Select
-                  className="w-100"
-                  size="large"
-                  placeholder="Select Department..."
-                  value={formik.values.departmentId || null}
-                  onChange={(val) => formik.setFieldValue("departmentId", val)}
-                  onBlur={() => formik.setFieldTouched("departmentId", true)}
-                  status={
-                    formik.touched.departmentId && formik.errors.departmentId
-                      ? "error"
-                      : ""
-                  }
-                  options={departments?.map((obj) => {
-                    return { value: obj.id, label: obj.name };
-                  })}
-                />
-                {errorMessage("departmentId")}
-              </Col>
-              <Col md={6}>
-                <label className="small fw-bold text-secondary mb-1">
-                  Phone Number
-                </label>
-                <Input
-                  size="large"
-                  name="phone"
-                  value={formik.values.phone}
-                  onChange={formik.handleChange}
-                  onBlur={formik.handleBlur}
-                  status={
-                    formik.touched.phone && formik.errors.phone ? "error" : ""
-                  }
-                />
-                {errorMessage("phone")}
-              </Col>
-            </Row>
-
-            {formik.values.type === "Doctor" ? (
+          <div style={{ paddingTop: 16 }}>
+            {!editingId && (
               <>
-                <h6 className="fw-bold text-primary border-bottom pb-2 mb-3">
-                  Clinical Credentials
-                </h6>
-                <Row className="g-3">
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Specialization
-                    </label>
-                    <Input
+                <Row style={{ marginBottom: 24 }}>
+                  <Col span={24}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Profile Type</Text>
+                    <Select
+                      style={{ width: '100%' }}
                       size="large"
-                      name="specialization"
-                      placeholder="e.g. Pediatric Cardiology"
-                      value={formik.values.specialization}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      status={
-                        formik.touched.specialization &&
-                        formik.errors.specialization
-                          ? "error"
-                          : ""
-                      }
+                      value={formik.values.type}
+                      onChange={(val) => formik.setFieldValue("type", val)}
+                      options={[
+                        { value: "Doctor", label: "Medical Doctor" },
+                        { value: "Staff", label: "Hospital Staff (Nurse, Admin, etc.)" },
+                      ]}
                     />
-                    {errorMessage("specialization")}
-                  </Col>
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Medical License Number
-                    </label>
-                    <Input
-                      size="large"
-                      name="licenseNumber"
-                      value={formik.values.licenseNumber}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      status={
-                        formik.touched.licenseNumber &&
-                        formik.errors.licenseNumber
-                          ? "error"
-                          : ""
-                      }
-                    />
-                    {errorMessage("licenseNumber")}
-                  </Col>
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Designation / Title
-                    </label>
-                    <Input
-                      size="large"
-                      name="designation"
-                      placeholder="e.g. Head of Surgery"
-                      value={formik.values.designation}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      status={
-                        formik.touched.designation &&
-                        formik.errors.designation
-                          ? "error"
-                          : ""
-                      }
-                    />
-                    {errorMessage("designation")}
-                  </Col>
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Qualifications
-                    </label>
-                    <Input
-                      size="large"
-                      name="qualifications"
-                      placeholder="e.g. MD, FACS"
-                      value={formik.values.qualifications}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      status={
-                        formik.touched.qualifications &&
-                        formik.errors.qualifications
-                          ? "error"
-                          : ""
-                      }
-                    />
-                    {errorMessage("qualifications")}
-                  </Col>
-                  <Col md={12}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Professional Description
-                    </label>
-                    <TextArea
-                      rows={3}
-                      name="description"
-                      placeholder="Brief clinical biography..."
-                      value={formik.values.description}
-                      onChange={formik.handleChange}
-                      onBlur={formik.handleBlur}
-                      status={
-                        formik.touched.description &&
-                        formik.errors.description
-                          ? "error"
-                          : ""
-                      }
-                    />
-                    {errorMessage("description")}
                   </Col>
                 </Row>
-              </>
-            ) : (
-              <>
-                <h6 className="fw-bold text-secondary border-bottom pb-2 mb-3">
-                  Staff Assignment Details
-                </h6>
-                <Row className="g-3">
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Assigned Ward
-                    </label>
-                    <Select
-                      className="w-100"
+
+                <Divider orientation="horizontal" style={{ margin: '16px 0 24px 0' }}>
+                  <Text strong>General Information</Text>
+                </Divider>
+
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Full Name <Text type="danger">*</Text></Text>
+                    <Input
                       size="large"
-                      placeholder="None"
-                      allowClear
-                      value={formik.values.wardId || null}
-                      onChange={(val) => formik.setFieldValue("wardId", val)}
-                      loading={wardsLoading}
-                      showSearch
-                      optionFilterProp="label"
-                      options={wards.map((ward) => ({
-                        value: ward.id,
-                        label: ward.name,
-                      }))}
+                      name="name"
+                      placeholder="Full name"
+                      value={formik.values.name}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      status={formik.touched.name && formik.errors.name ? "error" : ""}
                     />
+                    {errorMessage("name")}
                   </Col>
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1 d-block">
-                      Joining Date
-                    </label>
-                    <DatePicker
-                      className="w-100"
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Email <Text type="danger">*</Text></Text>
+                    <Input
                       size="large"
-                      value={
-                        formik.values.joiningDate
-                          ? dayjs(formik.values.joiningDate)
-                          : null
-                      }
-                      onChange={(_, dateString) =>
-                        formik.setFieldValue("joiningDate", dateString)
-                      }
+                      name="email"
+                      placeholder="johndeo@gmail.com"
+                      value={formik.values.email}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      status={formik.touched.email && formik.errors.email ? "error" : ""}
                     />
+                    {errorMessage("email")}
                   </Col>
-                  <Col md={6}>
-                    <label className="small fw-bold text-secondary mb-1">
-                      Role
-                    </label>
-                    <Select
-                      className="w-100"
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Password <Text type="danger">*</Text></Text>
+                    <Password
                       size="large"
-                      placeholder="Select Role..."
-                      allowClear
-                      value={formik.values.role || null}
-                      onChange={(val) => formik.setFieldValue("role", val)}
-                      options={staffRoleEnum}
-                      onBlur={() => formik.setFieldTouched("role", true)}
-                      status={
-                        formik.touched.role && formik.errors.role
-                          ? "error"
-                          : ""
-                      }
+                      name="password"
+                      placeholder="Enter a password"
+                      value={formik.values.password}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      status={formik.touched.password && formik.errors.password ? "error" : ""}
                     />
-                    {errorMessage("role")}
+                    {errorMessage("password")}
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Employee ID <Text type="danger">*</Text></Text>
+                    <Input
+                      size="large"
+                      name="employeeId"
+                      placeholder="e.g. EMP-1042"
+                      value={formik.values.employeeId}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      status={formik.touched.employeeId && formik.errors.employeeId ? "error" : ""}
+                    />
+                    {errorMessage("employeeId")}
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Department <Text type="danger">*</Text></Text>
+                    <Select
+                      style={{ width: '100%' }}
+                      size="large"
+                      placeholder="Select Department..."
+                      value={formik.values.departmentId || null}
+                      onChange={(val) => formik.setFieldValue("departmentId", val)}
+                      onBlur={() => formik.setFieldTouched("departmentId", true)}
+                      status={formik.touched.departmentId && formik.errors.departmentId ? "error" : ""}
+                      options={departments?.map((obj) => ({ value: obj.id, label: obj.name }))}
+                    />
+                    {errorMessage("departmentId")}
+                  </Col>
+                  <Col xs={24} md={12}>
+                    <Text strong style={{ display: 'block', marginBottom: 8 }}>Phone Number <Text type="danger">*</Text></Text>
+                    <Input
+                      size="large"
+                      name="phone"
+                      value={formik.values.phone}
+                      onChange={formik.handleChange}
+                      onBlur={formik.handleBlur}
+                      status={formik.touched.phone && formik.errors.phone ? "error" : ""}
+                    />
+                    {errorMessage("phone")}
                   </Col>
                 </Row>
+
+                {formik.values.type === "Doctor" ? (
+                  <>
+                    <Divider orientation="horizontal" style={{ margin: '16px 0 24px 0' }}>
+                      <Text strong style={{ color: themeConfig.token.colorPrimary }}>Clinical Credentials</Text>
+                    </Divider>
+                    <Row gutter={[16, 16]}>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Specialization <Text type="danger">*</Text></Text>
+                        <Input
+                          size="large"
+                          name="specialization"
+                          placeholder="e.g. Pediatric Cardiology"
+                          value={formik.values.specialization}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          status={formik.touched.specialization && formik.errors.specialization ? "error" : ""}
+                        />
+                        {errorMessage("specialization")}
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Medical License Number <Text type="danger">*</Text></Text>
+                        <Input
+                          size="large"
+                          name="licenseNumber"
+                          value={formik.values.licenseNumber}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          status={formik.touched.licenseNumber && formik.errors.licenseNumber ? "error" : ""}
+                        />
+                        {errorMessage("licenseNumber")}
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Designation / Title</Text>
+                        <Input
+                          size="large"
+                          name="designation"
+                          placeholder="e.g. Head of Surgery"
+                          value={formik.values.designation}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          status={formik.touched.designation && formik.errors.designation ? "error" : ""}
+                        />
+                        {errorMessage("designation")}
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Qualifications</Text>
+                        <Input
+                          size="large"
+                          name="qualifications"
+                          placeholder="e.g. MD, FACS"
+                          value={formik.values.qualifications}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          status={formik.touched.qualifications && formik.errors.qualifications ? "error" : ""}
+                        />
+                        {errorMessage("qualifications")}
+                      </Col>
+                      <Col span={24}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Professional Description</Text>
+                        <TextArea
+                          rows={3}
+                          name="description"
+                          placeholder="Brief clinical biography..."
+                          value={formik.values.description}
+                          onChange={formik.handleChange}
+                          onBlur={formik.handleBlur}
+                          status={formik.touched.description && formik.errors.description ? "error" : ""}
+                        />
+                        {errorMessage("description")}
+                      </Col>
+                    </Row>
+                  </>
+                ) : (
+                  <>
+                    <Divider orientation="horizontal" style={{ margin: '16px 0 24px 0' }}>
+                      <Text strong>Staff Assignment Details</Text>
+                    </Divider>
+                    <Row gutter={[16, 16]}>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Assigned Ward</Text>
+                        <Select
+                          style={{ width: '100%' }}
+                          size="large"
+                          placeholder="None"
+                          allowClear
+                          value={formik.values.wardId || null}
+                          onChange={(val) => formik.setFieldValue("wardId", val)}
+                          loading={wardsLoading}
+                          showSearch
+                          optionFilterProp="label"
+                          options={wards.map((ward) => ({ value: ward.id, label: ward.name }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Joining Date</Text>
+                        <DatePicker
+                          style={{ width: '100%' }}
+                          size="large"
+                          value={formik.values.joiningDate ? dayjs(formik.values.joiningDate) : null}
+                          onChange={(_, dateString) => formik.setFieldValue("joiningDate", dateString)}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Role <Text type="danger">*</Text></Text>
+                        <Select
+                          style={{ width: '100%' }}
+                          size="large"
+                          placeholder="Select Role..."
+                          allowClear
+                          value={formik.values.role || null}
+                          onChange={(val) => formik.setFieldValue("role", val)}
+                          options={staffRoleEnum}
+                          onBlur={() => formik.setFieldTouched("role", true)}
+                          status={formik.touched.role && formik.errors.role ? "error" : ""}
+                        />
+                        {errorMessage("role")}
+                      </Col>
+                    </Row>
+                  </>
+                )}
               </>
             )}
-            </>}
 
-            <h6 className="fw-bold text-dark border-bottom pb-2 mb-3 mt-4">
-              Weekly Availability
-            </h6>
+            <Divider orientation="horizontal" style={{ margin: '24px 0 24px 0' }}>
+              <Text strong>Weekly Availability</Text>
+            </Divider>
+            
             <WeeklyAvailabilityEditor
               value={formik.values.availability}
-              onChange={(availability) =>
-                formik.setFieldValue("availability", availability)
-              }
+              onChange={(availability) => formik.setFieldValue("availability", availability)}
             />
 
-            {!editingId && <Row className="mt-4">
-              <Col className="d-flex align-items-center gap-2">
+            {!editingId && (
+              <Flex align="center" gap={8} style={{ marginTop: 24 }}>
                 <Switch
                   checked={formik.values.isActive}
-                  onChange={(checked) =>
-                    formik.setFieldValue("isActive", checked)
-                  }
+                  onChange={(checked) => formik.setFieldValue("isActive", checked)}
                 />
-                <span className="fw-medium text-dark">Profile is Active</span>
-              </Col>
-            </Row>}
+                <Text strong>Profile is Active</Text>
+              </Flex>
+            )}
           </div>
         </Modal>
-      </Container>
+      </div>
     </ConfigProvider>
   );
 }
-
-
 
 export default Staff;

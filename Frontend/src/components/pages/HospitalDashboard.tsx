@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   Col,
+  ConfigProvider,
   Empty,
   Flex,
   Row,
@@ -27,7 +28,20 @@ const { Title, Text } = Typography;
 interface HospitalDashboardProps {
   role: string;
 }
-
+const themeConfig = {
+  token: {
+    colorPrimary: '#0F766E',
+    colorInfo: '#0284C7',
+    colorSuccess: '#16A34A',
+    colorWarning: '#D97706',
+    colorError: '#DC2626',
+    colorTextBase: '#1E293B',
+    colorBgLayout: '#F1F5F9',
+    borderRadius: 8,
+    fontFamily: '"Inter", sans-serif',
+    boxShadowTertiary: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)',
+  },
+};
 export default function HospitalDashboard({ role }: HospitalDashboardProps) {
   const navigate = useNavigate();
   const isAdmin = ["owner", "admin"].includes(role.toLowerCase());
@@ -89,6 +103,7 @@ export default function HospitalDashboard({ role }: HospitalDashboardProps) {
   ];
 
   return (
+    <ConfigProvider theme={themeConfig}>
     <div style={{ minHeight: "100%", padding: 24, background: "#f8fafc" }}>
       <Flex justify="space-between" align="center" wrap="wrap" gap={16} style={{ marginBottom: 24 }}>
         <div>
@@ -161,5 +176,6 @@ export default function HospitalDashboard({ role }: HospitalDashboardProps) {
         </>
       )}
     </div>
+    </ConfigProvider>
   );
 }

@@ -364,15 +364,49 @@ export interface ClinicalMedicine {
   form: string | null;
   strength: string | null;
   isActive: boolean;
+  stockCount: number;
 }
 
 export interface ClinicalPrescriptionItem {
   id: string;
+  medicineName: string;
   dose: string;
   frequency: string;
   durationDays: number | null;
   instructions: string | null;
-  Medicine: ClinicalMedicine;
+  Medicine: ClinicalMedicine | null;
+}
+
+export interface ClinicalStockTransaction {
+  id: string;
+  type: "IN" | "OUT";
+  quantity: number;
+  reason: string | null;
+  createdAt: string;
+  User: { id: string; name: string } | null;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  createdAt: string;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  oldValue: unknown;
+  newValue: unknown;
+  ipAddress: string | null;
+  userAgent: string | null;
+  User: { id: string; name: string; email: string } | null;
+}
+
+export interface AuditLogList {
+  items: AuditLogEntry[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export interface ClinicalPrescription {

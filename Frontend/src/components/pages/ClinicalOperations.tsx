@@ -25,31 +25,20 @@ import { selectCurrentUser } from "../../store/authSlice";
 import type { AuthUser } from "../../types/auth";
 import type {
   ClinicalAdmission,
-  ClinicalMedicine,
   ClinicalSurgeryCase,
 } from "../../types/global.types";
 import {
   type ClinicalTheatre,
-  createClinicalMedicine,
   createClinicalTheatre,
   getApiErrorMessage,
   getClinicalAdmissions,
-  getClinicalMedicines,
   getClinicalSurgeries,
   getClinicalTheatres,
-  setClinicalMedicineActive,
   updateClinicalSurgery,
   updateClinicalTheatre,
 } from "../../services/api";
 
 const { Title, Text } = Typography;
-
-interface MedicineFormValues {
-  name: string;
-  genericName?: string;
-  form?: string;
-  strength?: string;
-}
 
 interface TheatreFormValues {
   name: string;
@@ -93,23 +82,19 @@ export default function ClinicalOperations() {
   const [surgeryPage, setSurgeryPage] = useState(1);
   const [surgeryTotal, setSurgeryTotal] = useState(0);
   const [surgeryStatusChanges, setSurgeryStatusChanges] = useState<Record<string, SurgeryStatus>>({});
-  const [medicines, setMedicines] = useState<ClinicalMedicine[]>([]);
   const [theatres, setTheatres] = useState<ClinicalTheatre[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
-  const [medicineForm] = Form.useForm<MedicineFormValues>();
   const [theatreForm] = Form.useForm<TheatreFormValues>();
 
   const hasPermission = useCallback((permission: string) =>
     Boolean(user?.permissions?.includes("*") || user?.permissions?.includes(permission)), [user?.permissions]);
   const canReadAdmissions = hasPermission("clinical:admissions:read");
   const canReadSurgeries = hasPermission("clinical:surgeries:read");
-  const canReadMedicines = hasPermission("clinical:medicines:read");
   const canReadTheatres = canReadSurgeries;
-  const canManageCatalogue = ["owner", "admin"].includes(user?.role?.toLowerCase() ?? "");
-  const canManageMedicine = canManageCatalogue && hasPermission("clinical:medicines:write");
-  const canManageTheatre = canManageCatalogue && hasPermission("clinical:surgeries:write");
+  const canManageTheatre = ["owner", "admin"].includes(user?.role?.toLowerCase() ?? "")
+    && hasPermission("clinical:surgeries:write");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,39 +123,15 @@ export default function ClinicalOperations() {
         .then(setTheatres)
         .catch((error: unknown) => { errors.push(getApiErrorMessage(error, "Could not load operating theatres")); }));
     }
-    if (canReadMedicines) {
-      tasks.push(getClinicalMedicines(undefined, includeInactive)
-        .then(setMedicines)
-        .catch((error: unknown) => { errors.push(getApiErrorMessage(error, "Could not load medicines")); }));
-    }
     await Promise.all(tasks);
     errors.forEach((message) => toast.error(message));
     setLoading(false);
-  }, [admissionFilter, admissionPage, canReadAdmissions, canReadMedicines, canReadSurgeries, includeInactive, surgeryPage]);
+  }, [admissionFilter, admissionPage, canReadAdmissions, canReadSurgeries, includeInactive, surgeryPage]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
   }, [load]);
-
-  const addMedicine = async (values: MedicineFormValues) => {
-    setSaving(true);
-    try {
-      await createClinicalMedicine({
-        name: values.name.trim(),
-        genericName: values.genericName?.trim() || null,
-        form: values.form?.trim() || null,
-        strength: values.strength?.trim() || null,
-      });
-      toast.success("Medicine added to the catalogue");
-      medicineForm.resetFields();
-      await load();
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not add medicine"));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const addTheatre = async (values: TheatreFormValues) => {
     setSaving(true);
@@ -183,16 +144,6 @@ export default function ClinicalOperations() {
       toast.error(getApiErrorMessage(error, "Could not add operating theatre"));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const toggleMedicine = async (medicine: ClinicalMedicine, isActive: boolean) => {
-    try {
-      await setClinicalMedicineActive(medicine.id, isActive);
-      toast.success(isActive ? "Medicine reactivated" : "Medicine deactivated");
-      await load();
-    } catch (error) {
-      toast.error(getApiErrorMessage(error, "Could not update medicine"));
     }
   };
 
@@ -353,20 +304,6 @@ export default function ClinicalOperations() {
     }] : []),
   ];
 
-  const medicineColumns: TableProps<ClinicalMedicine>["columns"] = [
-    { title: "NAME", dataIndex: "name", render: (name: string, medicine) => <Text strong>{name}{medicine.strength ? ` · ${medicine.strength}` : ""}</Text> },
-    { title: "GENERIC NAME", dataIndex: "genericName", render: (value?: string | null) => value || "—" },
-    { title: "FORM", dataIndex: "form", render: (value?: string | null) => value || "—" },
-    { title: "STATUS", dataIndex: "isActive", render: (isActive: boolean) => <Tag color={isActive ? "green" : "default"}>{isActive ? "Active" : "Inactive"}</Tag> },
-    ...(canManageMedicine ? [{
-      title: "ACTIVE",
-      dataIndex: "isActive",
-      render: (isActive: boolean, medicine: ClinicalMedicine) => (
-        <Switch checked={isActive} onChange={(checked) => void toggleMedicine(medicine, checked)} />
-      ),
-    }] : []),
-  ];
-
   const theatreColumns: TableProps<ClinicalTheatre>["columns"] = [
     { title: "THEATRE", dataIndex: "name", render: (name: string) => <Text strong>{name}</Text> },
     { title: "STATUS", dataIndex: "isActive", render: (isActive: boolean) => <Tag color={isActive ? "green" : "default"}>{isActive ? "Active" : "Inactive"}</Tag> },
@@ -432,44 +369,26 @@ export default function ClinicalOperations() {
       label: `Surgery schedule (${surgeryTotal})`,
       children: <Table<ClinicalSurgeryCase> rowKey="id" columns={surgeryColumns} dataSource={surgeries} loading={loading} pagination={{ current: surgeryPage, pageSize: 25, total: surgeryTotal, onChange: setSurgeryPage }} locale={{ emptyText: <Empty description="No surgery cases scheduled" /> }} />,
     }] : []),
-    ...((canReadMedicines || canReadTheatres) ? [{
-      key: "catalogue",
-      label: "Clinical catalogue",
+    ...(canReadTheatres ? [{
+      key: "theatres",
+      label: "Operating theatres",
       children: (
         <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          {(canManageMedicine || canManageTheatre) && (
+          {canManageTheatre && (
             <Space align="center">
               <Switch checked={includeInactive} onChange={setIncludeInactive} />
-              <Text>Show inactive catalogue items</Text>
+              <Text>Show inactive theatres</Text>
             </Space>
           )}
-          {canReadMedicines && (
-            <Card title="Medicine catalogue">
-              {canManageMedicine && (
-                <Form form={medicineForm} layout="vertical" onFinish={(values) => void addMedicine(values)}>
-                  <Space align="start" wrap>
-                    <Form.Item name="name" label="Medicine name" rules={[{ required: true }]}><Input maxLength={200} /></Form.Item>
-                    <Form.Item name="genericName" label="Generic name"><Input maxLength={200} /></Form.Item>
-                    <Form.Item name="form" label="Form"><Input placeholder="Tablet, syrup, injection" maxLength={80} /></Form.Item>
-                    <Form.Item name="strength" label="Strength"><Input placeholder="500 mg" maxLength={80} /></Form.Item>
-                    <Form.Item label=" "><Button type="primary" htmlType="submit" loading={saving}>Add medicine</Button></Form.Item>
-                  </Space>
-                </Form>
-              )}
-              <Table<ClinicalMedicine> rowKey="id" columns={medicineColumns} dataSource={medicines} loading={loading} pagination={{ pageSize: 8 }} />
-            </Card>
-          )}
-          {canReadTheatres && (
-            <Card title="Operating theatres">
-              {canManageTheatre && (
-                <Form form={theatreForm} layout="inline" onFinish={(values) => void addTheatre(values)}>
-                  <Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Operating theatre name" maxLength={120} /></Form.Item>
-                  <Form.Item><Button type="primary" htmlType="submit" loading={saving}>Add theatre</Button></Form.Item>
-                </Form>
-              )}
-              <Table<ClinicalTheatre> rowKey="id" columns={theatreColumns} dataSource={theatres} loading={loading} pagination={{ pageSize: 8 }} />
-            </Card>
-          )}
+          <Card title="Operating theatres">
+            {canManageTheatre && (
+              <Form form={theatreForm} layout="inline" onFinish={(values) => void addTheatre(values)}>
+                <Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Operating theatre name" maxLength={120} /></Form.Item>
+                <Form.Item><Button type="primary" htmlType="submit" loading={saving}>Add theatre</Button></Form.Item>
+              </Form>
+            )}
+            <Table<ClinicalTheatre> rowKey="id" columns={theatreColumns} dataSource={theatres} loading={loading} pagination={{ pageSize: 8 }} />
+          </Card>
         </Space>
       ),
     }] : []),
@@ -481,7 +400,7 @@ export default function ClinicalOperations() {
       <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Clinical operations</Title>
-          <Text type="secondary">Manage inpatient census, operating schedules, and clinical reference catalogues.</Text>
+          <Text type="secondary">Manage inpatient census, surgery schedules, and operating theatres.</Text>
         </div>
         <Button onClick={() => void load()} loading={loading}>Refresh</Button>
       </Space>

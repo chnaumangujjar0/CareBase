@@ -16,7 +16,8 @@ import {
   ChevronUp,
   Shield,
   Building2,
-  Hospital
+  Hospital,
+  ClipboardList,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
 import { clearUser, selectCurrentUser } from "../../store/authSlice";
@@ -43,13 +44,14 @@ const navConfig = [
   {
     title: "Care & Services",
     items: [
-      { label: "Medicine catalogue", path: "/clinical/operations", icon: Pill, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
+      { label: "Pharmacy", path: "/pharmacy", icon: Pill, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
     ],
   },
   {
     title: "System",
     items: [
       { label: "Staff Management", path: "/staff", icon: UsersRound, roles: ["Owner", "Admin"] },
+      { label: "Audit Logs", path: "/audit-logs", icon: ClipboardList, roles: ["Owner", "Admin"] },
     ],
   },
 ];

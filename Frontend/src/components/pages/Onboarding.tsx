@@ -66,7 +66,7 @@ const Onboarding = () => {
       } catch (err) {
           if(err instanceof Error) {
 
-            setStatus(err.message || "Failed to setup workspace. Please try again.");
+            setStatus(err.message || "Failed to setup Hospital. Please try again.");
           }
       } finally {
         setIsLoading(false);
