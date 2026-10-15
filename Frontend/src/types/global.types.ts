@@ -363,6 +363,8 @@ export interface ClinicalMedicine {
   genericName: string | null;
   form: string | null;
   strength: string | null;
+  purchasePrice: number | string;
+  sellingPrice: number | string;
   isActive: boolean;
   stockCount: number;
 }
@@ -384,6 +386,63 @@ export interface ClinicalStockTransaction {
   reason: string | null;
   createdAt: string;
   User: { id: string; name: string } | null;
+}
+
+export interface PharmacyStock {
+  id: string;
+  currentStock: number;
+  reorderLevel: number;
+  pharmacyId: string;
+  medicineId: string;
+  Medicine: ClinicalMedicine;
+}
+
+export interface PharmacyRecord {
+  id: string;
+  createdAt: string;
+  name: string;
+  type: "central_store" | "sub_store";
+  isActive: boolean;
+  Stocks: PharmacyStock[];
+  stockCount: number;
+  lowStockCount: number;
+  pharmacistUserId: string | null;
+  Pharmacist?: { id: string; name: string; email: string } | null;
+}
+
+export type StockRequestStatus = "pending" | "approved" | "rejected" | "dispatched" | "received" | "partially_received" | "not_received";
+
+export interface StockRequestItem {
+  id: string;
+  requestedQuantity: number;
+  approvedQuantity: number | null;
+  receivedQuantity: number | null;
+  medicineId: string;
+  Medicine: Pick<ClinicalMedicine, "id" | "name" | "genericName" | "form" | "strength">;
+}
+
+export interface StockRequestRecord {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  status: StockRequestStatus;
+  notes: string | null;
+  dispatchedAt: string | null;
+  receivedAt: string | null;
+  receiptNote: string | null;
+  RequestingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive">;
+  FulfillingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive">;
+  Requester: { id: string; name: string };
+  Handler: { id: string; name: string } | null;
+  Receiver: { id: string; name: string } | null;
+  Items: StockRequestItem[];
+}
+
+export interface PharmacyDashboardData {
+  salesByDay: Array<{ date: string; sales: number; transactions: number }>;
+  lowStock: Array<{ currentStock: number; reorderLevel: number; Pharmacy: { id: string; name: string }; Medicine: { id: string; name: string } }>;
+  pharmacies: Array<{ id: string; name: string; type: string; isActive: boolean; pharmacistUserId: string | null }>;
+  totals: { sales: number; transactions: number; lowStock: number };
 }
 
 export interface AuditLogEntry {

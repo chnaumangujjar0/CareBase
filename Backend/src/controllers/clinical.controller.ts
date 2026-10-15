@@ -498,6 +498,7 @@ export const updateMedicine = asyncHandler(async (req: Request, res: Response) =
 });
 
 const stockTransactionSchema = z.object({
+  pharmacyId: uuidSchema,
   type: z.enum(["IN", "OUT"]),
   quantity: z.number().int().positive().max(1_000_000),
   reason: z.string().trim().max(1000).nullish(),
@@ -541,6 +542,11 @@ export const createMedicineStockTransaction = asyncHandler(async (req: Request, 
       select: { id: true },
     });
     if (!medicine) throw new ApiError(404, "Medicine not found.");
+    const pharmacy = await tx.pharmacy.findFirst({
+      where: { id: input.pharmacyId, tenantId, isActive: true },
+      select: { id: true },
+    });
+    if (!pharmacy) throw new ApiError(404, "Active pharmacy not found.");
 
     const lockKey = `${tenantId}:medicine-stock:${medicineId}`;
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;

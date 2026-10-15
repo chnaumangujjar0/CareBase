@@ -40,6 +40,7 @@ import facilityRouter from "./routes/facility.routes.js"
 import clinicalRouter from "./routes/clinical.routes.js"
 import dashboardRouter from "./routes/dashboard.routes.js"
 import auditRouter from "./routes/audit.routes.js"
+import pharmacyRouter from "./routes/pharmacy.routes.js"
 
 // routes intialization
 app.use("/api/v1/user",userRouter)
@@ -53,5 +54,6 @@ app.use("/api/v1/facility",facilityRouter)
 app.use("/api/v1/clinical",clinicalRouter)
 app.use("/api/v1/dashboard",dashboardRouter)
 app.use("/api/v1/audit-logs",auditRouter)
+app.use("/api/v1/pharmacies",pharmacyRouter)
 app.use(errorHandler)
 export {httpServer,app}
