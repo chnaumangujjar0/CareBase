@@ -40,6 +40,11 @@ import type {
   AuditLogList,
   ClinicalConsultation,
   ClinicalSurgeryCase,
+  PharmacyRecord,
+  PharmacyStock,
+  StockRequestRecord,
+  StockRequestStatus,
+  PharmacyDashboardData,
 } from "../types/global.types";
 import type { Tenant } from "../types/auth";
 
@@ -478,6 +483,8 @@ export const createClinicalMedicine = async (payload: {
   genericName?: string | null;
   form?: string | null;
   strength?: string | null;
+  purchasePrice?: number;
+  sellingPrice?: number;
 }): Promise<ClinicalMedicine> => {
   const res = await api.post("/clinical/medicines", payload);
   return res.data.data as ClinicalMedicine;
@@ -501,6 +508,78 @@ export const createClinicalMedicineStockTransaction = async (
 ): Promise<{ balance: number; transaction: ClinicalStockTransaction }> => {
   const res = await api.post(`/clinical/medicines/${medicineId}/stock-transactions`, payload);
   return res.data.data as { balance: number; transaction: ClinicalStockTransaction };
+};
+
+export const getPharmacies = async (): Promise<PharmacyRecord[]> => {
+  const res = await api.get("/pharmacies");
+  return res.data.data as PharmacyRecord[];
+};
+
+export const createPharmacy = async (payload: { name: string; type: "central_store" | "sub_store" }) => {
+  const res = await api.post("/pharmacies", payload);
+  return res.data.data as PharmacyRecord;
+};
+
+export const updatePharmacy = async (pharmacyId: string, payload: { name?: string; type?: "central_store" | "sub_store"; isActive?: boolean }) => {
+  const res = await api.patch(`/pharmacies/${pharmacyId}`, payload);
+  return res.data.data as PharmacyRecord;
+};
+
+export const assignPharmacist = async (pharmacyId: string, pharmacistUserId: string | null) => {
+  const res = await api.patch(`/pharmacies/${pharmacyId}/pharmacist`, { pharmacistUserId });
+  return res.data.data as PharmacyRecord;
+};
+
+export const getPharmacyDashboard = async (): Promise<PharmacyDashboardData> => {
+  const res = await api.get("/pharmacies/dashboard");
+  return res.data.data as PharmacyDashboardData;
+};
+
+export const createPharmacySale = async (pharmacyId: string, payload: {
+  customerName: string;
+  customerPhone?: string | null;
+  patientId?: string | null;
+  paymentMethod: "cash" | "card" | "insurance";
+  items: Array<{ medicineId: string; quantity: number }>;
+}) => {
+  const res = await api.post(`/pharmacies/${pharmacyId}/sales`, payload);
+  return res.data.data;
+};
+
+export const getPharmacyStock = async (pharmacyId: string): Promise<PharmacyStock[]> => {
+  const res = await api.get(`/pharmacies/${pharmacyId}/stock`);
+  return res.data.data as PharmacyStock[];
+};
+
+export const createPharmacyStockTransaction = async (
+  pharmacyId: string,
+  payload: { medicineId: string; type: "IN" | "OUT"; quantity: number; reason?: string | null; reorderLevel?: number },
+) => {
+  const res = await api.post(`/pharmacies/${pharmacyId}/stock-transactions`, payload);
+  return res.data.data as { balance: number; stock: PharmacyStock; transaction: ClinicalStockTransaction };
+};
+
+export const getStockRequests = async (status?: StockRequestStatus): Promise<StockRequestRecord[]> => {
+  const res = await api.get("/pharmacies/requests", { params: status ? { status } : undefined });
+  return res.data.data as StockRequestRecord[];
+};
+
+export const createStockRequest = async (payload: {
+  requestingPharmacyId: string;
+  fulfillingPharmacyId: string;
+  notes?: string | null;
+  items: Array<{ medicineId: string; requestedQuantity: number }>;
+}): Promise<StockRequestRecord> => {
+  const res = await api.post("/pharmacies/requests", payload);
+  return res.data.data as StockRequestRecord;
+};
+
+export const updateStockRequestStatus = async (
+  requestId: string,
+  payload: { status: StockRequestStatus; notes?: string | null; receiptNote?: string | null; items?: Array<{ medicineId: string; approvedQuantity?: number; receivedQuantity?: number }> },
+): Promise<StockRequestRecord> => {
+  const res = await api.patch(`/pharmacies/requests/${requestId}/status`, payload);
+  return res.data.data as StockRequestRecord;
 };
 
 export const getClinicalAvailableBeds = async (): Promise<BedRecord[]> => {
