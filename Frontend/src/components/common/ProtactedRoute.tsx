@@ -1,21 +1,24 @@
 import { Navigate, Outlet } from "react-router";
-import Loader from "./Loader";
+import { Spin } from "antd";
 import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { hasAnyPermission, hasRole } from "../../utils/authorization";
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
+  allowedPermissions?: string[];
  
   skipOnboardingCheck?: boolean;
 }
 
 export const ProtectedRoute = ({
   allowedRoles,
+  allowedPermissions,
   skipOnboardingCheck = false,
 }: ProtectedRouteProps) => {
   const { isReady, user } = useAuthBootstrap();
 
   if (!isReady) {
-    return <Loader isLoading={true} />;
+    return <Spin fullscreen spinning tip="Loading..." />;
   }
 
   if (!user) {
@@ -27,11 +30,8 @@ export const ProtectedRoute = ({
   }
 
   if (
-    allowedRoles &&
-    allowedRoles.length > 0 &&
-    !allowedRoles.some(
-      (role) => role.toLowerCase() === (user.role ?? "").toLowerCase()
-    )
+    ((allowedRoles?.length && !hasRole(user, allowedRoles)) ||
+      (allowedPermissions?.length && !hasAnyPermission(user, allowedPermissions)))
   ) {
     return <Navigate to="/" replace />;
   }

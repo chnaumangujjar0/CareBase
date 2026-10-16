@@ -2,13 +2,13 @@ import { useNavigate } from "react-router";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Container, Card, Form, Button, Alert, Spinner } from "react-bootstrap";
+import { Container, Card, Form, Button, Alert } from "react-bootstrap";
+import { Spin } from "antd";
 import { setUser } from "../../store/authSlice";
 import Logo from "../../assets/carebase-logo-full.svg";
 import { loginUser } from "../../services/api";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
-import Loader from "../common/Loader";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ const Login = () => {
 
   return (
     <>
-      <Loader isLoading={isLoading} />
+      <Spin fullscreen spinning={isLoading} tip="Authenticating..." />
       {formik.status && (
         <Alert variant="danger" className="text-center py-2">
           {formik.status}
@@ -118,14 +118,7 @@ const Login = () => {
               >
                 {isLoading ? (
                   <>
-                    <Spinner
-                      as="span"
-                      animation="border"
-                      size="sm"
-                      role="status"
-                      aria-hidden="true"
-                      className="me-2"
-                    />
+                    <Spin size="small" style={{ marginRight: 8 }} />
                     Authenticating...
                   </>
                 ) : (

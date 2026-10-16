@@ -1,22 +1,12 @@
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router";
 import { Bell, ChevronDown, LogOut } from "lucide-react";
-import { Dropdown, ConfigProvider } from "antd";
+import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { selectCurrentUser, clearUser } from "../../store/authSlice";
 import { logoutUser } from "../../services/api";
 import Logo from "../../assets/carebase-logo-full.svg";
 import "../../styles/header.scss"; 
-
-// Match the established enterprise theme
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E',
-    colorTextBase: '#475569',
-    fontFamily: '"Inter", sans-serif',
-    borderRadius: 8,
-  },
-};
 
 export const Header = () => {
   const user = useSelector(selectCurrentUser);
@@ -49,8 +39,7 @@ export const Header = () => {
   ];
 
   return (
-    <ConfigProvider theme={themeConfig}>
-      <header className="top-header">
+    <header className="top-header">
         <div className="header-brand">
           <img src={Logo} alt="CareBase Logo" className="header-logo" />
         </div>
@@ -81,7 +70,6 @@ export const Header = () => {
             </div>
           </Dropdown>
         </div>
-      </header>
-    </ConfigProvider>
+    </header>
   );
 };

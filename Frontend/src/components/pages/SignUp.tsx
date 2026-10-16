@@ -2,14 +2,14 @@ import { useNavigate, Link } from "react-router";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Card, Form, Button, Alert, Spinner } from "react-bootstrap";
+import { Card, Form, Button, Alert } from "react-bootstrap";
+import { Spin } from "antd";
 import { setUser } from "../../store/authSlice";
 import { toast } from "react-toastify";
 import Logo from "../../assets/carebase-logo-full.svg"
 import { getApiErrorMessage, registerUser } from "../../services/api";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
-import Loader from "../common/Loader";
 
 export const SignUp = () => {
   const navigate = useNavigate();
@@ -72,7 +72,7 @@ export const SignUp = () => {
 
   return (
     <div className="auth-shell d-flex min-vh-100 align-items-center justify-content-center p-3">
-    <Loader isLoading={isLoading}/>
+    <Spin fullscreen spinning={isLoading} tip="Creating account..." />
       <Card className="auth-card border-0 p-4">
         <Card.Body>
           <div className="text-center mb-4">
@@ -150,14 +150,7 @@ export const SignUp = () => {
             >
               {isLoading ? (
                 <>
-                  <Spinner
-                    as="span"
-                    animation="border"
-                    size="sm"
-                    role="status"
-                    aria-hidden="true"
-                    className="me-2"
-                  />
+                  <Spin size="small" style={{ marginRight: 8 }} />
                   Registering...
                 </>
               ) : (

@@ -171,6 +171,11 @@ export interface RoleRecord {
   updatedAt: string;
 }
 
+export interface StandardRoleOption {
+  name: string;
+  permissions: string[];
+}
+
 export interface RoleListResponse {
   roles: RoleRecord[];
   page: number;
@@ -443,6 +448,55 @@ export interface PharmacyDashboardData {
   lowStock: Array<{ currentStock: number; reorderLevel: number; Pharmacy: { id: string; name: string }; Medicine: { id: string; name: string } }>;
   pharmacies: Array<{ id: string; name: string; type: string; isActive: boolean; pharmacistUserId: string | null }>;
   totals: { sales: number; transactions: number; lowStock: number };
+}
+
+export type BillingCategory = "appointment" | "bed" | "surgery" | "consultation" | "hospital_fee";
+export type BillingInvoiceStatus = "draft" | "open" | "partially_paid" | "paid" | "void" | "overdue";
+
+export interface BillingRate {
+  id: string;
+  code: string;
+  name: string;
+  category: BillingCategory;
+  appointmentType: string | null;
+  procedureCode: string | null;
+  amount: number;
+  taxRate: number;
+  currency: string;
+  isActive: boolean;
+  doctorId: string | null;
+}
+
+export interface BillingInvoiceItem {
+  id: string;
+  category: BillingCategory;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  taxRate: number;
+  subtotal: number;
+  taxAmount: number;
+  totalAmount: number;
+}
+
+export interface BillingInvoice {
+  id: string;
+  invoiceNumber: string;
+  kind: "appointment" | "inpatient";
+  status: BillingInvoiceStatus;
+  currency: string;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  issuedAt: string;
+  Patient: { id: string; mrn: string; firstName: string; lastName: string; contactPhone: string | null };
+  Appointment: { id: string; scheduledAt: string; status: string } | null;
+  Admission: { id: string; admittedAt: string; status: string } | null;
+  Items: BillingInvoiceItem[];
+  Payments: Array<{ id: string; createdAt: string; amount: number; method: "cash" | "card"; Collector?: { id: string; name: string } }>;
 }
 
 export interface AuditLogEntry {

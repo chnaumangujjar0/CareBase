@@ -1,3 +1,9 @@
 import HospitalDashboard from "./HospitalDashboard";
 
-export const AdminDashboard = () => <HospitalDashboard role="Owner" />;
+interface AdminDashboardProps {
+  role: string;
+}
+
+export const AdminDashboard = ({ role }: AdminDashboardProps) => (
+  <HospitalDashboard role={role} />
+);

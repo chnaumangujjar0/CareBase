@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit";
+import axios from "axios";
 import type { Tenant } from "../types/auth";
 import api from "../services/axiosinstance";
 
@@ -24,12 +25,13 @@ export const fetchTenantById = createAsyncThunk<
   try {
     const response = await api.get(`/tenant/${tenantId}`);
     return response.data?.data || response.data;
-  } catch (err: any) {
-    const status = err?.response?.status;
+  } catch (err: unknown) {
+    const error = axios.isAxiosError(err) ? err : undefined;
+    const status = error?.response?.status;
     const isAuthFailure = status === 401 || status === 403;
     const message =
-      err?.response?.data?.message ||
-      (err?.response ? "Failed to fetch tenant" : "Network error while fetching tenant");
+      error?.response?.data?.message ||
+      (error?.response ? "Failed to fetch tenant" : "Network error while fetching tenant");
 
     return rejectWithValue({ message, isAuthFailure });
   }

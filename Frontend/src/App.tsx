@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { ConfigProvider } from "antd";
 import { ProtectedRoute } from './components/common/ProtactedRoute';
 import Login from './components/pages/Login';
 import Dashboard from './components/pages/Dashboard';
@@ -21,10 +22,12 @@ import ClinicalDesk from './components/pages/ClinicalDesk';
 import ClinicalOperations from './components/pages/ClinicalOperations';
 import Pharmacy from './components/pages/Pharmacy';
 import AuditLogs from './components/pages/AuditLogs';
+import Billing from './components/pages/Billing';
+import { appTheme } from './theme';
 
 function App() {
   return (
-    <>
+    <ConfigProvider theme={appTheme}>
     
       <BrowserRouter>
       <ToastContainer 
@@ -48,12 +51,27 @@ function App() {
           <Route path='/unauthorized' element={<Unauthorized/>} />
           <Route element={<Layout/>}>
             <Route element={<ProtectedRoute />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path='/patient' element={<Patient/>}/>
-              <Route path='/appointments' element={<Appointments/>} />
-              <Route path='/clinical' element={<ClinicalDesk />} />
-              <Route path='/clinical/operations' element={<ClinicalOperations />} />
-              <Route path='/pharmacy' element={<Pharmacy />} />
+              <Route element={<ProtectedRoute allowedPermissions={["dashboard:read"]} />}>
+                <Route path="/" element={<Dashboard />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["patients:read"]} />}>
+                <Route path='/patient' element={<Patient/>}/>
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["appointments:read"]} />}>
+                <Route path='/appointments' element={<Appointments/>} />
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["clinical:encounters:read"]} />}>
+                <Route path='/clinical' element={<ClinicalDesk />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["clinical:admissions:read"]} />}>
+                <Route path='/clinical/operations' element={<ClinicalOperations />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["clinical:medicines:read"]} />}>
+                <Route path='/pharmacy' element={<Pharmacy />} />
+              </Route>
+              <Route element={<ProtectedRoute allowedPermissions={["billing:invoices:read", "billing:rates:read"]} />}>
+                <Route path='/billing' element={<Billing />} />
+              </Route>
             </Route>
 
             <Route element={<ProtectedRoute allowedRoles={["Admin","Owner"]} />}>
@@ -71,7 +89,7 @@ function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </>
+    </ConfigProvider>
   );
 }
 

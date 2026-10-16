@@ -14,6 +14,8 @@ export interface AuthUser {
   role?: string | null;
   permissions?: string[];
 }
+
+export type Permission = string;
 interface role {
   id: string;
   name: string;

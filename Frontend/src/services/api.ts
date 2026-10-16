@@ -21,6 +21,7 @@ import type {
   UpdateAppointmentPayload,
   UpdatePatientProfilePayload,
   RoleRecord,
+  StandardRoleOption,
   RoleListResponse,
   UpdateTenantDetailsPayload,
   BedRecord,
@@ -45,6 +46,9 @@ import type {
   StockRequestRecord,
   StockRequestStatus,
   PharmacyDashboardData,
+  BillingCategory,
+  BillingInvoice,
+  BillingRate,
 } from "../types/global.types";
 import type { Tenant } from "../types/auth";
 
@@ -472,7 +476,7 @@ export const getClinicalMedicines = async (
   search?: string,
   includeInactive = false,
 ): Promise<ClinicalMedicine[]> => {
-  const res = await api.get("/clinical/medicines", {
+  const res = await api.get("/medicines", {
     params: { ...(search ? { search } : {}), ...(includeInactive ? { includeInactive: true } : {}) },
   });
   return res.data.data as ClinicalMedicine[];
@@ -486,19 +490,19 @@ export const createClinicalMedicine = async (payload: {
   purchasePrice?: number;
   sellingPrice?: number;
 }): Promise<ClinicalMedicine> => {
-  const res = await api.post("/clinical/medicines", payload);
+  const res = await api.post("/medicines", payload);
   return res.data.data as ClinicalMedicine;
 };
 
 export const setClinicalMedicineActive = async (medicineId: string, isActive: boolean): Promise<ClinicalMedicine> => {
-  const res = await api.patch(`/clinical/medicines/${medicineId}`, { isActive });
+  const res = await api.patch(`/medicines/${medicineId}`, { isActive });
   return res.data.data as ClinicalMedicine;
 };
 
 export const getClinicalMedicineStockTransactions = async (
   medicineId: string,
 ): Promise<{ balance: number; transactions: ClinicalStockTransaction[] }> => {
-  const res = await api.get(`/clinical/medicines/${medicineId}/stock-transactions`);
+  const res = await api.get(`/medicines/${medicineId}/stock-transactions`);
   return res.data.data as { balance: number; transactions: ClinicalStockTransaction[] };
 };
 
@@ -506,7 +510,7 @@ export const createClinicalMedicineStockTransaction = async (
   medicineId: string,
   payload: { type: "IN" | "OUT"; quantity: number; reason?: string | null },
 ): Promise<{ balance: number; transaction: ClinicalStockTransaction }> => {
-  const res = await api.post(`/clinical/medicines/${medicineId}/stock-transactions`, payload);
+  const res = await api.post(`/medicines/${medicineId}/stock-transactions`, payload);
   return res.data.data as { balance: number; transaction: ClinicalStockTransaction };
 };
 
@@ -580,6 +584,53 @@ export const updateStockRequestStatus = async (
 ): Promise<StockRequestRecord> => {
   const res = await api.patch(`/pharmacies/requests/${requestId}/status`, payload);
   return res.data.data as StockRequestRecord;
+};
+
+export const getBillingRates = async (category?: BillingCategory): Promise<BillingRate[]> => {
+  const res = await api.get("/billing/rates", { params: category ? { category } : undefined });
+  return res.data.data as BillingRate[];
+};
+
+export const createBillingRate = async (payload: {
+  code: string; name: string; category: BillingCategory; amount: number; taxRate: number; appointmentType?: string | null; procedureCode?: string | null; doctorId?: string | null; bedId?: string | null;
+}): Promise<BillingRate> => {
+  const res = await api.post("/billing/rates", payload);
+  return res.data.data as BillingRate;
+};
+
+export const getBillingInvoices = async (params: { status?: string; patientId?: string } = {}): Promise<BillingInvoice[]> => {
+  const res = await api.get("/billing/invoices", { params });
+  return res.data.data as BillingInvoice[];
+};
+
+export const getBillableAppointments = async (): Promise<Array<{ id: string; scheduledAt: string; doctorId: string; Patient: { mrn: string; firstName: string; lastName: string }; DoctorProfile: { User: { name: string } } }>> => {
+  const res = await api.get("/billing/candidates/appointments");
+  return res.data.data;
+};
+
+export const getBillableAdmissions = async (): Promise<Array<{ id: string; admittedAt: string; Encounter: { Patient: { mrn: string; firstName: string; lastName: string } } }>> => {
+  const res = await api.get("/billing/candidates/admissions");
+  return res.data.data;
+};
+
+export const createAppointmentInvoice = async (appointmentId: string, rateId: string): Promise<BillingInvoice> => {
+  const res = await api.post("/billing/invoices/appointment", { appointmentId, rateId });
+  return res.data.data as BillingInvoice;
+};
+
+export const createInpatientInvoice = async (admissionId: string): Promise<BillingInvoice> => {
+  const res = await api.post("/billing/invoices/inpatient", { admissionId });
+  return res.data.data as BillingInvoice;
+};
+
+export const addBillingInvoiceItem = async (invoiceId: string, payload: { rateId: string; quantity: number; description?: string }): Promise<BillingInvoice> => {
+  const res = await api.post(`/billing/invoices/${invoiceId}/items`, payload);
+  return res.data.data as BillingInvoice;
+};
+
+export const collectBillingPayment = async (invoiceId: string, payload: { amount: number; method: "cash" | "card"; reference?: string; notes?: string }): Promise<BillingInvoice> => {
+  const res = await api.post(`/billing/invoices/${invoiceId}/payments`, payload);
+  return res.data.data as BillingInvoice;
 };
 
 export const getClinicalAvailableBeds = async (): Promise<BedRecord[]> => {
@@ -731,8 +782,12 @@ export const updateClinicalSurgery = async (
 
 export interface RolePayload {
   name: string;
-  permissions: string[];
 }
+
+export const getRoleCatalog = async (): Promise<StandardRoleOption[]> => {
+  const res = await api.get("/roles/catalog");
+  return res.data.data as StandardRoleOption[];
+};
 
 export const getRoles = async (params: { page: number; limit: number }): Promise<RoleListResponse> => {
   const res = await api.get("/roles/get-roles", { params })

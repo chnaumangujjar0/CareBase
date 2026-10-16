@@ -13,7 +13,37 @@
   padding: 0 2rem;
   background-color: #ffffff;
   border-bottom: 1px solid $border-color;
-  
+}
+
+@media (max-width: 768px) {
+  .top-header {
+    height: 64px;
+    padding: 0 0.75rem;
+  }
+
+  .header-logo {
+    max-width: 150px;
+    height: 28px;
+  }
+
+  .header-actions {
+    gap: 0.5rem;
+  }
+
+  .header-divider,
+  .user-text,
+  .dropdown-icon {
+    display: none;
+  }
+
+  .header-user-profile {
+    padding: 0;
+  }
+
+  .header-avatar {
+    width: 34px;
+    height: 34px;
+  }
 }
 
 // Brand Section

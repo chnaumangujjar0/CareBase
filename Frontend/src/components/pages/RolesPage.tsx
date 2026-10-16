@@ -6,7 +6,6 @@ import {
   ConfigProvider,
   Empty,
   Flex,
-  Input,
   Modal,
   Popconfirm,
   Select,
@@ -18,25 +17,10 @@ import {
 import type { TableProps } from 'antd';
 import { Edit2, Lock, Plus, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { createRole, deleteRole, getRoles, updateRole } from '../../services/api';
-import type { RoleRecord } from '../../types/global.types';
+import { createRole, deleteRole, getRoleCatalog, getRoles, updateRole } from '../../services/api';
+import type { RoleRecord, StandardRoleOption } from '../../types/global.types';
 
 const { Title, Text } = Typography;
-
-const clinicalPermissions = [
-  "clinical:encounters:read",
-  "clinical:encounters:write",
-  "clinical:consultations:write",
-  "clinical:prescriptions:write",
-  "clinical:admissions:write",
-  "clinical:admissions:read",
-  "clinical:admissions:discharge",
-  "clinical:beds:write",
-  "clinical:surgeries:read",
-  "clinical:surgeries:write",
-  "clinical:medicines:read",
-  "clinical:medicines:write",
-];
 
 const themeConfig = {
   token: {
@@ -70,6 +54,7 @@ export const RolesPage = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [roleName, setRoleName] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [roleCatalog, setRoleCatalog] = useState<StandardRoleOption[]>([]);
   const pageSize = 10;
 
   const loadRoles = useCallback(async (requestedPage: number) => {
@@ -92,6 +77,12 @@ export const RolesPage = () => {
     return () => window.clearTimeout(timer);
   }, [loadRoles, page]);
 
+  useEffect(() => {
+    void getRoleCatalog().then(setRoleCatalog).catch((error) => {
+      toast.error(`Could not load standard roles: ${getErrorMessage(error)}`);
+    });
+  }, []);
+
   const openCreateModal = () => {
     setEditingRole(null);
     setRoleName('');
@@ -102,7 +93,7 @@ export const RolesPage = () => {
   const openEditModal = (role: RoleRecord) => {
     setEditingRole(role);
     setRoleName(role.name);
-    setPermissions(role.permissions);
+    setPermissions(roleCatalog.find((option) => option.name === role.name)?.permissions ?? role.permissions);
     setModalOpen(true);
   };
 
@@ -115,7 +106,12 @@ export const RolesPage = () => {
 
     setSaving(true);
     try {
-      const payload = { name, permissions };
+      const selected = roleCatalog.find((role) => role.name === name);
+      if (!selected) {
+        toast.error('Select a standard role');
+        return;
+      }
+      const payload = { name: selected.name };
       if (editingRole) {
         await updateRole(editingRole.id, payload);
         toast.success('Role updated');
@@ -166,14 +162,17 @@ export const RolesPage = () => {
       title: 'PERMISSIONS',
       dataIndex: 'permissions',
       key: 'permissions',
-      render: (rolePermissions: string[]) => (
+      render: (rolePermissions: string[], role) => {
+        const grantedPermissions = roleCatalog.find((option) => option.name === role.name)?.permissions ?? rolePermissions;
+        return (
         <Space size={[6, 6]} wrap>
           <Lock size={14} color="#64748b" />
-          {rolePermissions.length ? rolePermissions.map((permission) => (
+          {grantedPermissions.length ? grantedPermissions.map((permission) => (
             <Tag key={permission}>{permission}</Tag>
           )) : <Text type="secondary">No permissions</Text>}
         </Space>
-      ),
+        );
+      },
     },
     {
       title: 'USERS',
@@ -275,28 +274,22 @@ export const RolesPage = () => {
         >
           <Flex vertical gap={8}>
             <Text strong>Role name</Text>
-            <Input
-              value={roleName}
-              onChange={(event) => setRoleName(event.target.value)}
-              maxLength={60}
-              placeholder="Enter role name"
-              autoFocus
-            />
-            <Text strong style={{ marginTop: 12 }}>Permissions</Text>
-            <Text type="secondary">
-              Clinical actions are enforced by the API. Grant the matching read or write permissions to each role.
-            </Text>
             <Select
-              mode="tags"
-              value={permissions}
-              onChange={setPermissions}
-              tokenSeparators={[',']}
-              placeholder="Type a permission and press Enter"
-              options={Array.from(new Set([...clinicalPermissions, ...roles.flatMap((role) => role.permissions)])).map((permission) => ({
-                label: permission,
-                value: permission,
-              }))}
+              value={roleName}
+              onChange={(value) => {
+                setRoleName(value);
+                setPermissions(roleCatalog.find((role) => role.name === value)?.permissions ?? []);
+              }}
+              placeholder="Select a standard role"
+              options={roleCatalog.map((role) => ({ label: role.name, value: role.name }))}
             />
+            <Text strong style={{ marginTop: 12 }}>Permissions granted by this role</Text>
+            <Text type="secondary">
+              Permissions are managed by the system and cannot be added manually.
+            </Text>
+            <Space size={[6, 6]} wrap>
+              {permissions.map((permission) => <Tag key={permission}>{permission}</Tag>)}
+            </Space>
           </Flex>
         </Modal>
       </div>

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  ConfigProvider,
   DatePicker,
   Dropdown,
   Empty,
@@ -137,17 +136,31 @@ function Appointments() {
 
   useEffect(() => {
     if (!user?.tenantId) return;
-    setLoading(true);
+    let active = true;
+    const timer = window.setTimeout(() => {
+      if (active) setLoading(true);
 
-    getAppointments({
-      status: effectiveStatus,
-      doctorId: doctorFilter,
-      from: selectedDate?.startOf("day").toISOString(),
-      to: selectedDate?.endOf("day").toISOString(),
-    })
-      .then(setAppointments)
-      .catch(() => toast.error("Could not load appointments"))
-      .finally(() => setLoading(false));
+      getAppointments({
+        status: effectiveStatus,
+        doctorId: doctorFilter,
+        from: selectedDate?.startOf("day").toISOString(),
+        to: selectedDate?.endOf("day").toISOString(),
+      })
+        .then((items) => {
+          if (active) setAppointments(items);
+        })
+        .catch(() => {
+          if (active) toast.error("Could not load appointments");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [activeTab, doctorFilter, effectiveStatus, selectedDate, user?.tenantId]);
 
   const resetForm = () => {
@@ -294,7 +307,6 @@ function Appointments() {
   };
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#0F766E", borderRadius: 8 } }}>
     <main className="appointments-page">
       <header className="appointments-header">
         <div>
@@ -540,7 +552,6 @@ function Appointments() {
         )}
       </Modal>
     </main>
-    </ConfigProvider>
   );
 }
 

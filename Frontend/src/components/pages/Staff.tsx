@@ -29,6 +29,7 @@ import {
   getAllStaff,
   getDepartments,
   getApiErrorMessage,
+  getRoles,
   updateStaffAvailability,
 } from "../../services/api";
 import { useSelector } from "react-redux";
@@ -62,25 +63,6 @@ const themeConfig = {
     Card: { borderRadiusLG: 12 },
   }
 };
-
-const staffRoleEnum = [
-  { value: "Nurse", label: "Nurse" },
-  { value: "Head Nurse", label: "Head Nurse" },
-  { value: "Patient Care Technician", label: "Patient Care Technician" },
-  { value: "Ward Clerk", label: "Ward Clerk" },
-  { value: "Pharmacist", label: "Pharmacist" },
-  { value: "Lab Technician", label: "Lab Technician" },
-  { value: "Radiology Technician", label: "Radiology Technician" },
-  { value: "Physiotherapist", label: "Physiotherapist" },
-  { value: "Admin", label: "Admin" },
-  { value: "Receptionist", label: "Receptionist" },
-  { value: "Billing Specialist", label: "Billing Specialist" },
-  { value: "HR Manager", label: "HR Manager" },
-  { value: "IT Support", label: "IT Support" },
-  { value: "Housekeeping", label: "Housekeeping" },
-  { value: "Security", label: "Security" },
-  { value: "Maintenance", label: "Maintenance" }
-];
 
 const availabilityValidationSchema = Yup.array()
   .of(
@@ -228,6 +210,8 @@ function Staff() {
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
   const [wardsLoading, setWardsLoading] = useState(false);
+  const [roleOptions, setRoleOptions] = useState<{ value: string; label: string }[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const user = useSelector(selectCurrentUser) as AuthUser | null;
 
@@ -239,6 +223,35 @@ function Staff() {
       .catch((err: unknown) => {
         toast.error(getApiErrorMessage(err, "Failed to load departments"));
       });
+  }, [showModal, user?.tenantId]);
+
+  useEffect(() => {
+    if (!showModal || !user?.tenantId) return;
+
+    let isCurrent = true;
+    const timer = window.setTimeout(() => {
+      if (isCurrent) setRolesLoading(true);
+    }, 0);
+    getRoles({ page: 1, limit: 100 })
+      .then((result) => {
+        if (isCurrent) {
+          setRoleOptions(result.roles.map((role) => ({ value: role.name, label: role.name })));
+        }
+      })
+      .catch((error: unknown) => {
+        if (isCurrent) {
+          toast.error(getApiErrorMessage(error, "Failed to load existing roles"));
+          setRoleOptions([]);
+        }
+      })
+      .finally(() => {
+        if (isCurrent) setRolesLoading(false);
+      });
+
+    return () => {
+      isCurrent = false;
+      window.clearTimeout(timer);
+    };
   }, [showModal, user?.tenantId]);
 
   useEffect(() => {
@@ -849,7 +862,9 @@ function Staff() {
                           allowClear
                           value={formik.values.role || null}
                           onChange={(val) => formik.setFieldValue("role", val)}
-                          options={staffRoleEnum}
+                          options={roleOptions}
+                          loading={rolesLoading}
+                          disabled={rolesLoading || roleOptions.length === 0}
                           onBlur={() => formik.setFieldTouched("role", true)}
                           status={formik.touched.role && formik.errors.role ? "error" : ""}
                         />

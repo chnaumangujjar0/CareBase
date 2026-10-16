@@ -55,4 +55,21 @@
 @import "unauthorized";
 @import "department";
 @import "appointments";
-@import "doctor-dashboard"
+
+@media (max-width: 768px) {
+  .ant-card {
+    max-width: 100%;
+  }
+
+  .ant-table-wrapper {
+    overflow-x: auto;
+  }
+
+  .ant-form-inline {
+    flex-wrap: wrap;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 24px);
+  }
+}

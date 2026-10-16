@@ -18,33 +18,35 @@ import {
   Building2,
   Hospital,
   ClipboardList,
+  ReceiptText,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
 import { clearUser, selectCurrentUser } from "../../store/authSlice";
 import Logo from "../../../public/carebase-logo-icon.svg";
 import { logoutUser } from "../../services/api";
 import { useState } from "react";
-import Loader from "../common/Loader";
+import { Spin } from "antd";
 import { toast } from "react-toastify";
 import { clearTenant } from "../../store/tenantSlice";
 import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
-import { ConfigProvider } from "antd";
+import { hasPermission, hasRole } from "../../utils/authorization";
 
 const navConfig = [
   {
     title: "Operations",
     items: [
-      { label: "Dashboard", path: "/", icon: LayoutDashboard, roles: ["Owner", "Admin", "Doctor", "Receptionist", "Nurse"] },
-      { label: "Appointments", path: "/appointments", icon: Calendar, roles: ["Owner", "Admin", "Doctor", "Receptionist"] },
-      { label: "Clinical Desk", path: "/clinical", icon: Stethoscope, roles: ["Owner", "Admin", "Doctor", "Receptionist", "Nurse"] },
-      { label: "Clinical Operations", path: "/clinical/operations", icon: Activity, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
-      { label: "Patients", path: "/patient", icon: Users, roles: ["Owner", "Admin", "Receptionist", "Nurse"] },
+      { label: "Dashboard", path: "/", icon: LayoutDashboard, permission: "dashboard:read" },
+      { label: "Appointments", path: "/appointments", icon: Calendar, permission: "appointments:read" },
+      { label: "Clinical Desk", path: "/clinical", icon: Stethoscope, permission: "clinical:encounters:read" },
+      { label: "Clinical Operations", path: "/clinical/operations", icon: Activity, permission: "clinical:admissions:read" },
+      { label: "Patients", path: "/patient", icon: Users, permission: "patients:read" },
     ],
   },
   {
     title: "Care & Services",
     items: [
-      { label: "Pharmacy", path: "/pharmacy", icon: Pill, roles: ["Owner", "Admin", "Doctor", "Nurse"] },
+      { label: "Pharmacy", path: "/pharmacy", icon: Pill, permission: "clinical:medicines:read" },
+      { label: "Billing", path: "/billing", icon: ReceiptText, permissions: ["billing:invoices:read", "billing:rates:read"] },
     ],
   },
   {
@@ -105,25 +107,14 @@ export const Sidebar = () => {
     }
   };
 
-  const roleName = user?.role?.toLowerCase();
-  const isSettingsAllowed = roleName != null && ["owner", "admin"].includes(roleName);
-  const isFacilityAllowed = roleName != null && ["owner", "admin"].includes(roleName);
+  const isSettingsAllowed = hasRole(user, ["Owner", "Admin"]);
+  const isFacilityAllowed = hasRole(user, ["Owner", "Admin"]);
   const isSettingsActive = location.pathname.startsWith("/settings");
   const isFacilityActive = location.pathname.startsWith("/facility");
 
-  // Ant Design Theme matching your exact enterprise variables
-  const themeConfig = {
-    token: {
-      colorPrimary: '#0F766E', // Deep Teal
-      colorTextBase: '#475569', // Slate gray-blue
-      fontFamily: '"Inter", sans-serif',
-      borderRadius: 8,
-    },
-  };
-
   return (
-    <ConfigProvider theme={themeConfig}>
-      <Loader isLoading={isloading || !isReady} />
+    <>
+      <Spin fullscreen spinning={isloading || !isReady} tip={isloading ? "Signing out..." : "Loading..."} />
       <aside className="sidebar">
         <div className="header">
           <img
@@ -141,7 +132,11 @@ export const Sidebar = () => {
               <div className="sectionTitle">{section.title}</div>
 
               {section.items.map((item) => {
-                const isAllowed = roleName != null && item.roles.some((role) => role.toLowerCase() === roleName);
+                const isAllowed = "permissions" in item
+                  ? item.permissions?.some((permission) => hasPermission(user, permission)) ?? false
+                  : "permission" in item
+                    ? hasPermission(user, item.permission)
+                  : hasRole(user, item.roles);
                 const contents = (
                   <>
                     <item.icon className="linkIcon" size={20} />
@@ -300,6 +295,6 @@ export const Sidebar = () => {
         </div>
         <div className="divider" />
       </aside>
-    </ConfigProvider>
+    </>
   );
 };

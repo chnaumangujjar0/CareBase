@@ -19,6 +19,7 @@ import {
 import type { TableProps } from "antd";
 import { Activity, BedDouble, CalendarDays, ClipboardList, RefreshCw, Users } from "lucide-react";
 import dayjs from "dayjs";
+import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { toast } from "react-toastify";
 import { getApiErrorMessage, getDashboardSummary } from "../../services/api";
 import type { DashboardSummary } from "../../types/global.types";
@@ -90,6 +91,12 @@ export default function HospitalDashboard({ role }: HospitalDashboardProps) {
   ];
 
   const stats = summary?.stats;
+  const activityChartData = stats
+    ? [
+        { name: "Appointments", completed: stats.completedAppointmentsToday ?? 0, cancelled: stats.cancelledAppointmentsToday ?? 0, noShow: stats.noShowAppointmentsToday ?? 0 },
+        { name: "Encounters", completed: stats.openEncountersToday ?? 0, cancelled: stats.waitingEncounters ?? 0, noShow: stats.activeAdmissions ?? 0 },
+      ]
+    : [];
   const cards = [
     ...(isAdmin
       ? [{ label: "Active patients", value: stats?.activePatients ?? 0, detail: `${stats?.newPatientsToday ?? 0} registered today`, icon: <Users size={20} /> }]
@@ -167,6 +174,24 @@ export default function HospitalDashboard({ role }: HospitalDashboardProps) {
                   </div>
                   <Button block onClick={() => navigate("/clinical")}>View patient queue</Button>
                 </Space>
+              </Card>
+            </Col>
+            <Col xs={24}>
+              <Card title="Operational trends">
+                <div style={{ width: "100%", height: 280 }}>
+                  <ResponsiveContainer>
+                    <BarChart data={activityChartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="completed" name="Completed / open" fill="#0F766E" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="cancelled" name="Cancelled / waiting" fill="#D97706" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="noShow" name="No-show / admissions" fill="#0284C7" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </Card>
             </Col>
           </Row>

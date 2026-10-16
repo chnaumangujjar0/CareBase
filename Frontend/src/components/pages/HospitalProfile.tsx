@@ -32,6 +32,18 @@ import { toast } from "react-toastify";
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
 
+const SectionTitle = ({ title, color }: { title: string; color: string }) => (
+  <Text style={{
+    fontSize: 13,
+    fontWeight: 700,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    color,
+  }}>
+    {title}
+  </Text>
+);
+
 export const HospitalProfile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { tenant } = useTenantBootstrap();
@@ -70,8 +82,10 @@ export const HospitalProfile: React.FC = () => {
         country: tenant.country || "PK",
         postalCode: tenant.postalCode,
       });
-      setLogoPreview(tenant.logo);
-      setFaviconPreview(tenant.favicon);
+      queueMicrotask(() => {
+        setLogoPreview(tenant.logo);
+        setFaviconPreview(tenant.favicon);
+      });
     }
   }, [tenant, form]);
 
@@ -136,19 +150,6 @@ export const HospitalProfile: React.FC = () => {
     }
   };
 
-  // Custom Card Title Component matching the reference image typography
-  const SectionTitle = ({ title }: { title: string }) => (
-    <Text style={{ 
-      fontSize: 13, 
-      fontWeight: 700, 
-      letterSpacing: '0.05em', 
-      textTransform: 'uppercase',
-      color: themeConfig.token.colorTextBase 
-    }}>
-      {title}
-    </Text>
-  );
-
   return (
     <ConfigProvider theme={themeConfig}>
       <div style={{ padding: 24, minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
@@ -174,7 +175,7 @@ export const HospitalProfile: React.FC = () => {
                 <Card 
                   bordered={false} 
                   style={{ boxShadow: themeConfig.token.boxShadowTertiary }}
-                  title={<SectionTitle title="Essential Hospital Information" />}
+                  title={<SectionTitle title="Essential Hospital Information" color={themeConfig.token.colorTextBase} />}
                   extra={
                     <Tag style={{ border: 'none', background: 'rgba(2, 132, 199, 0.1)', color: themeConfig.token.colorInfo, fontWeight: 500, borderRadius: 12 }}>
                       • Updated: {dayjs().format('MMM YYYY')}
@@ -241,7 +242,7 @@ export const HospitalProfile: React.FC = () => {
                 <Card 
                   bordered={false} 
                   style={{ boxShadow: themeConfig.token.boxShadowTertiary }}
-                  title={<SectionTitle title="Location Details" />}
+                  title={<SectionTitle title="Location Details" color={themeConfig.token.colorTextBase} />}
                 >
                   <Form.Item name="address" label={<Text type="secondary">Street Address</Text>}>
                     <Input size="large" placeholder="123 Medical Boulevard" disabled={isLoading} />

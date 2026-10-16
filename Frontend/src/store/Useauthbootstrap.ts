@@ -14,16 +14,14 @@ export function useAuthBootstrap() {
   const hasDispatched = useRef(false);
 
   useEffect(() => {
-    if (hasDispatched.current || initialized) return;
-
     const token = localStorage.getItem("accessToken");
-    if (!token) {
+    if (hasDispatched.current || !token) {
       return;
     }
 
     hasDispatched.current = true;
     dispatch(fetchCurrentUser());
-  }, [dispatch, initialized]);
+  }, [dispatch]);
 
   const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("accessToken"));
   const isReady = initialized || !hasToken;

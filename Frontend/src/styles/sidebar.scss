@@ -24,6 +24,48 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     .link{
       margin-right: 5px;
     }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        top: 64px;
+        height: calc(100vh - 64px);
+        width: 56px;
+      }
+
+      .sidebar:hover {
+        width: 56px;
+      }
+
+      .sidebar .header,
+      .sidebar .footer,
+      .sidebar .logoutWrapper {
+        min-width: 56px;
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+      }
+
+      .sidebar .brandText,
+      .sidebar .sectionTitle,
+      .sidebar .linkLabel,
+      .sidebar .sub-link,
+      .sidebar .userInfo {
+        display: none;
+      }
+
+      .sidebar .link {
+        justify-content: center;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+
+      .sidebar .linkLock {
+        display: none;
+      }
+
+      .sidebar .footer {
+        justify-content: center;
+      }
+    }
     .sub-link{
       display: block;
     }

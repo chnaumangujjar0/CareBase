@@ -170,7 +170,10 @@ export default function Pharmacy() {
     }
   }, [canRead, includeInactive, isHead]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const medicineStock = useMemo(() => {
     const totals = new Map<string, number>();

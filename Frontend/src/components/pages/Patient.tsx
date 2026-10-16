@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  ConfigProvider,
   DatePicker,
   Empty,
   Input,
@@ -185,8 +184,8 @@ function Patient() {
   useEffect(() => {
     if (!user?.tenantId) return;
     let active = true;
-    setListLoading(true);
     const timer = window.setTimeout(() => {
+      if (active) setListLoading(true);
       getPatients({
         search: search.trim() || undefined,
         isActive: activeFilter === "all" ? undefined : activeFilter,
@@ -218,11 +217,11 @@ function Patient() {
 
   useEffect(() => {
     if (!selectedPatientId || !user?.tenantId) {
-      setPatient(null);
+      queueMicrotask(() => setPatient(null));
       return;
     }
     let active = true;
-    setDetailLoading(true);
+    const timer = window.setTimeout(() => setDetailLoading(true), 0);
     getPatient(selectedPatientId)
       .then((data) => {
         if (active) setPatient(data);
@@ -233,7 +232,8 @@ function Patient() {
       .finally(() => {
         if (active) setDetailLoading(false);
       });
-    return () => { active = false; };
+    return () => {     active = false;
+    window.clearTimeout(timer); };
   }, [selectedPatientId, user?.tenantId]);
 
   const history = patient?.MedicalData ?? [];
@@ -363,7 +363,6 @@ function Patient() {
   const patientNote = latest?.note;
 
   return (
-    <ConfigProvider theme={{ token: { colorPrimary: "#0F766E", borderRadius: 8 } }}>
     <main className="patient-page">
       <aside className="patient-list-panel">
         <div className="patient-list-heading">
@@ -756,7 +755,6 @@ function Patient() {
         </div>
       </Modal>
     </main>
-    </ConfigProvider>
   );
 }
 

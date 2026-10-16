@@ -36,7 +36,7 @@ export default function Departments() {
     .then((res) => {
       setDepartments(res)})
     .catch((err:Error) => toast.error(err.message))
-  },[])
+  }, [user.tenantId])
 
 
   const formik = useFormik<DepartmentFormValues>({
@@ -53,18 +53,16 @@ export default function Departments() {
     },
     onSubmit: async (values) => {
       if (editingId) {
-        let payload:any = {}
-        departments?.map((dept) => {
-          if(dept.id === editingId){
-            if(dept.name !== values.name.trim()){
-              payload.name = values.name
-            }
-            if(dept.isActive !== values.isActive){
-                payload.isActive = values.isActive
-              }
+        const payload: Partial<DepartmentFormValues> = {};
+        const department = departments?.find((dept) => dept.id === editingId);
+        if (department) {
+          if (department.name !== values.name.trim()) {
+            payload.name = values.name.trim();
           }
-        })
-        console.log(payload)
+          if (department.isActive !== values.isActive) {
+            payload.isActive = values.isActive;
+          }
+        }
         try {
           await updateDepartment(user.tenantId as string, editingId,payload)
           setDepartments((currentDepartments) =>

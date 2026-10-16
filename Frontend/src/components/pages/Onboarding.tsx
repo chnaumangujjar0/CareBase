@@ -2,7 +2,8 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Card, Form, Button, Alert, Spinner, Row, Col, Image } from "react-bootstrap";
+import { Card, Form, Button, Alert, Row, Col, Image } from "react-bootstrap";
+import { Spin } from "antd";
 import { configureTenat } from "../../services/api";
 import { useDispatch, useSelector } from "react-redux";
 import { selectCurrentUser, setUser } from "../../store/authSlice";
@@ -18,7 +19,7 @@ const Onboarding = () => {
       navigate("/")
       return
     }
-  },[])
+  }, [navigate, user?.isSuperAdmin, user?.roleId])
   const formik = useFormik({
     initialValues: {
       tenantName: "",
@@ -228,7 +229,7 @@ const Onboarding = () => {
             >
               {isLoading ? (
                 <>
-                  <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" className="me-2" />
+                  <Spin size="small" style={{ marginRight: 8 }} />
                   Saving...
                 </>
               ) : (

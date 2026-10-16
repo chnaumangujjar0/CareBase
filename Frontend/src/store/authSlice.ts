@@ -1,4 +1,5 @@
 import { createSlice, createAsyncThunk, type PayloadAction } from "@reduxjs/toolkit";
+import axios from "axios";
 import type { AuthUser } from "../types/auth";
 import api from "../services/axiosinstance";
 
@@ -49,13 +50,14 @@ export const fetchCurrentUser = createAsyncThunk<
 
     const response = await api.get("/user/current-user");
     return response.data?.data;
-  } catch (err: any) {
-    const status = err?.response?.status;
+  } catch (err: unknown) {
+    const error = axios.isAxiosError(err) ? err : undefined;
+    const status = error?.response?.status;
 
     const isAuthFailure = status === 401 || status === 403;
     const message =
-      err?.response?.data?.message ||
-      (err?.response ? "Failed to fetch session" : "Network error while verifying session");
+      error?.response?.data?.message ||
+      (error?.response ? "Failed to fetch session" : "Network error while verifying session");
 
     return rejectWithValue({ message, isAuthFailure });
   }
