@@ -26,13 +26,14 @@ model Appointment {
   updatedBy    String? @db.Uuid
 
   // Relations
-  Tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
-  Department    Department    @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "appointment_departmentId_fkey")
-  DoctorProfile DoctorProfile @relation(fields: [doctorId], references: [id], onUpdate: NoAction, map: "appointment_doctorId_fkey")
-  Patient       Patient       @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
-  Creator       User?         @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
-  Updater       User?         @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
-  Encounter     Encounter?
+  Tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
+  Department     Department      @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "appointment_departmentId_fkey")
+  DoctorProfile  DoctorProfile   @relation(fields: [doctorId], references: [id], onUpdate: NoAction, map: "appointment_doctorId_fkey")
+  Patient        Patient         @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
+  Creator        User?           @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
+  Updater        User?           @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
+  Encounter      Encounter?
+  BillingInvoice BillingInvoice?
 
   @@unique([id, tenantId])
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
@@ -84,6 +85,7 @@ model Bed {
   Tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_tenantId_fkey")
   Patient       Patient?        @relation(fields: [currentPatientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
   BedAssignment BedAssignment[]
+  BillingRate   BillingRate?
 
   @@unique([roomId, code], map: "bed_room_code_key_aff24a4e")
   @@unique([id, tenantId])
@@ -143,6 +145,7 @@ model DoctorProfile {
   Surgeries          SurgeryCase[]
   DischargeSummaries DischargeSummary[]
   DoctorAvailability DoctorAvailability[]
+  BillingRate        BillingRate[]
 
   @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
@@ -190,11 +193,12 @@ model Patient {
   tenantId String @db.Uuid
   Tenant   Tenant @relation(fields: [tenantId], references: [id], onUpdate: NoAction, map: "patient_tenantId_fkey")
 
-  Appointment Appointment[]
-  Encounter   Encounter[]
-  Bed         Bed[]
-  MedicalData PatientMedicalData[]
-  Sale        Sale[]
+  Appointment    Appointment[]
+  Encounter      Encounter[]
+  Bed            Bed[]
+  MedicalData    PatientMedicalData[]
+  Sale           Sale[]
+  BillingInvoice BillingInvoice[]
 
   @@unique([tenantId, mrn], map: "patient_tenant_mrn_key_0c21d836")
   @@unique([id, tenantId], map: "patient_id_tenantId_key")
@@ -347,38 +351,42 @@ model Tenant {
   favicon    String
   logo       String
 
-  Appointment        Appointment[]
-  AuditLog           AuditLog[]
-  Bed                Bed[]
-  Department         Department[]
-  DoctorProfile      DoctorProfile[]
-  DoctorAvailability DoctorAvailability[]
-  Patient            Patient[]
-  PatientMedicalData PatientMedicalData[]
-  Role               Role[]
-  Room               Room[]
-  StaffProfile       StaffProfile[]
-  StaffAvailability  StaffAvailability[]
-  User               User[]
-  Ward               Ward[]
-  Encounter          Encounter[]
-  Consultation       Consultation[]
-  Medicine           Medicine[]
-  Prescription       Prescription[]
-  PrescriptionItem   PrescriptionItem[]
-  Admission          Admission[]
-  BedAssignment      BedAssignment[]
-  OperatingTheatre   OperatingTheatre[]
-  SurgeryCase        SurgeryCase[]
-  SurgeryTeamMember  SurgeryTeamMember[]
-  DischargeSummary   DischargeSummary[]
-  StockTransaction   StockTransaction[]
-  Pharmacy           Pharmacy[]
-  PharmacyStock      PharmacyStock[]
-  StockRequest       StockRequest[]
-  StockRequestItem   StockRequestItem[]
-  Sale               Sale[]
-  SaleItem           SaleItem[]
+  Appointment         Appointment[]
+  AuditLog            AuditLog[]
+  Bed                 Bed[]
+  Department          Department[]
+  DoctorProfile       DoctorProfile[]
+  DoctorAvailability  DoctorAvailability[]
+  Patient             Patient[]
+  PatientMedicalData  PatientMedicalData[]
+  Role                Role[]
+  Room                Room[]
+  StaffProfile        StaffProfile[]
+  StaffAvailability   StaffAvailability[]
+  User                User[]
+  Ward                Ward[]
+  Encounter           Encounter[]
+  Consultation        Consultation[]
+  Medicine            Medicine[]
+  Prescription        Prescription[]
+  PrescriptionItem    PrescriptionItem[]
+  Admission           Admission[]
+  BedAssignment       BedAssignment[]
+  OperatingTheatre    OperatingTheatre[]
+  SurgeryCase         SurgeryCase[]
+  SurgeryTeamMember   SurgeryTeamMember[]
+  DischargeSummary    DischargeSummary[]
+  StockTransaction    StockTransaction[]
+  Pharmacy            Pharmacy[]
+  PharmacyStock       PharmacyStock[]
+  StockRequest        StockRequest[]
+  StockRequestItem    StockRequestItem[]
+  Sale                Sale[]
+  SaleItem            SaleItem[]
+  BillingRate         BillingRate[]
+  BillingInvoice      BillingInvoice[]
+  BillingPayment      BillingPayment[]
+  billingInvoiceItems BillingInvoiceItem[]
 }
 
 model User {
@@ -414,6 +422,8 @@ model User {
   CreatedStockRequests       StockRequest[]       @relation("StockRequester")
   HandledStockRequests       StockRequest[]       @relation("StockRequestHandler")
   ReceivedStockRequests      StockRequest[]       @relation("StockRequestReceiver")
+  CollectedPayments          BillingPayment[]     @relation("PaymentCollector")
+  CreatedBillingInvoices     BillingInvoice[]     @relation("BillingInvoiceCreator")
   ManagedPharmacy            Pharmacy?            @relation("PharmacyPharmacist")
   PharmacySales              Sale[]               @relation("SaleSeller")
 
@@ -637,6 +647,7 @@ model Admission {
   BedAssignment    BedAssignment[]
   SurgeryCase      SurgeryCase[]
   DischargeSummary DischargeSummary?
+  BillingInvoice   BillingInvoice?
 
   @@unique([id, tenantId])
   @@unique([encounterId, tenantId])
@@ -866,6 +877,7 @@ model Sale {
   customerName  String
   customerPhone String?
   paymentMethod String   @default("cash")
+  billingMode   String   @default("immediate") // immediate | hospital_invoice
   totalAmount   Decimal  @db.Decimal(12, 2)
 
   tenantId   String  @db.Uuid
@@ -873,11 +885,12 @@ model Sale {
   soldBy     String  @db.Uuid
   patientId  String? @db.Uuid
 
-  Tenant   Tenant     @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  Pharmacy Pharmacy   @relation(fields: [pharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  Seller   User       @relation("SaleSeller", fields: [soldBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  Patient  Patient?   @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  Items    SaleItem[]
+  Tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Pharmacy            Pharmacy             @relation(fields: [pharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Seller              User                 @relation("SaleSeller", fields: [soldBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Patient             Patient?             @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Items               SaleItem[]
+  BillingInvoiceItems BillingInvoiceItem[]
 
   @@unique([id, tenantId])
   @@index([tenantId, createdAt])
@@ -902,4 +915,119 @@ model SaleItem {
 
   @@index([saleId])
   @@index([medicineId, tenantId])
+}
+
+model BillingRate {
+  id              String   @id @default(uuid()) @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  code            String
+  name            String
+  category        String // appointment | bed | surgery | consultation | hospital_fee
+  appointmentType String?
+  procedureCode   String?
+  amount          Decimal  @db.Decimal(12, 2)
+  taxRate         Decimal  @default(0) @db.Decimal(5, 2)
+  currency        String   @default("PKR")
+  isActive        Boolean  @default(true)
+
+  tenantId String  @db.Uuid
+  doctorId String? @db.Uuid
+  bedId    String? @db.Uuid
+
+  Tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  DoctorProfile DoctorProfile? @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Bed           Bed?           @relation(fields: [bedId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([tenantId, code])
+  @@unique([bedId, tenantId])
+  @@index([tenantId, category, isActive])
+  @@index([tenantId, doctorId, appointmentType])
+  @@index([tenantId, procedureCode])
+}
+
+model BillingInvoice {
+  id             String    @id @default(uuid()) @db.Uuid
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  invoiceNumber  String
+  kind           String // appointment | inpatient
+  status         String    @default("open") // draft | open | partially_paid | paid | void | overdue
+  currency       String    @default("PKR")
+  subtotal       Decimal   @db.Decimal(12, 2)
+  taxAmount      Decimal   @db.Decimal(12, 2)
+  discountAmount Decimal   @default(0) @db.Decimal(12, 2)
+  totalAmount    Decimal   @db.Decimal(12, 2)
+  paidAmount     Decimal   @default(0) @db.Decimal(12, 2)
+  balanceAmount  Decimal   @db.Decimal(12, 2)
+  issuedAt       DateTime  @default(now()) @db.Timestamptz(6)
+  dueAt          DateTime? @db.Timestamptz(6)
+  notes          String?
+
+  tenantId      String  @db.Uuid
+  patientId     String  @db.Uuid
+  appointmentId String? @unique @db.Uuid
+  admissionId   String? @unique @db.Uuid
+  createdBy     String  @db.Uuid
+
+  Tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Patient     Patient              @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Appointment Appointment?         @relation(fields: [appointmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Admission   Admission?           @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Creator     User                 @relation("BillingInvoiceCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Items       BillingInvoiceItem[]
+  Payments    BillingPayment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@unique([id, tenantId])
+  @@unique([appointmentId, tenantId])
+  @@unique([admissionId, tenantId])
+  @@index([tenantId, patientId, createdAt])
+  @@index([tenantId, status, dueAt])
+}
+
+model BillingInvoiceItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  category    String
+  description String
+  quantity    Decimal  @db.Decimal(12, 2)
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  taxRate     Decimal  @default(0) @db.Decimal(5, 2)
+  subtotal    Decimal  @db.Decimal(12, 2)
+  taxAmount   Decimal  @db.Decimal(12, 2)
+  totalAmount Decimal  @db.Decimal(12, 2)
+
+  tenantId  String  @db.Uuid
+  invoiceId String  @db.Uuid
+  saleId    String? @unique @db.Uuid
+
+  Tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Invoice BillingInvoice @relation(fields: [invoiceId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
+  Sale    Sale?          @relation(fields: [saleId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([invoiceId])
+  @@index([tenantId, category])
+  @@index([saleId])
+}
+
+model BillingPayment {
+  id        String   @id @default(uuid()) @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  amount    Decimal  @db.Decimal(12, 2)
+  method    String // cash | card
+  status    String   @default("completed") // completed | void | refunded
+  reference String?
+  notes     String?
+
+  tenantId    String @db.Uuid
+  invoiceId   String @db.Uuid
+  collectedBy String @db.Uuid
+
+  Tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Invoice   BillingInvoice @relation(fields: [invoiceId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Collector User           @relation("PaymentCollector", fields: [collectedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([tenantId, createdAt])
+  @@index([invoiceId, createdAt])
 }

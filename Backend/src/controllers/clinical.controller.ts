@@ -5,6 +5,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getAuditRequestMetadata } from "../utils/audit.utils.js";
+import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
 
 const uuidSchema = z.uuid();
 const encounterTypeSchema = z.enum(["outpatient", "inpatient", "emergency"]);
@@ -62,15 +63,6 @@ const withDbConflictHandling = async <T>(operation: Promise<T>): Promise<T> => {
   }
 };
 
-const tenantContext = (req: Request) => {
-  const tenantId = req.user?.tenantId;
-  const userId = req.user?.id;
-  if (!tenantId || !userId) {
-    throw new ApiError(401, "Authenticated tenant context is required");
-  }
-  return { tenantId, userId };
-};
-
 type ClinicalTransaction = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 const writeAudit = (
@@ -93,25 +85,6 @@ const writeAudit = (
     newValue,
   },
 });
-
-const parseBody = <T extends z.ZodType>(schema: T, input: unknown): z.output<T> => {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    throw new ApiError(
-      400,
-      "Invalid request details",
-      parsed.error.issues.map(({ path, message }) => ({ path: path.join("."), message })),
-    );
-  }
-  return parsed.data;
-};
-
-const paramUuid = (req: Request, key: string) => {
-  const value = req.params[key];
-  const parsed = uuidSchema.safeParse(Array.isArray(value) ? value[0] : value);
-  if (!parsed.success) throw new ApiError(400, `A valid ${key} is required`);
-  return parsed.data;
-};
 
 const currentDoctor = async (userId: string, tenantId: string) => {
   const doctor = await db.doctorProfile.findFirst({
@@ -142,8 +115,8 @@ const createEncounterSchema = z.object({
 });
 
 export const listEncounters = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const filters = parseBody(
+  const { tenantId, userId } = getTenantContext(req);
+  const filters = parseRequest(
     z.object({
       departmentId: uuidSchema.optional(),
       doctorId: uuidSchema.optional(),
@@ -173,15 +146,6 @@ export const listEncounters = asyncHandler(async (req: Request, res: Response) =
     }),
     db.encounter.count({ where }),
   ]);
-  await db.auditLog.create({
-    data: {
-      action: "list",
-      entityType: "Encounter",
-      tenantId,
-      userId,
-      ...getAuditRequestMetadata(req),
-    },
-  });
   return res.status(200).json(new ApiResponse(200, {
     items,
     pagination: { page: filters.page, limit: filters.limit, total, totalPages: Math.ceil(total / filters.limit) },
@@ -189,8 +153,8 @@ export const listEncounters = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const createEncounter = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const input = parseBody(createEncounterSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const input = parseRequest(createEncounterSchema, req.body);
   const result = await withDbConflictHandling(db.$transaction(async (tx) => {
     const appointment = input.appointmentId
       ? await tx.appointment.findFirst({
@@ -269,8 +233,8 @@ export const createEncounter = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const getEncounter = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const id = paramUuid(req, "encounterId");
+  const { tenantId } = getTenantContext(req);
+  const id = parseParamUuid(req, "encounterId");
   const encounter = await db.encounter.findFirst({
     where: { id, tenantId },
     include: {
@@ -284,16 +248,6 @@ export const getEncounter = asyncHandler(async (req: Request, res: Response) => 
     },
   });
   if (!encounter) throw new ApiError(404, "Encounter not found.");
-  await db.auditLog.create({
-    data: {
-      action: "read",
-      entityType: "Encounter",
-      entityId: id,
-      tenantId,
-      userId: req.user!.id,
-      ...getAuditRequestMetadata(req),
-    },
-  });
   return res.status(200).json(new ApiResponse(200, encounter, "Encounter fetched successfully."));
 });
 
@@ -309,9 +263,9 @@ const updateEncounterSchema = z.object({
 });
 
 export const updateEncounter = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const id = paramUuid(req, "encounterId");
-  const input = parseBody(updateEncounterSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const id = parseParamUuid(req, "encounterId");
+  const input = parseRequest(updateEncounterSchema, req.body);
   const result = await withDbConflictHandling(db.$transaction(async (tx) => {
     const current = await tx.encounter.findFirst({ where: { id, tenantId } });
     if (!current) throw new ApiError(404, "Encounter not found.");
@@ -393,9 +347,9 @@ const consultationSchema = z.object({
 });
 
 export const createConsultation = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(consultationSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(consultationSchema, req.body);
   const doctor = await currentDoctor(userId, tenantId);
   const consultation = await db.$transaction(async (tx) => {
     const encounter = await tx.encounter.findFirst({
@@ -410,180 +364,6 @@ export const createConsultation = asyncHandler(async (req: Request, res: Respons
     return created;
   });
   return res.status(201).json(new ApiResponse(201, consultation, "Consultation recorded successfully."));
-});
-
-const medicineSchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  genericName: z.string().trim().max(200).nullish(),
-  form: z.string().trim().max(80).nullish(),
-  strength: z.string().trim().max(80).nullish(),
-});
-
-export const listMedicines = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const query = parseBody(z.object({
-    search: z.string().trim().max(100).optional(),
-    includeInactive: z.preprocess((value) => value === true || value === "true", z.boolean()).default(false),
-  }), req.query);
-  const medicines = await db.medicine.findMany({
-    where: {
-      tenantId,
-      ...(query.includeInactive ? {} : { isActive: true }),
-      ...(query.search ? { OR: [
-        { name: { contains: query.search, mode: "insensitive" } },
-        { genericName: { contains: query.search, mode: "insensitive" } },
-      ] } : {}),
-    },
-    orderBy: { name: "asc" },
-    take: 100,
-  });
-  const stockTotals = medicines.length
-    ? await db.stockTransaction.groupBy({
-        by: ["medicineId", "type"],
-        where: { tenantId, medicineId: { in: medicines.map(({ id }) => id) } },
-        _sum: { quantity: true },
-      })
-    : [];
-  const stockCounts = new Map<string, number>();
-  for (const total of stockTotals) {
-    const adjustment = total._sum.quantity ?? 0;
-    stockCounts.set(
-      total.medicineId,
-      (stockCounts.get(total.medicineId) ?? 0) + (total.type === "IN" ? adjustment : -adjustment),
-    );
-  }
-  const data = medicines.map((medicine) => ({
-    ...medicine,
-    stockCount: stockCounts.get(medicine.id) ?? 0,
-  }));
-  return res.status(200).json(new ApiResponse(200, data, "Medicines fetched successfully."));
-});
-
-export const createMedicine = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const input = parseBody(medicineSchema, req.body);
-  const medicine = await db.$transaction(async (tx) => {
-    const created = await tx.medicine.create({ data: { ...input, tenantId } });
-    await writeAudit(tx, req, "create", "Medicine", created.id, {
-      name: created.name,
-      genericName: created.genericName,
-      form: created.form,
-      strength: created.strength,
-      isActive: created.isActive,
-    });
-    return created;
-  });
-  return res.status(201).json(new ApiResponse(201, medicine, "Medicine added successfully."));
-});
-
-export const updateMedicine = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const medicineId = paramUuid(req, "medicineId");
-  const input = parseBody(z.object({ isActive: z.boolean() }), req.body);
-  const updated = await db.$transaction(async (tx) => {
-    const current = await tx.medicine.findFirst({ where: { id: medicineId, tenantId } });
-    if (!current) throw new ApiError(404, "Medicine not found.");
-    const result = await tx.medicine.updateMany({
-      where: { id: medicineId, tenantId },
-      data: { isActive: input.isActive },
-    });
-    if (!result.count) throw new ApiError(404, "Medicine not found.");
-    const medicine = await tx.medicine.findFirst({ where: { id: medicineId, tenantId } });
-    await writeAudit(tx, req, "update", "Medicine", medicineId, { isActive: input.isActive }, {
-      isActive: current.isActive,
-    });
-    return medicine;
-  });
-  return res.status(200).json(new ApiResponse(200, updated, "Medicine updated successfully."));
-});
-
-const stockTransactionSchema = z.object({
-  pharmacyId: uuidSchema,
-  type: z.enum(["IN", "OUT"]),
-  quantity: z.number().int().positive().max(1_000_000),
-  reason: z.string().trim().max(1000).nullish(),
-});
-
-export const listMedicineStockTransactions = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const medicineId = paramUuid(req, "medicineId");
-  const medicine = await db.medicine.findFirst({
-    where: { id: medicineId, tenantId },
-    select: { id: true },
-  });
-  if (!medicine) throw new ApiError(404, "Medicine not found.");
-  const [transactions, totals] = await Promise.all([
-    db.stockTransaction.findMany({
-      where: { tenantId, medicineId },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 100,
-      include: { User: { select: { id: true, name: true } } },
-    }),
-    db.stockTransaction.groupBy({
-      by: ["type"],
-      where: { tenantId, medicineId },
-      _sum: { quantity: true },
-    }),
-  ]);
-  const balance = totals.reduce(
-    (count, total) => count + (total.type === "IN" ? total._sum.quantity ?? 0 : -(total._sum.quantity ?? 0)),
-    0,
-  );
-  return res.status(200).json(new ApiResponse(200, { balance, transactions }, "Medicine stock history fetched successfully."));
-});
-
-export const createMedicineStockTransaction = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const medicineId = paramUuid(req, "medicineId");
-  const input = parseBody(stockTransactionSchema, req.body);
-  const result = await withDbConflictHandling(db.$transaction(async (tx) => {
-    const medicine = await tx.medicine.findFirst({
-      where: { id: medicineId, tenantId },
-      select: { id: true },
-    });
-    if (!medicine) throw new ApiError(404, "Medicine not found.");
-    const pharmacy = await tx.pharmacy.findFirst({
-      where: { id: input.pharmacyId, tenantId, isActive: true },
-      select: { id: true },
-    });
-    if (!pharmacy) throw new ApiError(404, "Active pharmacy not found.");
-
-    const lockKey = `${tenantId}:medicine-stock:${medicineId}`;
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-    const totals = await tx.stockTransaction.groupBy({
-      by: ["type"],
-      where: { tenantId, medicineId },
-      _sum: { quantity: true },
-    });
-    const balance = totals.reduce(
-      (count, total) => count + (total.type === "IN" ? total._sum.quantity ?? 0 : -(total._sum.quantity ?? 0)),
-      0,
-    );
-    if (input.type === "OUT" && input.quantity > balance) {
-      throw new ApiError(409, `Only ${balance} units are currently in stock.`);
-    }
-
-    const transaction = await tx.stockTransaction.create({
-      data: {
-        ...input,
-        reason: input.reason ?? null,
-        tenantId,
-        medicineId,
-        recordedBy: userId,
-      },
-      include: { User: { select: { id: true, name: true } } },
-    });
-    await writeAudit(tx, req, "create", "StockTransaction", transaction.id, {
-      type: input.type,
-      quantity: input.quantity,
-      medicineId,
-    });
-    return {
-      balance: balance + (input.type === "IN" ? input.quantity : -input.quantity),
-      transaction,
-    };
-  }, { isolationLevel: "Serializable" }));
-  return res.status(201).json(new ApiResponse(201, result, "Medicine stock transaction recorded successfully."));
 });
 
 const prescriptionSchema = z.object({
@@ -601,9 +381,9 @@ const prescriptionSchema = z.object({
 });
 
 export const createPrescription = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(prescriptionSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(prescriptionSchema, req.body);
   const doctor = await currentDoctor(userId, tenantId);
   const prescription = await withDbConflictHandling(db.$transaction(async (tx) => {
     const encounter = await tx.encounter.findFirst({
@@ -645,8 +425,8 @@ export const createPrescription = asyncHandler(async (req: Request, res: Respons
 });
 
 export const cancelPrescription = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const prescriptionId = paramUuid(req, "prescriptionId");
+  const { tenantId } = getTenantContext(req);
+  const prescriptionId = parseParamUuid(req, "prescriptionId");
   const result = await db.$transaction(async (tx) => {
     const updated = await tx.prescription.updateMany({
       where: { id: prescriptionId, tenantId, status: "active" },
@@ -678,9 +458,9 @@ const admissionSchema = z.object({
 });
 
 export const createAdmission = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(admissionSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(admissionSchema, req.body);
   const doctor = await currentDoctor(userId, tenantId);
   const admission = await withDbConflictHandling(db.$transaction(async (tx) => {
     const encounter = await tx.encounter.findFirst({
@@ -713,8 +493,8 @@ export const createAdmission = asyncHandler(async (req: Request, res: Response) 
 });
 
 export const listAdmissions = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const filters = parseBody(z.object({
+  const { tenantId } = getTenantContext(req);
+  const filters = parseRequest(z.object({
     status: z.enum(["admitted", "discharged"]).optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -762,9 +542,9 @@ const bedAssignmentSchema = z.object({
 });
 
 export const assignAdmissionBed = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const admissionId = paramUuid(req, "admissionId");
-  const input = parseBody(bedAssignmentSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const admissionId = parseParamUuid(req, "admissionId");
+  const input = parseRequest(bedAssignmentSchema, req.body);
   const assignment = await withDbConflictHandling(db.$transaction(async (tx) => {
     const admission = await tx.admission.findFirst({
       where: { id: admissionId, tenantId, status: "admitted" },
@@ -801,9 +581,9 @@ export const assignAdmissionBed = asyncHandler(async (req: Request, res: Respons
 const bedTransferSchema = bedAssignmentSchema.extend({ targetBedId: uuidSchema });
 
 export const transferAdmissionBed = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const admissionId = paramUuid(req, "admissionId");
-  const input = parseBody(bedTransferSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const admissionId = parseParamUuid(req, "admissionId");
+  const input = parseRequest(bedTransferSchema, req.body);
   if (input.bedId === input.targetBedId) throw new ApiError(400, "Choose a different bed for transfer.");
   const result = await withDbConflictHandling(db.$transaction(async (tx) => {
     const admission = await tx.admission.findFirst({
@@ -856,9 +636,9 @@ export const transferAdmissionBed = asyncHandler(async (req: Request, res: Respo
 });
 
 export const assignEncounterBed = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(bedAssignmentSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(bedAssignmentSchema, req.body);
   const assignment = await withDbConflictHandling(db.$transaction(async (tx) => {
     const encounter = await tx.encounter.findFirst({
       where: { id: encounterId, tenantId, status: { not: "closed" } },
@@ -889,9 +669,9 @@ export const assignEncounterBed = asyncHandler(async (req: Request, res: Respons
 });
 
 export const releaseEncounterBed = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(z.object({ bedId: uuidSchema }), req.body);
+  const { tenantId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(z.object({ bedId: uuidSchema }), req.body);
   await withDbConflictHandling(db.$transaction(async (tx) => {
     const assignment = await tx.bedAssignment.findFirst({
       where: { encounterId, tenantId, bedId: input.bedId, releasedAt: null },
@@ -921,9 +701,9 @@ export const releaseEncounterBed = asyncHandler(async (req: Request, res: Respon
 });
 
 export const transferEncounterBed = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(bedTransferSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(bedTransferSchema, req.body);
   if (input.bedId === input.targetBedId) throw new ApiError(400, "Choose a different bed for transfer.");
   const assignment = await withDbConflictHandling(db.$transaction(async (tx) => {
     const encounter = await tx.encounter.findFirst({
@@ -977,7 +757,7 @@ export const transferEncounterBed = asyncHandler(async (req: Request, res: Respo
 });
 
 export const listAvailableBeds = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   const beds = await db.bed.findMany({
     where: {
       tenantId,
@@ -1008,8 +788,8 @@ export const listAvailableBeds = asyncHandler(async (req: Request, res: Response
 const theatreSchema = z.object({ name: z.string().trim().min(1).max(120) });
 
 export const listTheatres = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const query = parseBody(z.object({
+  const { tenantId } = getTenantContext(req);
+  const query = parseRequest(z.object({
     includeInactive: z.preprocess((value) => value === true || value === "true", z.boolean()).default(false),
   }), req.query);
   const theatres = await db.operatingTheatre.findMany({
@@ -1020,7 +800,7 @@ export const listTheatres = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const listSurgeryTeamOptions = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   const users = await db.user.findMany({
     where: {
       tenantId,
@@ -1037,8 +817,8 @@ export const listSurgeryTeamOptions = asyncHandler(async (req: Request, res: Res
 });
 
 export const createTheatre = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const input = parseBody(theatreSchema, req.body);
+  const { tenantId } = getTenantContext(req);
+  const input = parseRequest(theatreSchema, req.body);
   const theatre = await withDbConflictHandling(db.$transaction(async (tx) => {
     const created = await tx.operatingTheatre.create({ data: { ...input, tenantId } });
     await writeAudit(tx, req, "create", "OperatingTheatre", created.id, { active: true });
@@ -1048,9 +828,9 @@ export const createTheatre = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const updateTheatre = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const theatreId = paramUuid(req, "theatreId");
-  const input = parseBody(z.object({
+  const { tenantId } = getTenantContext(req);
+  const theatreId = parseParamUuid(req, "theatreId");
+  const input = parseRequest(z.object({
     name: z.string().trim().min(1).max(120).optional(),
     isActive: z.boolean().optional(),
   }).refine((value) => value.name !== undefined || value.isActive !== undefined), req.body);
@@ -1076,8 +856,8 @@ export const updateTheatre = asyncHandler(async (req: Request, res: Response) =>
 });
 
 export const listSurgeryCases = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const filters = parseBody(z.object({
+  const { tenantId } = getTenantContext(req);
+  const filters = parseRequest(z.object({
     status: surgeryStatusSchema.optional(),
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -1129,9 +909,9 @@ const surgerySchema = z.object({
 });
 
 export const createSurgeryCase = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const encounterId = paramUuid(req, "encounterId");
-  const input = parseBody(surgerySchema, req.body);
+  const { tenantId } = getTenantContext(req);
+  const encounterId = parseParamUuid(req, "encounterId");
+  const input = parseRequest(surgerySchema, req.body);
   const surgery = await withDbConflictHandling(db.$transaction(async (tx) => {
     const [encounter, theatre, surgeon] = await Promise.all([
       tx.encounter.findFirst({ where: { id: encounterId, tenantId, status: { not: "closed" } }, select: { id: true } }),
@@ -1195,9 +975,9 @@ const updateSurgerySchema = z.object({
 });
 
 export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const surgeryId = paramUuid(req, "surgeryId");
-  const input = parseBody(updateSurgerySchema, req.body);
+  const { tenantId } = getTenantContext(req);
+  const surgeryId = parseParamUuid(req, "surgeryId");
+  const input = parseRequest(updateSurgerySchema, req.body);
   const result = await withDbConflictHandling(db.$transaction(async (tx) => {
     const current = await tx.surgeryCase.findFirst({ where: { id: surgeryId, tenantId } });
     if (!current) throw new ApiError(404, "Surgery case not found.");
@@ -1262,9 +1042,9 @@ const dischargeSchema = z.object({
 });
 
 export const dischargeAdmission = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const admissionId = paramUuid(req, "admissionId");
-  const input = parseBody(dischargeSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const admissionId = parseParamUuid(req, "admissionId");
+  const input = parseRequest(dischargeSchema, req.body);
   const doctor = await currentDoctor(userId, tenantId);
   const summary = await withDbConflictHandling(db.$transaction(async (tx) => {
     const admission = await tx.admission.findFirst({

@@ -7,6 +7,7 @@ import bcrypt from "bcrypt";
 import { z } from "zod";
 import { char36Schema } from "../types/tenant.types.js";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { STANDARD_ROLE_NAMES, type StandardRoleName } from "../constants/roles.js";
 
 const optionalText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullish().transform((value) => value || null);
@@ -74,7 +75,7 @@ const staffSchema = baseProfileSchema.extend({
   joiningDate: z.coerce.date().nullish(),
   description: optionalText(2000),
   designation: optionalText(120),
-  role: z.string().trim().min(1, "Role is required").max(64)
+  role: z.enum(STANDARD_ROLE_NAMES as [StandardRoleName, ...StandardRoleName[]])
 });
 
 export const createProfileSchema = z.discriminatedUnion("type", [
@@ -133,9 +134,13 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
 
       const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
       const roleName = input.type === "Doctor" ? "Doctor" : input.role;
-      const role =
-        (await trx.role.findFirst({ where: { tenantId, name: roleName } })) ??
-        (await trx.role.create({ data: { tenantId, name: roleName, permissions: [] } }));
+      const role = await trx.role.findFirst({ where: { tenantId, name: roleName } });
+      if (!role) {
+        throw new ApiError(
+          400,
+          `The ${roleName} role is not configured for this tenant. Create the standard role before adding staff.`,
+        );
+      }
 
       const user = await trx.user.create({
         data: {
@@ -307,11 +312,6 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
     })),
   ].sort((left, right) => left.name.localeCompare(right.name));
 
-  await writeAuditLog(req, {
-    action: "list",
-    entityType: "StaffDirectory",
-    newValue: { resultCount: directory.length },
-  });
   return res.status(200).json(new ApiResponse(200, directory, "Staff fetched successfully"));
 });
 

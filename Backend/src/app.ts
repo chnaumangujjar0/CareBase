@@ -41,6 +41,8 @@ import clinicalRouter from "./routes/clinical.routes.js"
 import dashboardRouter from "./routes/dashboard.routes.js"
 import auditRouter from "./routes/audit.routes.js"
 import pharmacyRouter from "./routes/pharmacy.routes.js"
+import billingRouter from "./routes/billing.routes.js"
+import medicineRouter from "./routes/medicine.routes.js"
 
 // routes intialization
 app.use("/api/v1/user",userRouter)
@@ -55,5 +57,8 @@ app.use("/api/v1/clinical",clinicalRouter)
 app.use("/api/v1/dashboard",dashboardRouter)
 app.use("/api/v1/audit-logs",auditRouter)
 app.use("/api/v1/pharmacies",pharmacyRouter)
+app.use("/api/v1/billing",billingRouter)
+app.use("/api/v1/medicines",medicineRouter)
+app.use("/api/v1/clinical/medicines",medicineRouter)
 app.use(errorHandler)
 export {httpServer,app}

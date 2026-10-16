@@ -12,8 +12,6 @@ import {
   createAdmission,
   createConsultation,
   createEncounter,
-  createMedicine,
-  createMedicineStockTransaction,
   createPrescription,
   createSurgeryCase,
   createTheatre,
@@ -23,8 +21,6 @@ import {
   listAdmissions,
   listSurgeryCases,
   listAvailableBeds,
-  listMedicines,
-  listMedicineStockTransactions,
   listTheatres,
   listSurgeryTeamOptions,
   releaseEncounterBed,
@@ -32,7 +28,6 @@ import {
   transferEncounterBed,
   updateSurgeryCase,
   updateEncounter,
-  updateMedicine,
   updateTheatre,
 } from "../controllers/clinical.controller.js";
 
@@ -67,14 +62,6 @@ router.route("/encounters/:encounterId/bed-transfers")
 router.route("/beds")
   .get(requirePermissions("clinical:beds:write"), listAvailableBeds);
 
-router.route("/medicines")
-  .get(requirePermissions("clinical:medicines:read"), listMedicines)
-  .post(requirePermissions("clinical:medicines:write"), checkAuthorizationForSuperRoles, createMedicine);
-router.route("/medicines/:medicineId")
-  .patch(requirePermissions("clinical:medicines:write"), checkAuthorizationForSuperRoles, updateMedicine);
-router.route("/medicines/:medicineId/stock-transactions")
-  .get(requirePermissions("clinical:medicines:read"), listMedicineStockTransactions)
-  .post(requirePermissions("clinical:medicines:write"), createMedicineStockTransaction);
 router.route("/theatres")
   .get(requirePermissions("clinical:surgeries:read"), listTheatres)
   .post(requirePermissions("clinical:surgeries:write"), checkAuthorizationForSuperRoles, createTheatre);

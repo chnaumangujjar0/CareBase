@@ -5,22 +5,17 @@ import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/index.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { STANDARD_ROLE_NAMES, getStandardRolePermissions, type StandardRoleName } from "../constants/roles.js";
 
 const createRoleSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(2, "Role name must be at least 2 characters")
-    .max(60, "Role name must be under 60 characters"),
-  permissions: z.array(z.string().min(1)).default([]),
+  name: z.enum(STANDARD_ROLE_NAMES as [StandardRoleName, ...StandardRoleName[]]),
 });
  
 const updateRoleSchema = z.object({
-    name: z.string().trim().min(2, "Role name must be at least 2 characters").max(60).optional(),
-    permissions: z.array(z.string().min(1)).optional(),
+    name: z.enum(STANDARD_ROLE_NAMES as [StandardRoleName, ...StandardRoleName[]]).optional(),
   })
-  .refine((data) => data.name !== undefined || data.permissions !== undefined, {
-    message: "At least one field (name or permissions) is required to update.",
+  .refine((data) => data.name !== undefined, {
+    message: "A standard role must be selected.",
   });
 
 const roleIdSchema = z.uuid();
@@ -60,7 +55,10 @@ export const createRole = asyncHandler(async (req:Request,res:Response) => {
   if (!parsed.success) {
     throw new ApiError(400, parsed.error.issues[0]?.message ?? "Invalid role details");
   }
-  const { name, permissions } = parsed.data;
+  const { name } = parsed.data;
+  const permissions = getStandardRolePermissions(name);
+  const duplicate = await db.role.findFirst({ where: { tenantId, name } });
+  if (duplicate) throw new ApiError(409, "This standard role already exists for the tenant.");
 
   const role = await db.role.create({
     data: { tenantId, name, permissions },
@@ -88,7 +86,7 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
   if (!parsed.success) {
     throw new ApiError(400, parsed.error.issues[0]?.message ?? "Invalid role details");
   }
-  const { name, permissions } = parsed.data;
+  const { name } = parsed.data;
 
   const existing = await db.role.findFirst({ where: { id: parsedId.data, tenantId } });
   if (!existing) {
@@ -98,11 +96,11 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
   const updated = await db.role.update({
     where: { id: parsedId.data },
     data: {
-      ...(name !== undefined ? { name } : {}),
-      ...(permissions !== undefined ? { permissions } : {}),
+      ...(name !== undefined ? { name, permissions: getStandardRolePermissions(name) } : {}),
     },
     include: { _count: { select: { User: true } } },
   });
+
   await writeAuditLog(req, {
     action: "update",
     entityType: "Role",
@@ -115,6 +113,14 @@ export const updateRole = asyncHandler(async (req: Request, res: Response) => {
   });
 
   return res.status(200).json(new ApiResponse(200, serializeRole(updated), "Role updated successfully"));
+});
+
+export const getRoleCatalog = asyncHandler(async (_req: Request, res: Response) => {
+  const roles = STANDARD_ROLE_NAMES.map((name) => ({
+    name,
+    permissions: getStandardRolePermissions(name),
+  }));
+  return res.status(200).json(new ApiResponse(200, roles, "Standard role catalog fetched successfully"));
 });
 
 export const getRoles = asyncHandler(async (req: Request, res: Response) => {

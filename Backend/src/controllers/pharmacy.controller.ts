@@ -5,39 +5,15 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getAuditRequestMetadata } from "../utils/audit.utils.js";
+import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
 
 const uuidSchema = z.uuid();
 const pharmacyTypeSchema = z.enum(["central_store", "sub_store"]);
 const stockTypeSchema = z.enum(["IN", "OUT"]);
 const requestStatusSchema = z.enum(["pending", "approved", "rejected", "dispatched", "received", "partially_received", "not_received"]);
 
-const tenantContext = (req: Request) => {
-  const tenantId = req.user?.tenantId;
-  const userId = req.user?.id;
-  if (!tenantId || !userId) throw new ApiError(401, "Authenticated tenant context is required");
-  return { tenantId, userId };
-};
-
 const roleName = (req: Request) => req.role?.name?.toLowerCase() ?? "";
 const isHeadPharmacist = (req: Request) => ["owner", "admin", "head pharmacist", "head_pharmacist"].includes(roleName(req));
-
-const parseBody = <T extends z.ZodType>(schema: T, input: unknown): z.output<T> => {
-  const parsed = schema.safeParse(input);
-  if (!parsed.success) {
-    throw new ApiError(400, "Invalid pharmacy request details", parsed.error.issues.map(({ path, message }) => ({
-      path: path.join("."),
-      message,
-    })));
-  }
-  return parsed.data;
-};
-
-const paramUuid = (req: Request, key: string) => {
-  const value = req.params[key];
-  const parsed = uuidSchema.safeParse(Array.isArray(value) ? value[0] : value);
-  if (!parsed.success) throw new ApiError(400, `A valid ${key} is required`);
-  return parsed.data;
-};
 
 const pharmacySelect = {
   id: true,
@@ -79,7 +55,7 @@ const pharmacySchema = z.object({
 });
 
 export const listPharmacies = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
+  const { tenantId, userId } = getTenantContext(req);
   const pharmacies = await db.pharmacy.findMany({
     where: { tenantId, ...(isHeadPharmacist(req) ? {} : { OR: [{ type: "central_store" }, { pharmacistUserId: userId }] }) },
     orderBy: [{ type: "asc" }, { name: "asc" }],
@@ -94,19 +70,19 @@ export const listPharmacies = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const createPharmacy = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can create pharmacy locations.");
-  const input = parseBody(pharmacySchema, req.body);
+  const input = parseRequest(pharmacySchema, req.body);
   const pharmacy = await db.pharmacy.create({ data: { ...input, tenantId }, select: pharmacySelect });
   await writeAudit(req, "create", "Pharmacy", pharmacy.id, { name: pharmacy.name, type: pharmacy.type });
   return res.status(201).json(new ApiResponse(201, pharmacy, "Pharmacy created successfully."));
 });
 
 export const updatePharmacy = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can update pharmacy locations.");
-  const pharmacyId = paramUuid(req, "pharmacyId");
-  const input = parseBody(z.object({ name: z.string().trim().min(2).max(160).optional(), type: pharmacyTypeSchema.optional(), isActive: z.boolean().optional() }).refine((value) => Object.keys(value).length > 0), req.body);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
+  const input = parseRequest(z.object({ name: z.string().trim().min(2).max(160).optional(), type: pharmacyTypeSchema.optional(), isActive: z.boolean().optional() }).refine((value) => Object.keys(value).length > 0), req.body);
   const current = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
   if (!current) throw new ApiError(404, "Pharmacy not found.");
   const pharmacy = await db.pharmacy.update({ where: { id: pharmacyId }, data: input, select: pharmacySelect });
@@ -115,8 +91,8 @@ export const updatePharmacy = asyncHandler(async (req: Request, res: Response) =
 });
 
 export const listPharmacyStock = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const pharmacyId = paramUuid(req, "pharmacyId");
+  const { tenantId } = getTenantContext(req);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
   const pharmacy = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
   if (!pharmacy) throw new ApiError(404, "Pharmacy not found.");
   const stocks = await db.pharmacyStock.findMany({ where: { pharmacyId, tenantId }, include: stockInclude, orderBy: { Medicine: { name: "asc" } } });
@@ -132,9 +108,9 @@ const stockSchema = z.object({
 });
 
 export const createPharmacyStockTransaction = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const pharmacyId = paramUuid(req, "pharmacyId");
-  const input = parseBody(stockSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
+  const input = parseRequest(stockSchema, req.body);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can add or dispense warehouse stock.");
   const result = await db.$transaction(async (tx) => {
     const [pharmacy, medicine] = await Promise.all([
@@ -166,8 +142,8 @@ export const createPharmacyStockTransaction = asyncHandler(async (req: Request, 
 });
 
 export const listPharmacyStockTransactions = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
-  const pharmacyId = paramUuid(req, "pharmacyId");
+  const { tenantId } = getTenantContext(req);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
   const medicineId = req.query.medicineId ? uuidSchema.parse(req.query.medicineId) : undefined;
   const transactions = await db.stockTransaction.findMany({
     where: { tenantId, pharmacyId, ...(medicineId ? { medicineId } : {}) },
@@ -186,15 +162,15 @@ const requestSchema = z.object({
 });
 
 export const listStockRequests = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
+  const { tenantId, userId } = getTenantContext(req);
   const status = req.query.status ? requestStatusSchema.parse(req.query.status) : undefined;
   const requests = await db.stockRequest.findMany({ where: { tenantId, ...(status ? { status } : {}), ...(isHeadPharmacist(req) ? {} : { OR: [{ RequestingPharmacy: { pharmacistUserId: userId } }, { FulfillingPharmacy: { pharmacistUserId: userId } }] }) }, orderBy: { createdAt: "desc" }, take: 200, include: requestInclude });
   return res.status(200).json(new ApiResponse(200, requests, "Stock requests fetched successfully."));
 });
 
 export const createStockRequest = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const input = parseBody(requestSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const input = parseRequest(requestSchema, req.body);
   if (input.requestingPharmacyId === input.fulfillingPharmacyId) throw new ApiError(400, "Requesting and fulfilling pharmacies must be different.");
   const request = await db.$transaction(async (tx) => {
     const [requestingPharmacy, fulfillingPharmacy, medicines] = await Promise.all([
@@ -221,9 +197,9 @@ const requestStatusBodySchema = z.object({
 });
 
 export const updateStockRequestStatus = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const requestId = paramUuid(req, "requestId");
-  const input = parseBody(requestStatusBodySchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const requestId = parseParamUuid(req, "requestId");
+  const input = parseRequest(requestStatusBodySchema, req.body);
   const result = await db.$transaction(async (tx) => {
     const request = await tx.stockRequest.findFirst({ where: { id: requestId, tenantId }, include: { Items: true } });
     if (!request) throw new ApiError(404, "Stock request not found.");
@@ -272,10 +248,10 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
 const pharmacistAssignmentSchema = z.object({ pharmacistUserId: uuidSchema.nullish() });
 
 export const assignPharmacist = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can assign pharmacists.");
-  const pharmacyId = paramUuid(req, "pharmacyId");
-  const input = parseBody(pharmacistAssignmentSchema, req.body);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
+  const input = parseRequest(pharmacistAssignmentSchema, req.body);
   const pharmacy = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
   if (!pharmacy) throw new ApiError(404, "Pharmacy not found.");
   if (input.pharmacistUserId) {
@@ -304,9 +280,9 @@ const saleSchema = z.object({
 });
 
 export const createSale = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId, userId } = tenantContext(req);
-  const pharmacyId = paramUuid(req, "pharmacyId");
-  const input = parseBody(saleSchema, req.body);
+  const { tenantId, userId } = getTenantContext(req);
+  const pharmacyId = parseParamUuid(req, "pharmacyId");
+  const input = parseRequest(saleSchema, req.body);
   const result = await db.$transaction(async (tx) => {
     const pharmacy = await tx.pharmacy.findFirst({ where: { id: pharmacyId, tenantId, type: "sub_store", isActive: true }, select: { id: true, pharmacistUserId: true } });
     if (!pharmacy) throw new ApiError(404, "Active sub-pharmacy not found.");
@@ -340,7 +316,7 @@ export const createSale = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getPharmacyDashboard = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = tenantContext(req);
+  const { tenantId } = getTenantContext(req);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can view the pharmacy dashboard.");
   const since = new Date();
   since.setDate(since.getDate() - 30);

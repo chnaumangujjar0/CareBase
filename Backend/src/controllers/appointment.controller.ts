@@ -249,18 +249,6 @@ export const getAppointments = asyncHandler(async (req: Request, res: Response) 
     orderBy: { scheduledAt: "asc" },
   });
 
-  await writeAuditLog(req, {
-    action: "list",
-    entityType: "Appointment",
-    newValue: {
-      resultCount: appointments.length,
-      filters: {
-        doctorId: doctorId ?? null,
-        patientId: patientId ?? null,
-        status: status ?? null,
-      },
-    },
-  });
   return res.status(200).json(new ApiResponse(200, appointments, "Appointments fetched successfully"));
 });
 
@@ -297,11 +285,6 @@ export const getAppointmentById = asyncHandler(async (req: Request, res: Respons
   });
   if (!appointment) throw new ApiError(404, "Appointment not found");
 
-  await writeAuditLog(req, {
-    action: "read",
-    entityType: "Appointment",
-    entityId: appointment.id,
-  });
   return res.status(200).json(new ApiResponse(200, appointment, "Appointment fetched successfully"));
 });
 

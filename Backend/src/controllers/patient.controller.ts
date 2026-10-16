@@ -117,11 +117,6 @@ export const getPatients = asyncHandler(async (req: Request, res: Response) => {
     db.patient.count({ where }),
   ]);
 
-  await writeAuditLog(req, {
-    action: "list",
-    entityType: "Patient",
-    newValue: { page, limit, resultCount: items.length, filters: { isActive: isActive ?? null } },
-  });
   return res.status(200).json(
     new ApiResponse(200, { items, total, page, limit, totalPages: Math.ceil(total / limit) }, "Patients fetched successfully"),
   );
@@ -185,11 +180,6 @@ export const getPatientById = asyncHandler(async (req: Request, res: Response) =
   });
   if (!patient) throw new ApiError(404, "Patient not found");
 
-  await writeAuditLog(req, {
-    action: "read",
-    entityType: "Patient",
-    entityId: patient.id,
-  });
   return res.status(200).json(new ApiResponse(200, patient, "Patient fetched successfully"));
 });
 

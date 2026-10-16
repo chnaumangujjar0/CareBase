@@ -4,7 +4,6 @@ import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { writeAuditLog } from "../utils/audit.utils.js";
 
 export const listAuditLogs = asyncHandler(async (req: Request, res: Response) => {
   const tenantId = req.user?.tenantId;
@@ -33,17 +32,6 @@ export const listAuditLogs = asyncHandler(async (req: Request, res: Response) =>
     db.auditLog.count({ where }),
   ]);
 
-  await writeAuditLog(req, {
-    action: "read",
-    entityType: "AuditLog",
-    newValue: {
-      page: query.page,
-      limit: query.limit,
-      actionFilter: query.action ?? null,
-      entityTypeFilter: query.entityType ?? null,
-      resultCount: items.length,
-    },
-  });
   return res.status(200).json(new ApiResponse(200, {
     items,
     pagination: {

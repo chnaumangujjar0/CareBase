@@ -9,6 +9,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
 import jwt from "jsonwebtoken";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { getEffectiveRolePermissions } from "../constants/roles.js";
 const options = {
   httpOnly: true,
   secure: true,
@@ -150,7 +151,13 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
     .json(
       new ApiResponse(
         200,
-        { user: loggedInUser, ...tokens, role: userRole },
+        {
+          user: loggedInUser,
+          ...tokens,
+          role: userRole
+            ? { ...userRole, permissions: getEffectiveRolePermissions(userRole.name, userRole.permissions) }
+            : null,
+        },
         "User logged in successfully!"
       )
     );
@@ -204,7 +211,9 @@ export const currentUser = asyncHandler(async (req:Request, res:Response) => {
       const user = {
         ...req.user,
         role: ownerRole?.name,
-        permissions: ownerRole?.permissions,
+        permissions: ownerRole
+          ? getEffectiveRolePermissions(ownerRole.name, ownerRole.permissions)
+          : [],
       };
   return res
     .status(200)

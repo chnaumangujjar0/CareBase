@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { char36Schema } from "../types/tenant.types.js";
+import { getEffectiveRolePermissions } from "../constants/roles.js";
 
 
 const SUPER_AUTHORIZED_ROLES: Array<string> = ["Owner", "Admin"];
@@ -65,7 +66,7 @@ export const requirePermissions = (...requiredPermissions: string[]) =>
       throw new ApiError(403, "Role not resolved for this request");
     }
 
-    const permissions = req.role.permissions;
+    const permissions = getEffectiveRolePermissions(req.role.name, req.role.permissions);
 
     const hasWildcard =
       Array.isArray(permissions) && permissions.some((permission) => permission === "*");
