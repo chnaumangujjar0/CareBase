@@ -10,6 +10,7 @@ import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
 import jwt from "jsonwebtoken";
 import { writeAuditLog } from "../utils/audit.utils.js";
 import { getEffectiveRolePermissions } from "../constants/roles.js";
+import { isConfiguredSuperAdmin } from "../utils/superAdmin.utils.js";
 const options = {
   httpOnly: true,
   secure: true,
@@ -22,7 +23,6 @@ const MIN_PASSWORD_LENGTH = 8;
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
   const { name, email, password } = req.body;
   
-  console.log(name,email,password);
   if (
     [name, email, password].some(
       (val) => !val || typeof val !== "string" || !val.trim()
@@ -59,7 +59,7 @@ const MIN_PASSWORD_LENGTH = 8;
         name: name.trim(),
         email: normalizedEmail,
         passwordHash,
-        isSuperAdmin: true,
+        isSuperAdmin: false,
         isActive: true,
       },
     });
@@ -85,7 +85,7 @@ const MIN_PASSWORD_LENGTH = 8;
     entityType: "User",
     entityId: newUser.id,
     userId: newUser.id,
-    newValue: { isSuperAdmin: true },
+    newValue: { isSuperAdmin: false },
   });
  
   return res.status(201).json(
@@ -152,7 +152,7 @@ export const login = asyncHandler(async (req: Request, res: Response) => {
       new ApiResponse(
         200,
         {
-          user: loggedInUser,
+          user: loggedInUser ? { ...loggedInUser, isSuperAdmin: Boolean(loggedInUser.isSuperAdmin && isConfiguredSuperAdmin(loggedInUser.email)) } : loggedInUser,
           ...tokens,
           role: userRole
             ? { ...userRole, permissions: getEffectiveRolePermissions(userRole.name, userRole.permissions) }
@@ -179,6 +179,9 @@ export const  refreshAccessToken = asyncHandler(async (req: Request,res: Respons
   if (!user) {
     throw new ApiError(400, "User not found");
   }
+  if (!user.isActive) {
+    throw new ApiError(403, "This account has been deactivated.");
+  }
 
   const accessToken = jwt.sign(
     {
@@ -197,7 +200,7 @@ export const  refreshAccessToken = asyncHandler(async (req: Request,res: Respons
     .json(
       new ApiResponse(
         200,
-        { user, accessToken },
+        { user: { ...user, isSuperAdmin: Boolean(user.isSuperAdmin && isConfiguredSuperAdmin(user.email)) }, accessToken },
         "Token generated successfully",
       ),
     );

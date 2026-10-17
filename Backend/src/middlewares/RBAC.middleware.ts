@@ -39,9 +39,20 @@ export const checkEligibilty = asyncHandler(
     if (!role) {
       throw new ApiError(403, "You do not have access to this tenant");
     }
+    const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { approvalStatus: true } });
+    if (!tenant || tenant.approvalStatus !== "approved") {
+      throw new ApiError(403, "This hospital is awaiting CareBase approval.");
+    }
     req.role = role
     next();
   }
+);
+
+export const requirePlatformSuperAdmin = asyncHandler(
+  async (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user?.isSuperAdmin) throw new ApiError(403, "Platform super administrator access is required.");
+    next();
+  },
 );
 
 export const checkAuthorizationForSuperRoles = asyncHandler(

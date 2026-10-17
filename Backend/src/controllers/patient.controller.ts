@@ -160,7 +160,7 @@ export const getPatientById = asyncHandler(async (req: Request, res: Response) =
   const patient = await db.patient.findFirst({
     where: { id: patientId, tenantId, deletedAt: null },
     include: {
-      MedicalData: { orderBy: { recordedAt: "desc" }, take: 20 },
+      MedicalData: { orderBy: { recordedAt: "desc" } },
       Appointment: {
         where: { status: "booked", scheduledAt: { gte: new Date() } },
         orderBy: { scheduledAt: "asc" },

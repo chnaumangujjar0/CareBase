@@ -25,6 +25,9 @@ export const completeOnboarding = asyncHandler(
     if (!userId) {
       throw new ApiError(401, "Authentication required");
     }
+    if (req.user?.isSuperAdmin) {
+      throw new ApiError(403, "Platform administrators cannot register a hospital from this account.");
+    }
 
     const parsedBody = completeOnboardingSchema.safeParse(req.body);
     if (!parsedBody.success) {
@@ -77,6 +80,7 @@ export const completeOnboarding = asyncHandler(
         data: {
           name: tenantName,
           slug,
+          approvalStatus: "pending",
           logo,
           favicon,
           ...emptyOptionalFields({ tenantName, ...location }),
@@ -122,7 +126,7 @@ export const completeOnboarding = asyncHandler(
         new ApiResponse(
           201,
           result,
-          "Hospital onboarding completed successfully."
+          "Hospital submitted for approval successfully."
         )
       );
   }

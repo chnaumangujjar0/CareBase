@@ -6,7 +6,7 @@ import {
 } from "../controllers/tenant.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
-import { checkEligibilty } from "../middlewares/RBAC.middleware.js";
+import { checkAuthorizationForSuperRoles, checkEligibilty } from "../middlewares/RBAC.middleware.js";
 
 const router = Router()
 
@@ -20,6 +20,8 @@ router.route("/onboarding").post(
 )
 router.route("/").patch(
     requireAuth,
+    checkEligibilty,
+    checkAuthorizationForSuperRoles,
     upload.fields([
         { name: "logo", maxCount: 1 },
         { name: "favicon", maxCount: 1 },

@@ -63,6 +63,20 @@ export const STANDARD_ROLES = {
     "billing:invoices:write",
     "billing:rates:read",
   ],
+  "Head Receptionist": [
+    "dashboard:read",
+    "appointments:read",
+    "appointments:write",
+    "patients:read",
+    "patients:write",
+    "clinical:encounters:read",
+    "clinical:encounters:write",
+    "clinical:admissions:read",
+    "billing:invoices:read",
+    "billing:invoices:write",
+    "billing:payments:write",
+    "billing:rates:read",
+  ],
   "Billing Staff": [
     "billing:invoices:read",
     "billing:invoices:write",
@@ -84,7 +98,9 @@ export type StandardRoleName = keyof typeof STANDARD_ROLES;
 export const STANDARD_ROLE_NAMES = Object.keys(STANDARD_ROLES) as StandardRoleName[];
 
 export const getStandardRolePermissions = (name: string): string[] => {
-  const permissions = STANDARD_ROLES[name as StandardRoleName];
+  const normalizedName = name.trim().toLowerCase().replaceAll("_", " ").replace(/\s+/g, " ");
+  const standardRoleName = STANDARD_ROLE_NAMES.find((roleName) => roleName.toLowerCase() === normalizedName);
+  const permissions = standardRoleName ? STANDARD_ROLES[standardRoleName] : undefined;
   return permissions ? [...permissions] : [];
 };
 

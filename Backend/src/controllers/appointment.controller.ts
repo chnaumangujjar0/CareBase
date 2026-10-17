@@ -128,8 +128,9 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
   }
 
   const input = parsed.data;
-  const scheduleday = new Date(input.scheduledAt).getDay();
-  const scheduledTime = new Date(input.scheduledAt).getMinutes() * 60;
+  const scheduledDate = new Date(input.scheduledAt);
+  const scheduleday = scheduledDate.getDay();
+  const scheduledTime = scheduledDate.getHours() * 60 + scheduledDate.getMinutes();
 
   const result = await withAppointmentConflictHandling(async (transaction) => {
     const [patient, doctor, department,availability] = await Promise.all([
@@ -154,10 +155,14 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
     if (doctor.departmentId !== department.id) {
       throw new ApiError(400, "The selected doctor does not belong to this department");
     }
-    availability.map((avail) => {
-      if(avail.dayOfWeek === scheduleday && avail.startMinute <= scheduledTime && avail.endMinute >= scheduledTime + input.durationMinutes * 60) {
-         throw new ApiError(400, "The selected doctor is not available at the requested time");
-      }})
+    const isWithinAvailability = availability.some((avail) =>
+      avail.dayOfWeek === scheduleday
+      && avail.startMinute <= scheduledTime
+      && avail.endMinute >= scheduledTime + input.durationMinutes,
+    );
+    if (!isWithinAvailability) {
+      throw new ApiError(400, "The selected doctor is not available at the requested time");
+    }
     await ensureNoConflict(
       transaction,
       tenantId,

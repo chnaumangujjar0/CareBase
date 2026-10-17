@@ -5,6 +5,7 @@ import { ApiError } from "../utils/apiError.js";
 import { db } from "../db/index.js";
 import { SAFE_USER_SELECT } from "../utils/tenant.utils.js";
 import { AuthenticatedUser, Role } from "../types/user.types.js";
+import { isConfiguredSuperAdmin } from "../utils/superAdmin.utils.js";
 
 
 declare global {
@@ -69,7 +70,7 @@ export const requireAuth = asyncHandler(
       throw new ApiError(403, "This account has been deactivated.");
     }
 
-    req.user = user;
+    req.user = { ...user, isSuperAdmin: Boolean(user.isSuperAdmin && isConfiguredSuperAdmin(user.email)) };
     next();
   }
 );

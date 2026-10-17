@@ -295,18 +295,20 @@ model StaffProfile {
   createdAt   DateTime  @default(now()) @db.Timestamptz(6)
   updatedAt   DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
   isActive    Boolean   @default(true)
+  name        String
+  email       String?
   employeeId  String
   designation String?
   description String?
   phone       String?
   joiningDate DateTime? @db.Timestamptz(6)
 
-  userId       String  @unique @db.Uuid
+  userId       String? @unique @db.Uuid
   tenantId     String  @db.Uuid
   departmentId String? @db.Uuid
   wardId       String? @db.Uuid
 
-  User              User                @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
+  User              User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
   Tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_tenantId_fkey")
   Department        Department?         @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
   Ward              Ward?               @relation(fields: [wardId], references: [id], onUpdate: NoAction, map: "staffProfile_wardId_fkey")
@@ -350,6 +352,9 @@ model Tenant {
   postalCode String?
   favicon    String
   logo       String
+  approvalStatus String @default("approved")
+  approvalNote   String?
+  approvalReviewedAt DateTime? @db.Timestamptz(6)
 
   Appointment         Appointment[]
   AuditLog            AuditLog[]

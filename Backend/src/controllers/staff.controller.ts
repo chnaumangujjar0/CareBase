@@ -35,8 +35,16 @@ const availabilitySchema = z.array(availabilitySlotSchema).max(7).default([]).su
   });
 });
 
-const baseProfileSchema = z.object({
+const employmentProfileSchema = z.object({
   name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
+  employeeId: z.string().trim().min(1, "Employee ID is required").max(64),
+  departmentId: z.uuid("Invalid department ID"),
+  phone: optionalText(20),
+  isActive: z.boolean().default(true),
+  availability: availabilitySchema,
+});
+
+const accountCredentialsSchema = z.object({
   email: z.email().trim().toLowerCase(),
   password: z
     .string()
@@ -45,23 +53,21 @@ const baseProfileSchema = z.object({
     .refine((password) => Buffer.byteLength(password, "utf8") <= 72, {
       message: "Password must be no more than 72 bytes",
     }),
-  employeeId: z.string().trim().min(1, "Employee ID is required").max(64),
-  departmentId: z.uuid("Invalid department ID"),
-  phone: z
-    .string()
-    .trim()
-    .min(7, "Enter a valid phone number")
-    .max(20, "Phone number is too long")
-    .refine((phone) => {
-      const digits = phone.replace(/\D/g, "");
-      return digits.length >= 7 && digits.length <= 15;
-    }, "Enter a valid phone number"),
-  isActive: z.boolean().default(true),
-  availability: availabilitySchema,
 });
 
-const doctorSchema = baseProfileSchema.extend({
+const requiredPhoneSchema = z.string()
+  .trim()
+  .min(7, "Enter a valid phone number")
+  .max(20, "Phone number is too long")
+  .refine((phone) => {
+    const digits = phone.replace(/\D/g, "");
+    return digits.length >= 7 && digits.length <= 15;
+  }, "Enter a valid phone number");
+
+const doctorSchema = employmentProfileSchema.extend({
   type: z.literal("Doctor"),
+  phone: requiredPhoneSchema,
+}).merge(accountCredentialsSchema).extend({
   specialization: z.string().trim().min(1, "Specialization is required").max(120),
   licenseNumber: z.string().trim().min(1, "License number is required").max(100),
   qualifications: optionalText(500),
@@ -69,19 +75,25 @@ const doctorSchema = baseProfileSchema.extend({
   designation: optionalText(120),
 });
 
-const staffSchema = baseProfileSchema.extend({
+const staffBaseSchema = employmentProfileSchema.extend({
   type: z.literal("Staff"),
   wardId: z.uuid("Invalid ward ID").nullish(),
   joiningDate: z.coerce.date().nullish(),
   description: optionalText(2000),
   designation: optionalText(120),
-  role: z.enum(STANDARD_ROLE_NAMES as [StandardRoleName, ...StandardRoleName[]])
 });
 
-export const createProfileSchema = z.discriminatedUnion("type", [
-  doctorSchema,
-  staffSchema,
+const staffSchema = z.discriminatedUnion("hasSystemAccess", [
+  staffBaseSchema.extend({ hasSystemAccess: z.literal(true) }).merge(accountCredentialsSchema).extend({
+    role: z.enum(STANDARD_ROLE_NAMES as [StandardRoleName, ...StandardRoleName[]]),
+  }),
+  staffBaseSchema.extend({
+    hasSystemAccess: z.literal(false),
+    designation: z.string().trim().min(1, "Designation is required").max(120),
+  }),
 ]);
+
+export const createProfileSchema = z.union([doctorSchema, staffSchema]);
 
 const BCRYPT_ROUNDS = 12;
 
@@ -108,7 +120,7 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
     const result = await db.$transaction(async (trx) => {
       const [department, existingUser, existingStaff, existingDoctor] = await Promise.all([
         trx.department.findFirst({ where: { id: input.departmentId, tenantId } }),
-        trx.user.findUnique({ where: { email: input.email } }),
+        "email" in input ? trx.user.findUnique({ where: { email: input.email } }) : null,
         trx.staffProfile.findFirst({ where: { tenantId, employeeId: normalizedEmployeeId } }),
         trx.doctorProfile.findFirst({ where: { tenantId, employeeId: normalizedEmployeeId } }),
       ]);
@@ -132,34 +144,34 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
         }
       }
 
-      const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
-      const roleName = input.type === "Doctor" ? "Doctor" : input.role;
-      const role = await trx.role.findFirst({ where: { tenantId, name: roleName } });
-      if (!role) {
-        throw new ApiError(
-          400,
-          `The ${roleName} role is not configured for this tenant. Create the standard role before adding staff.`,
-        );
+      const credentials = "password" in input ? input : null;
+      const hasSystemAccess = credentials !== null;
+      const roleName = input.type === "Doctor" ? "Doctor" : "role" in input ? input.role : null;
+      const role = roleName ? await trx.role.findFirst({ where: { tenantId, name: roleName } }) : null;
+      if (roleName && !role) {
+        throw new ApiError(400, `The ${roleName} role is not configured for this tenant. Create the standard role before adding staff.`);
       }
 
-      const user = await trx.user.create({
-        data: {
-          tenantId,
-          roleId: role.id,
-          isSuperAdmin: false,
-          name: input.name,
-          email: input.email,
-          passwordHash,
-          isActive: input.isActive,
-        },
-      });
+      const user = hasSystemAccess
+        ? await trx.user.create({
+            data: {
+              tenantId,
+              roleId: role!.id,
+              isSuperAdmin: false,
+              name: input.name,
+              email: credentials!.email,
+              passwordHash: await bcrypt.hash(credentials!.password, BCRYPT_ROUNDS),
+              isActive: input.isActive,
+            },
+          })
+        : null;
 
       const profile =
         input.type === "Doctor"
           ? await trx.doctorProfile.create({
               data: {
                 tenantId,
-                userId: user.id,
+                userId: user!.id,
                 departmentId: input.departmentId,
                 employeeId: normalizedEmployeeId,
                 specialization: input.specialization,
@@ -174,13 +186,17 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
           : await trx.staffProfile.create({
               data: {
                 tenantId,
-                userId: user.id,
+                userId: user?.id ?? null,
+                name: input.name,
+                email: "email" in input ? input.email : null,
                 employeeId: normalizedEmployeeId,
                 departmentId: input.departmentId,
                 wardId: input.wardId ?? null,
                 joiningDate: input.joiningDate ?? null,
                 phone: input.phone,
                 isActive: input.isActive,
+                designation: input.designation,
+                description: input.description,
               },
             });
 
@@ -205,14 +221,14 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
       }
 
       return {
-        user: {
+        user: user ? {
           id: user.id,
           name: user.name,
           email: user.email,
           tenantId,
-          roleId: role.id,
+          roleId: role!.id,
           isActive: user.isActive,
-        },
+        } : null,
         role,
         profile,
         availability: input.availability.map((slot) => ({ ...slot, isActive: true })),
@@ -224,13 +240,13 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
       entityType: input.type === "Doctor" ? "DoctorProfile" : "StaffProfile",
       entityId: result.profile.id,
       newValue: {
-        userId: result.user.id,
-        name: result.user.name,
-        email: result.user.email,
-        role: result.role.name,
+        userId: result.user?.id ?? null,
+        name: input.name,
+        email: result.user?.email ?? null,
+        role: result.role?.name ?? (input.type === "Staff" ? input.designation : "Doctor"),
         employeeId: normalizedEmployeeId,
         departmentId: input.departmentId,
-        isActive: result.user.isActive,
+        isActive: input.isActive,
         availabilityCount: input.availability.length,
       },
     });
@@ -301,13 +317,14 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
     })),
     ...staff.map((member) => ({
       id: member.id,
-      userId: member.User.id,
-      name: member.User.name,
-      email: member.User.email,
+      userId: member.User?.id ?? null,
+      hasSystemAccess: member.userId !== null,
+      name: member.User?.name ?? member.name,
+      email: member.User?.email ?? member.email ?? "",
       phone: member.phone || "",
-      role: member.User.Role?.name || member.designation || "Staff",
+      role: member.designation || member.User?.Role?.name || "Staff",
       type: "Staff" as const,
-      bio: member.description || member.designation || member.User.Role?.name || "Hospital staff",
+      bio: member.description || member.designation || member.User?.Role?.name || "Hospital staff",
       availability: member.StaffAvailability,
     })),
   ].sort((left, right) => left.name.localeCompare(right.name));

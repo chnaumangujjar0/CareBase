@@ -13,6 +13,8 @@ const medicineSchema = z.object({
   genericName: z.string().trim().max(200).nullish(),
   form: z.string().trim().max(80).nullish(),
   strength: z.string().trim().max(80).nullish(),
+  purchasePrice: z.number().finite().nonnegative().max(9_999_999_999.99).default(0),
+  sellingPrice: z.number().finite().nonnegative().max(9_999_999_999.99).default(0),
 });
 const stockTransactionSchema = z.object({
   pharmacyId: uuidSchema,

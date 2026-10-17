@@ -11,9 +11,19 @@ const uuidSchema = z.uuid();
 const pharmacyTypeSchema = z.enum(["central_store", "sub_store"]);
 const stockTypeSchema = z.enum(["IN", "OUT"]);
 const requestStatusSchema = z.enum(["pending", "approved", "rejected", "dispatched", "received", "partially_received", "not_received"]);
+type Transaction = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
-const roleName = (req: Request) => req.role?.name?.toLowerCase() ?? "";
-const isHeadPharmacist = (req: Request) => ["owner", "admin", "head pharmacist", "head_pharmacist"].includes(roleName(req));
+const roleName = (req: Request) => req.role?.name?.toLowerCase().replaceAll("_", " ").trim() ?? "";
+const isHeadPharmacist = (req: Request) => ["owner", "admin", "head pharmacist"].includes(roleName(req));
+
+const requirePharmacyAccess = async (tx: Transaction, req: Request, pharmacyId: string, tenantId: string, userId: string) => {
+  const pharmacy = await tx.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: { id: true, type: true, isActive: true, pharmacistUserId: true } });
+  if (!pharmacy) throw new ApiError(404, "Pharmacy not found.");
+  if (!isHeadPharmacist(req) && (pharmacy.type !== "sub_store" || pharmacy.pharmacistUserId !== userId)) {
+    throw new ApiError(403, "You can access only your assigned sub-pharmacy.");
+  }
+  return pharmacy;
+};
 
 const pharmacySelect = {
   id: true,
@@ -21,6 +31,7 @@ const pharmacySelect = {
   name: true,
   type: true,
   isActive: true,
+  pharmacistUserId: true,
 } as const;
 
 const stockInclude = {
@@ -61,18 +72,43 @@ export const listPharmacies = asyncHandler(async (req: Request, res: Response) =
     orderBy: [{ type: "asc" }, { name: "asc" }],
     include: { Pharmacist: { select: { id: true, name: true, email: true } }, Stocks: { include: stockInclude, orderBy: { Medicine: { name: "asc" } } } },
   });
+
   const data = pharmacies.map((pharmacy) => ({
     ...pharmacy,
-    stockCount: pharmacy.Stocks.reduce((total, stock) => total + stock.currentStock, 0),
-    lowStockCount: pharmacy.Stocks.filter((stock) => stock.currentStock <= stock.reorderLevel).length,
+    Stocks: isHeadPharmacist(req) || pharmacy.pharmacistUserId === userId ? pharmacy.Stocks : [],
+    stockCount: isHeadPharmacist(req) || pharmacy.pharmacistUserId === userId ? pharmacy.Stocks.reduce((total, stock) => total + stock.currentStock, 0) : 0,
+    lowStockCount: isHeadPharmacist(req) || pharmacy.pharmacistUserId === userId ? pharmacy.Stocks.filter((stock) => stock.currentStock <= stock.reorderLevel).length : 0,
   }));
   return res.status(200).json(new ApiResponse(200, data, "Pharmacies fetched successfully."));
+});
+
+export const listPharmacists = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId } = getTenantContext(req);
+  if (!isHeadPharmacist(req)) throw new ApiError(403, "Only pharmacy supervisors can list pharmacists.");
+  const pharmacists = await db.user.findMany({
+    where: {
+      tenantId,
+      isActive: true,
+      Role: { name: { in: ["Pharmacist", "Head Pharmacist"] } },
+    },
+    select: { id: true, name: true, email: true, Role: { select: { name: true } } },
+    orderBy: { name: "asc" },
+  });
+  return res.status(200).json(new ApiResponse(200, pharmacists.map((pharmacist) => ({
+    userId: pharmacist.id,
+    name: pharmacist.name,
+    email: pharmacist.email,
+    role: pharmacist.Role?.name ?? "Pharmacist",
+  })), "Pharmacists fetched successfully."));
 });
 
 export const createPharmacy = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId } = getTenantContext(req);
   if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can create pharmacy locations.");
   const input = parseRequest(pharmacySchema, req.body);
+  if (input.type === "central_store" && await db.pharmacy.findFirst({ where: { tenantId, type: "central_store" }, select: { id: true } })) {
+    throw new ApiError(409, "This hospital already has a main warehouse.");
+  }
   const pharmacy = await db.pharmacy.create({ data: { ...input, tenantId }, select: pharmacySelect });
   await writeAudit(req, "create", "Pharmacy", pharmacy.id, { name: pharmacy.name, type: pharmacy.type });
   return res.status(201).json(new ApiResponse(201, pharmacy, "Pharmacy created successfully."));
@@ -85,16 +121,21 @@ export const updatePharmacy = asyncHandler(async (req: Request, res: Response) =
   const input = parseRequest(z.object({ name: z.string().trim().min(2).max(160).optional(), type: pharmacyTypeSchema.optional(), isActive: z.boolean().optional() }).refine((value) => Object.keys(value).length > 0), req.body);
   const current = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
   if (!current) throw new ApiError(404, "Pharmacy not found.");
+  if (input.type === "central_store" && current.type !== "central_store" && await db.pharmacy.findFirst({ where: { tenantId, type: "central_store" }, select: { id: true } })) {
+    throw new ApiError(409, "This hospital already has a main warehouse.");
+  }
+  if (input.type === "central_store" && (await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: { pharmacistUserId: true } }))?.pharmacistUserId) {
+    throw new ApiError(400, "The main warehouse cannot have an assigned pharmacist.");
+  }
   const pharmacy = await db.pharmacy.update({ where: { id: pharmacyId }, data: input, select: pharmacySelect });
   await writeAudit(req, "update", "Pharmacy", pharmacy.id, input);
   return res.status(200).json(new ApiResponse(200, pharmacy, "Pharmacy updated successfully."));
 });
 
 export const listPharmacyStock = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = getTenantContext(req);
+  const { tenantId, userId } = getTenantContext(req);
   const pharmacyId = parseParamUuid(req, "pharmacyId");
-  const pharmacy = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
-  if (!pharmacy) throw new ApiError(404, "Pharmacy not found.");
+  await requirePharmacyAccess(db, req, pharmacyId, tenantId, userId);
   const stocks = await db.pharmacyStock.findMany({ where: { pharmacyId, tenantId }, include: stockInclude, orderBy: { Medicine: { name: "asc" } } });
   return res.status(200).json(new ApiResponse(200, stocks, "Pharmacy stock fetched successfully."));
 });
@@ -142,8 +183,9 @@ export const createPharmacyStockTransaction = asyncHandler(async (req: Request, 
 });
 
 export const listPharmacyStockTransactions = asyncHandler(async (req: Request, res: Response) => {
-  const { tenantId } = getTenantContext(req);
+  const { tenantId, userId } = getTenantContext(req);
   const pharmacyId = parseParamUuid(req, "pharmacyId");
+  await requirePharmacyAccess(db, req, pharmacyId, tenantId, userId);
   const medicineId = req.query.medicineId ? uuidSchema.parse(req.query.medicineId) : undefined;
   const transactions = await db.stockTransaction.findMany({
     where: { tenantId, pharmacyId, ...(medicineId ? { medicineId } : {}) },
@@ -174,16 +216,18 @@ export const createStockRequest = asyncHandler(async (req: Request, res: Respons
   if (input.requestingPharmacyId === input.fulfillingPharmacyId) throw new ApiError(400, "Requesting and fulfilling pharmacies must be different.");
   const request = await db.$transaction(async (tx) => {
     const [requestingPharmacy, fulfillingPharmacy, medicines] = await Promise.all([
-      tx.pharmacy.findFirst({ where: { id: input.requestingPharmacyId, tenantId, isActive: true }, select: { id: true } }),
-      tx.pharmacy.findFirst({ where: { id: input.fulfillingPharmacyId, tenantId, isActive: true }, select: { id: true } }),
+      tx.pharmacy.findFirst({ where: { id: input.requestingPharmacyId, tenantId, isActive: true }, select: { id: true, type: true } }),
+      tx.pharmacy.findFirst({ where: { id: input.fulfillingPharmacyId, tenantId, isActive: true }, select: { id: true, type: true } }),
       tx.medicine.findMany({ where: { tenantId, isActive: true, id: { in: input.items.map((item) => item.medicineId) } }, select: { id: true } }),
     ]);
-    if (!requestingPharmacy || !fulfillingPharmacy) throw new ApiError(404, "Both pharmacies must be active locations in this hospital.");
+      if (!requestingPharmacy || !fulfillingPharmacy) throw new ApiError(404, "Both pharmacies must be active locations in this hospital.");
+      if (requestingPharmacy.type !== "sub_store") throw new ApiError(400, "Only a sub-pharmacy can request stock.");
+      if (fulfillingPharmacy.type !== "central_store") throw new ApiError(400, "Stock requests must be fulfilled by the main warehouse.");
     if (!isHeadPharmacist(req) && (await tx.pharmacy.findFirst({ where: { id: input.requestingPharmacyId, tenantId, pharmacistUserId: userId }, select: { id: true } })) === null) {
       throw new ApiError(403, "Only the assigned sub-pharmacist can request stock for this pharmacy.");
     }
     if (medicines.length !== new Set(input.items.map((item) => item.medicineId)).size) throw new ApiError(404, "One or more requested medicines are not active.");
-    return tx.stockRequest.create({ data: { tenantId, requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, requestedBy: userId, notes: input.notes ?? null, Items: { create: input.items.map((item) => ({ tenantId, medicineId: item.medicineId, requestedQuantity: item.requestedQuantity })) } }, include: requestInclude });
+    return tx.stockRequest.create({ data: { tenantId, requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, requestedBy: userId, notes: input.notes ?? null, Items: { create: input.items.map((item) => ({ medicineId: item.medicineId, requestedQuantity: item.requestedQuantity })) } }, include: requestInclude });
   });
   await writeAudit(req, "create", "StockRequest", request.id, { requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, itemCount: input.items.length });
   return res.status(201).json(new ApiResponse(201, request, "Stock request created successfully."));
@@ -210,9 +254,14 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
     if (["approved", "rejected", "dispatched"].includes(input.status) && !isHeadPharmacist(req) && !isFulfiller) throw new ApiError(403, "Only the assigned head pharmacist can process this request.");
     if (["received", "partially_received", "not_received"].includes(input.status) && !isRequester) throw new ApiError(403, "Only the requesting sub-pharmacist can confirm this delivery.");
     if (input.status === "approved") {
-      const quantities = new Map((input.items ?? []).filter((item) => item.approvedQuantity !== undefined).map((item) => [item.medicineId, item.approvedQuantity!]));
+      const suppliedItems = input.items ?? [];
+      const quantities = new Map(suppliedItems.filter((item) => item.approvedQuantity !== undefined).map((item) => [item.medicineId, item.approvedQuantity!]));
+      if (quantities.size !== suppliedItems.filter((item) => item.approvedQuantity !== undefined).length || [...quantities.keys()].some((medicineId) => !request.Items.some((item) => item.medicineId === medicineId))) {
+        throw new ApiError(400, "Approval quantities must reference each requested medicine at most once.");
+      }
       for (const item of request.Items) {
         const quantity = quantities.get(item.medicineId) ?? item.requestedQuantity;
+        if (quantity > item.requestedQuantity) throw new ApiError(400, "Approved quantity cannot exceed requested quantity.");
         await tx.stockRequestItem.update({ where: { id: item.id }, data: { approvedQuantity: quantity } });
       }
     }
@@ -226,12 +275,31 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
       }
     }
     if (["received", "partially_received", "not_received"].includes(input.status)) {
-      if (!input.items?.length && input.status !== "not_received") throw new ApiError(400, "Received quantities are required.");
-      const receivedQuantities = new Map((input.items ?? []).map((item) => [item.medicineId, item.receivedQuantity ?? 0]));
+      const suppliedItems = input.items ?? [];
+      const receivedEntries = suppliedItems.filter((item) => item.receivedQuantity !== undefined);
+      const receivedQuantities = new Map(receivedEntries.map((item) => [item.medicineId, item.receivedQuantity!]));
+      if (receivedQuantities.size !== request.Items.length || request.Items.some((item) => !receivedQuantities.has(item.medicineId))) {
+        throw new ApiError(400, "Provide one received quantity for every requested medicine.");
+      }
+      if (receivedQuantities.size !== receivedEntries.length || [...receivedQuantities.keys()].some((medicineId) => !request.Items.some((item) => item.medicineId === medicineId))) {
+        throw new ApiError(400, "Each received quantity must reference a requested medicine exactly once.");
+      }
+      let totalReceived = 0;
+      let totalApproved = 0;
       for (const item of request.Items) {
-        const quantity = receivedQuantities.get(item.medicineId) ?? 0;
+        const quantity = receivedQuantities.get(item.medicineId)!;
         const approved = item.approvedQuantity ?? item.requestedQuantity;
         if (quantity > approved) throw new ApiError(400, "Received quantity cannot exceed approved quantity.");
+        totalReceived += quantity;
+        totalApproved += approved;
+      }
+      if ((input.status === "received" && totalReceived !== totalApproved)
+        || (input.status === "partially_received" && (totalReceived === 0 || totalReceived >= totalApproved))
+        || (input.status === "not_received" && totalReceived !== 0)) {
+        throw new ApiError(400, "Received quantities do not match the selected delivery status.");
+      }
+      for (const item of request.Items) {
+        const quantity = receivedQuantities.get(item.medicineId)!;
         await tx.stockRequestItem.update({ where: { id: item.id }, data: { receivedQuantity: quantity } });
         if (quantity > 0) {
           await tx.pharmacyStock.upsert({ where: { pharmacyId_medicineId_tenantId: { pharmacyId: request.requestingPharmacyId, medicineId: item.medicineId, tenantId } }, create: { pharmacyId: request.requestingPharmacyId, medicineId: item.medicineId, tenantId, currentStock: quantity }, update: { currentStock: { increment: quantity } } });
@@ -254,6 +322,7 @@ export const assignPharmacist = asyncHandler(async (req: Request, res: Response)
   const input = parseRequest(pharmacistAssignmentSchema, req.body);
   const pharmacy = await db.pharmacy.findFirst({ where: { id: pharmacyId, tenantId }, select: pharmacySelect });
   if (!pharmacy) throw new ApiError(404, "Pharmacy not found.");
+  if (pharmacy.type === "central_store" && input.pharmacistUserId) throw new ApiError(400, "The main warehouse does not require an assigned pharmacist.");
   if (input.pharmacistUserId) {
     const pharmacist = await db.user.findFirst({
       where: { id: input.pharmacistUserId, tenantId, isActive: true },
@@ -322,7 +391,7 @@ export const getPharmacyDashboard = asyncHandler(async (req: Request, res: Respo
   since.setDate(since.getDate() - 30);
   const [sales, lowStock, pharmacies] = await Promise.all([
     db.sale.findMany({ where: { tenantId, createdAt: { gte: since } }, select: { createdAt: true, totalAmount: true, pharmacyId: true, Pharmacy: { select: { name: true } } }, orderBy: { createdAt: "asc" } }),
-    db.pharmacyStock.findMany({ where: { tenantId, currentStock: { lte: 10 } }, include: { Pharmacy: { select: { id: true, name: true } }, Medicine: { select: { id: true, name: true } } }, orderBy: { currentStock: "asc" }, take: 100 }),
+    db.pharmacyStock.findMany({ where: { tenantId }, include: { Pharmacy: { select: { id: true, name: true } }, Medicine: { select: { id: true, name: true } } }, orderBy: { currentStock: "asc" } }),
     db.pharmacy.findMany({ where: { tenantId }, select: { id: true, name: true, type: true, isActive: true, pharmacistUserId: true } }),
   ]);
   const byDay = new Map<string, { date: string; sales: number; transactions: number }>();
@@ -333,5 +402,6 @@ export const getPharmacyDashboard = asyncHandler(async (req: Request, res: Respo
     row.transactions += 1;
     byDay.set(date, row);
   }
-  return res.status(200).json(new ApiResponse(200, { salesByDay: [...byDay.values()], lowStock, pharmacies, totals: { sales: sales.reduce((sum, sale) => sum + Number(sale.totalAmount), 0), transactions: sales.length, lowStock: lowStock.length } }, "Pharmacy dashboard fetched successfully."));
+  const lowStockItems = lowStock.filter((stock) => stock.currentStock <= stock.reorderLevel).slice(0, 100);
+  return res.status(200).json(new ApiResponse(200, { salesByDay: [...byDay.values()], lowStock: lowStockItems, pharmacies, totals: { sales: sales.reduce((sum, sale) => sum + Number(sale.totalAmount), 0), transactions: sales.length, lowStock: lowStockItems.length } }, "Pharmacy dashboard fetched successfully."));
 });

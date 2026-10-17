@@ -762,6 +762,7 @@ export const listAvailableBeds = asyncHandler(async (req: Request, res: Response
     where: {
       tenantId,
       status: "available",
+      currentPatientId: null,
       BedAssignment: { none: { releasedAt: null } },
     },
     orderBy: [{ Room: { Ward: { name: "asc" } } }, { Room: { name: "asc" } }, { code: "asc" }],

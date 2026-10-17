@@ -12,6 +12,7 @@ export const SAFE_USER_SELECT = {
   createdAt: true,
   updatedAt: true,
   isSuperAdmin: true,
+  Tenant: { select: { approvalStatus: true, approvalNote: true } },
 } as const;
 
 export const completeOnboardingSchema = z.object({

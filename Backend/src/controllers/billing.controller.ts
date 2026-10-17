@@ -147,11 +147,15 @@ export const createInpatientInvoice = asyncHandler(async (req: Request, res: Res
 
 const invoiceItemSchema = z.object({ rateId: uuidSchema, quantity: z.number().positive().max(100000), description: z.string().trim().max(300).optional() });
 
+const lockInvoice = (tx: Transaction, tenantId: string, invoiceId: string) =>
+  tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${tenantId}:invoice:${invoiceId}`}, 0))`;
+
 export const addInvoiceItem = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId } = getTenantContext(req);
   const invoiceId = parseParamUuid(req, "invoiceId");
   const input = parseRequest(invoiceItemSchema, req.body);
   const invoice = await db.$transaction(async (tx) => {
+    await lockInvoice(tx, tenantId, invoiceId);
     const current = await tx.billingInvoice.findFirst({ where: { id: invoiceId, tenantId } });
     if (!current || current.status === "void" || current.status === "paid") throw new ApiError(409, "Only an open invoice can receive new charges.");
     const rate = await tx.billingRate.findFirst({ where: { id: input.rateId, tenantId, isActive: true } });
@@ -172,10 +176,11 @@ export const collectPayment = asyncHandler(async (req: Request, res: Response) =
   const invoiceId = parseParamUuid(req, "invoiceId");
   const input = parseRequest(paymentSchema, req.body);
   const invoice = await db.$transaction(async (tx) => {
+    await lockInvoice(tx, tenantId, invoiceId);
     const current = await tx.billingInvoice.findFirst({ where: { id: invoiceId, tenantId } });
     if (!current || current.status === "void" || current.status === "paid") throw new ApiError(409, "This invoice cannot accept payment.");
     const balance = Number(current.balanceAmount);
-    if (Math.abs(input.amount - balance) > 0.01) throw new ApiError(400, "Full invoice balance must be paid.");
+    if (roundMoney(input.amount) !== roundMoney(balance)) throw new ApiError(400, "Full invoice balance must be paid.");
     await tx.billingPayment.create({ data: { tenantId, invoiceId, collectedBy: userId, amount: amountString(input.amount), method: input.method, reference: input.reference ?? null, notes: input.notes ?? null } });
     return recalculateInvoice(tx, invoiceId, tenantId);
   });

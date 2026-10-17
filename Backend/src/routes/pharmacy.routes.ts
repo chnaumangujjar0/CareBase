@@ -9,6 +9,7 @@ import {
   assignPharmacist,
   getPharmacyDashboard,
   listPharmacies,
+  listPharmacists,
   listPharmacyStock,
   listPharmacyStockTransactions,
   listStockRequests,
@@ -23,6 +24,7 @@ router.use(requireAuth, checkEligibilty);
 router.route("/")
   .get(requirePermissions("clinical:medicines:read"), listPharmacies)
   .post(requirePermissions("clinical:medicines:write"), createPharmacy);
+router.get("/pharmacists", requirePermissions("clinical:medicines:read"), listPharmacists);
 router.patch("/:pharmacyId", requirePermissions("clinical:medicines:write"), updatePharmacy);
 router.patch("/:pharmacyId/pharmacist", requirePermissions("clinical:medicines:write"), assignPharmacist);
 router.get("/:pharmacyId/stock", requirePermissions("clinical:medicines:read"), listPharmacyStock);

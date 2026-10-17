@@ -9,6 +9,8 @@ export type AuthenticatedUser = Pick<
   | "roleId"
   | "isSuperAdmin"
   | "isActive"
->;
+> & {
+  Tenant: { approvalStatus: string; approvalNote: string | null } | null;
+};
 
 export type { Role };
