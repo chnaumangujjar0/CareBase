@@ -10,7 +10,7 @@ const Dashboard = () => {
   const user = useSelector((state: RootState) => state.auth.user);
 
   if (user?.isSuperAdmin && user.roleId == null) {
-    return <Navigate to="/onboarding" replace />;
+    return <Navigate to="/super-admin" replace />;
   }
   const role = user?.role?.trim().toLowerCase();
 

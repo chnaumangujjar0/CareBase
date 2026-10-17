@@ -5,10 +5,12 @@ import { Navigate, Outlet } from "react-router";
 const SuperAdmin = () => {
     const user = useSelector((selectCurrentUser));
 
-    if(user && user.isSuperAdmin && !user.tenantId && !user.roleId){
+    if(user && !user.isSuperAdmin && !user.tenantId && !user.roleId){
         return <Outlet />
-    }else{
-        return <Navigate to="/unauthorized" replace />;
+    } else if (!user) {
+        return <Navigate to="/login" replace />;
+    } else {
+        return <Navigate to={user?.isSuperAdmin ? "/super-admin" : user?.Tenant?.approvalStatus !== "approved" ? "/approval-status" : "/"} replace />;
     }
 
   

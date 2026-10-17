@@ -1,0 +1,117 @@
+.pharmacy-sale-receipt {
+  padding: 8px 4px;
+  color: #1e293b;
+
+  &__header,
+  &__total {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  &__header {
+    padding-bottom: 20px;
+    border-bottom: 1px solid #e2e8f0;
+
+    h4 {
+      margin: 0 0 4px;
+      color: #0f766e;
+    }
+  }
+
+  &__meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 20px;
+    padding: 18px 0;
+
+    > span {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+
+    th,
+    td {
+      padding: 10px 8px;
+      border-bottom: 1px solid #e2e8f0;
+      text-align: left;
+    }
+
+    th {
+      color: #475569;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    th:not(:first-child),
+    td:not(:first-child) {
+      text-align: right;
+      white-space: nowrap;
+    }
+  }
+
+  &__total {
+    align-items: center;
+    padding: 18px 8px 12px;
+
+    h4 {
+      margin: 0;
+      color: #0f766e;
+    }
+  }
+
+  &__thanks {
+    display: block;
+    padding: 16px 8px 0;
+    border-top: 1px dashed #cbd5e1;
+    color: #64748b;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .pharmacy-sale-receipt__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+
+  #pharmacy-sale-receipt,
+  #pharmacy-sale-receipt * {
+    visibility: visible !important;
+  }
+
+  #pharmacy-sale-receipt {
+    position: fixed;
+    inset: 0 auto auto 0;
+    z-index: 999999;
+    width: 100%;
+    padding: 0;
+    background: #fff;
+    color: #1e293b;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .pharmacy-sale-receipt__table tr {
+    break-inside: avoid;
+  }
+}

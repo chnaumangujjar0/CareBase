@@ -4,6 +4,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-height: 100dvh;
   background-color: #F1F5F9;
   padding-top: 72px; // Offsets the fixed 72px header
   overflow-x: hidden;
@@ -29,6 +30,12 @@
 
   .page-content {
     margin-left: 56px;
+    width: calc(100% - 56px);
+  }
+}
+
+@media (max-width: 520px) {
+  .page-content {
     width: calc(100% - 56px);
   }
 }

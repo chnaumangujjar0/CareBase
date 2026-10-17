@@ -15,8 +15,8 @@ const Onboarding = () => {
   const dispatch = useDispatch()
   const user = useSelector(selectCurrentUser);
   useEffect(() => {
-    if(user?.isSuperAdmin && user.roleId){
-      navigate("/")
+    if(user?.isSuperAdmin){
+      navigate("/super-admin")
       return
     }
   }, [navigate, user?.isSuperAdmin, user?.roleId])
@@ -63,7 +63,7 @@ const Onboarding = () => {
         dispatch(setUser(res.user))
         dispatch(setTenant(res.tenant))
         
-        navigate("/");
+        navigate("/approval-status");
       } catch (err) {
           if(err instanceof Error) {
 

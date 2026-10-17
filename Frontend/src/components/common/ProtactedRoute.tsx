@@ -25,8 +25,16 @@ export const ProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
-  if (!skipOnboardingCheck && user.isSuperAdmin && user.roleId == null) {
+  if (!skipOnboardingCheck && user.isSuperAdmin && !user.tenantId) {
+    return <Navigate to="/super-admin" replace />;
+  }
+
+  if (!skipOnboardingCheck && (!user.tenantId || !user.roleId)) {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  if (!skipOnboardingCheck && user.Tenant?.approvalStatus && user.Tenant.approvalStatus !== "approved") {
+    return <Navigate to="/approval-status" replace />;
   }
 
   if (

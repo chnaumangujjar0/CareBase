@@ -315,7 +315,7 @@ function Appointments() {
           <p className="appointments-subtitle">Review bookings, schedules, and patient visits.</p>
         </div>
         <div className="appointments-header-actions">
-          <Button icon={<Printer size={16} />} onClick={() => window.print()} aria-label="Print appointments">
+          <Button icon={<Printer size={16} />} onClick={() => window.print()} aria-label="Print appointments" title="Print the appointments currently shown">
             Print
           </Button>
           <Button type="primary" icon={<Plus size={16} />} onClick={openCreate}>

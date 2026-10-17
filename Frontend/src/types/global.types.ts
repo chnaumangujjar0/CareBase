@@ -69,7 +69,8 @@ export interface AvailabilityWindow {
 
 export interface StaffDirectoryEntry {
   id: string;
-  userId: string;
+  userId: string | null;
+  hasSystemAccess?: boolean;
   name: string;
   email: string;
   phone: string;
@@ -82,8 +83,6 @@ export interface StaffDirectoryEntry {
 
 interface StaffProfilePayloadBase {
   name: string;
-  email: string;
-  password: string;
   employeeId: string;
   departmentId: string;
   phone: string;
@@ -97,13 +96,28 @@ export type CreateStaffProfilePayload = StaffProfilePayloadBase &
   (
     | {
         type: "Doctor";
+        email: string;
+        password: string;
         specialization: string;
         licenseNumber: string;
         qualifications?: string;
       }
     | {
         type: "Staff";
+        hasSystemAccess: true;
+        email: string;
+        password: string;
         role: string;
+        designation: string;
+        description?: string;
+        wardId?: string;
+        joiningDate?: string;
+      }
+    | {
+        type: "Staff";
+        hasSystemAccess: false;
+        designation: string;
+        description?: string;
         wardId?: string;
         joiningDate?: string;
       }
@@ -117,7 +131,7 @@ export interface CreatedStaffProfileResponse {
     tenantId: string;
     roleId: string;
     isActive: boolean;
-  };
+  } | null;
   profile: { id: string };
   availability: AvailabilityWindow[];
   type: "Doctor" | "Staff";
@@ -225,6 +239,7 @@ export interface CreatePatientPayload {
   gender?: "male" | "female" | "other" | null;
   contactPhone?: string | null;
   contactEmail?: string | null;
+  address?: string | null;
 }
 
 export interface PatientMedicalData {
@@ -415,6 +430,23 @@ export interface PharmacyRecord {
   Pharmacist?: { id: string; name: string; email: string } | null;
 }
 
+export interface PharmacySaleRecord {
+  id: string;
+  createdAt: string;
+  customerName: string;
+  customerPhone: string | null;
+  paymentMethod: "cash" | "card" | "insurance";
+  totalAmount: number | string;
+  Pharmacy: Pick<PharmacyRecord, "id" | "name">;
+  Items: Array<{
+    id: string;
+    quantity: number;
+    unitSellingPrice: number | string;
+    lineTotal: number | string;
+    Medicine: Pick<ClinicalMedicine, "id" | "name" | "strength">;
+  }>;
+}
+
 export type StockRequestStatus = "pending" | "approved" | "rejected" | "dispatched" | "received" | "partially_received" | "not_received";
 
 export interface StockRequestItem {
@@ -435,8 +467,8 @@ export interface StockRequestRecord {
   dispatchedAt: string | null;
   receivedAt: string | null;
   receiptNote: string | null;
-  RequestingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive">;
-  FulfillingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive">;
+  RequestingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive" | "pharmacistUserId">;
+  FulfillingPharmacy: Pick<PharmacyRecord, "id" | "name" | "type" | "isActive" | "pharmacistUserId">;
   Requester: { id: string; name: string };
   Handler: { id: string; name: string } | null;
   Receiver: { id: string; name: string } | null;

@@ -1,0 +1,39 @@
+@import "variables";
+
+.invoice-print-actions { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
+.invoice-print { padding: 1.25rem; color: #1E293B; background: #fff; }
+.invoice-print-header,
+.invoice-patient { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
+.invoice-print-header { padding-bottom: 1rem; border-bottom: 2px solid #0F766E; }
+.invoice-brand { color: #0F766E; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; }
+.invoice-print-header h3 { margin: 0.25rem 0 0; color: #0F172A; }
+.invoice-number,
+.invoice-patient > div { display: grid; gap: 0.2rem; }
+.invoice-patient { align-items: center; padding: 1rem 0; }
+.invoice-patient .ant-typography { margin: 0; }
+.invoice-totals { display: grid; gap: 0.55rem; width: min(100%, 20rem); margin: 1rem 0 0 auto; }
+.invoice-totals > div { display: flex; justify-content: space-between; gap: 1rem; }
+.invoice-totals span { color: #475569; }
+.invoice-totals .invoice-balance { padding-top: 0.65rem; border-top: 1px solid #CBD5E1; color: #0F766E; font-size: 1.05rem; }
+.invoice-totals .invoice-balance span { color: #0F766E; }
+.invoice-print-footer { margin-top: 2rem; padding-top: 0.75rem; border-top: 1px solid #E2E8F0; color: #64748B; font-size: 0.75rem; }
+
+@media print {
+  @page { size: portrait; margin: 14mm; }
+  body.print-invoice-mode { background: #fff !important; }
+  body.print-invoice-mode > *:not(.ant-modal-root) { display: none !important; }
+  body.print-invoice-mode .app-layout,
+  body.print-invoice-mode .top-header,
+  body.print-invoice-mode .sidebar,
+  body.print-invoice-mode .invoice-print-actions,
+  body.print-invoice-mode .invoice-edit-form,
+  body.print-invoice-mode .ant-modal-mask,
+  body.print-invoice-mode .ant-modal-close,
+  body.print-invoice-mode .ant-modal-header { display: none !important; }
+  body.print-invoice-mode .ant-modal-root,
+  body.print-invoice-mode .ant-modal-wrap { position: static !important; inset: auto !important; overflow: visible !important; }
+  body.print-invoice-mode .ant-modal,
+  body.print-invoice-mode .ant-modal-content { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
+  body.print-invoice-mode .ant-modal-body { padding: 0 !important; }
+  body.print-invoice-mode .invoice-print { padding: 0 !important; }
+}

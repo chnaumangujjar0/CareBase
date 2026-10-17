@@ -60,6 +60,16 @@
   gap: 0.4rem;
 }
 
+.patient-export-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.55rem;
+
+  .patient-export-limit { min-width: 0; flex: 1; }
+  .ant-btn { flex: 0 0 auto; }
+}
+
 .patient-eyebrow {
   margin: 0 0 0.15rem;
   color: $primary;
@@ -447,6 +457,39 @@
     font-size: $font-size-sm;
     font-weight: 600;
   }
+}
+
+.patient-print-record { display: none; }
+
+@media print {
+  @page { size: portrait; margin: 12mm; }
+  body.print-patient-record-mode { background: #fff !important; color: #1E293B !important; }
+  body.print-patient-record-mode .app-layout { display: block !important; min-height: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
+  body.print-patient-record-mode .top-header,
+  body.print-patient-record-mode .sidebar,
+  body.print-patient-record-mode .Toastify,
+  body.print-patient-record-mode .ant-modal-root { display: none !important; }
+  body.print-patient-record-mode .main-wrapper { display: block !important; }
+  body.print-patient-record-mode .page-content { width: 100% !important; margin: 0 !important; }
+  body.print-patient-record-mode .patient-page { display: block !important; min-height: 0 !important; padding: 0 !important; }
+  body.print-patient-record-mode .patient-page > :not(.patient-print-record) { display: none !important; }
+  body.print-patient-record-mode .patient-print-record { display: block !important; color: #1E293B !important; }
+  .patient-print-header { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 2px solid #0F766E; }
+  .patient-print-header h1 { margin: 0.25rem 0 0; color: #0F172A; font-size: 1.5rem; }
+  .patient-print-header > div:last-child { display: grid; align-content: start; gap: 0.25rem; text-align: right; }
+  .patient-print-header span { color: #475569; font-size: 0.75rem; }
+  .patient-print-header > div:first-child > span { color: #0F766E; font-weight: 700; letter-spacing: 0.08em; }
+  .patient-print-section { margin-top: 1rem; }
+  .patient-print-section h2 { margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #CBD5E1; color: #0F766E; font-size: 1rem; }
+  .patient-print-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1.25rem; margin: 0; }
+  .patient-print-details > div { display: grid; grid-template-columns: minmax(6.5rem, 0.7fr) minmax(0, 1.3fr); gap: 0.5rem; padding: 0.2rem 0; border-bottom: 1px solid #E2E8F0; }
+  .patient-print-details dt,
+  .patient-print-details dd { margin: 0; font-size: 0.72rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .patient-print-details dt { color: #475569; }
+  .patient-print-details dd { color: #1E293B; }
+  .patient-print-medical-entry { margin-top: 0.7rem; padding: 0.6rem; border: 1px solid #E2E8F0; border-left: 3px solid #0F766E; border-radius: 4px; break-inside: avoid; }
+  .patient-print-medical-entry h3 { margin: 0 0 0.4rem; color: #0F172A; font-size: 0.8rem; }
+  .patient-print-section > p { margin: 0.25rem 0; font-size: 0.75rem; }
 }
 
 .patient-history-fields {

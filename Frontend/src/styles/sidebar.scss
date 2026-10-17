@@ -25,47 +25,6 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       margin-right: 5px;
     }
 
-    @media (max-width: 768px) {
-      .sidebar {
-        top: 64px;
-        height: calc(100vh - 64px);
-        width: 56px;
-      }
-
-      .sidebar:hover {
-        width: 56px;
-      }
-
-      .sidebar .header,
-      .sidebar .footer,
-      .sidebar .logoutWrapper {
-        min-width: 56px;
-        padding-left: 0.6rem;
-        padding-right: 0.6rem;
-      }
-
-      .sidebar .brandText,
-      .sidebar .sectionTitle,
-      .sidebar .linkLabel,
-      .sidebar .sub-link,
-      .sidebar .userInfo {
-        display: none;
-      }
-
-      .sidebar .link {
-        justify-content: center;
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-      }
-
-      .sidebar .linkLock {
-        display: none;
-      }
-
-      .sidebar .footer {
-        justify-content: center;
-      }
-    }
     .sub-link{
       display: block;
     }
@@ -264,4 +223,62 @@ $transition-speed: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     background-color: #FEF2F2 !important; 
     color: #DC2626 !important;
   }
+}
+
+@media (max-width: 768px) {
+  .sidebar,
+  .sidebar:hover {
+    top: 64px;
+    height: calc(100vh - 64px);
+    height: calc(100dvh - 64px);
+    width: 56px;
+    overflow-x: hidden;
+  }
+
+  .sidebar .header,
+  .sidebar .footer,
+  .sidebar .logoutWrapper {
+    min-width: 56px;
+    padding-left: 0.45rem;
+    padding-right: 0.45rem;
+  }
+
+  .sidebar .header { justify-content: center; }
+  .sidebar .brandText,
+  .sidebar .sectionTitle,
+  .sidebar .linkLabel,
+  .sidebar .sub-link,
+  .sidebar .userInfo { display: none !important; }
+  .sidebar .section { min-width: 56px; }
+  .sidebar .link {
+    justify-content: center;
+    min-height: 2.75rem;
+    padding-right: 0.5rem;
+    padding-left: 0.5rem;
+  }
+  .sidebar .linkLock { display: none; }
+  .sidebar .divider { margin: 0.5rem 0; }
+
+  /* Allow touch users to reveal the full navigation and its nested routes. */
+  .sidebar:hover {
+    width: $expanded-width;
+    box-shadow: 4px 0 16px rgba(15, 23, 42, 0.12);
+  }
+  .sidebar:hover .header,
+  .sidebar:hover .section,
+  .sidebar:hover .logoutWrapper { min-width: $expanded-width; }
+  .sidebar:hover .brandText,
+  .sidebar:hover .sectionTitle,
+  .sidebar:hover .linkLabel,
+  .sidebar:hover .sub-link { display: block !important; }
+  .sidebar:hover .linkLabel,
+  .sidebar:hover .brandText { opacity: 1; }
+}
+
+@media (max-height: 560px) {
+  .sidebar .header { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+  .sidebar .navScroll { padding-top: 0.35rem; padding-bottom: 0.35rem; }
+  .sidebar .section { margin-bottom: 0.35rem; }
+  .sidebar .link { min-height: 2.3rem; padding-top: 0.35rem; padding-bottom: 0.35rem; }
+  .sidebar .logoutWrapper { padding-bottom: 0.2rem; }
 }

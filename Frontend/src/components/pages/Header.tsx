@@ -7,6 +7,7 @@ import { selectCurrentUser, clearUser } from "../../store/authSlice";
 import { logoutUser } from "../../services/api";
 import Logo from "../../assets/carebase-logo-full.svg";
 import "../../styles/header.scss"; 
+import { toast } from "react-toastify";
 
 export const Header = () => {
   const user = useSelector(selectCurrentUser);
@@ -45,7 +46,7 @@ export const Header = () => {
         </div>
 
         <div className="header-actions">
-          <button className="icon-btn" aria-label="Notifications">
+          <button className="icon-btn" aria-label="Notifications" title="Notifications are not available yet" onClick={() => toast.info("Notifications are not available yet.")}>
             <Bell size={20} strokeWidth={2} />
             <span className="notification-dot"></span>
           </button>

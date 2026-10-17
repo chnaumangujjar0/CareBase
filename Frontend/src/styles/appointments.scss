@@ -297,10 +297,24 @@
 }
 
 @media print {
+  @page { size: landscape; margin: 12mm; }
+  body { background: #ffffff !important; color: #1E293B !important; }
+  .top-header,
+  .sidebar,
   .appointments-header-actions,
   .appointments-toolbar,
-  .appointment-menu-button { display: none !important; }
+  .appointment-menu-button,
+  .ant-modal-root,
+  .Toastify,
+  .ant-spin-nested-loading > .ant-spin { display: none !important; }
+  .app-layout { display: block !important; min-height: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
+  .main-wrapper { display: block !important; }
+  .page-content { width: 100% !important; margin: 0 !important; }
+  .appointments-page { color: #1E293B !important; }
+  .appointments-header { border-bottom: 2px solid #0F766E; padding-bottom: 0.75rem; }
+  .appointments-eyebrow { color: #0F766E !important; }
+  .appointments-subtitle { color: #475569 !important; }
   .appointments-page { padding: 0; }
-  .appointment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .appointment-card { break-inside: avoid; box-shadow: none; }
+  .appointment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+  .appointment-card { break-inside: avoid; box-shadow: none; border-color: #CBD5E1; }
 }

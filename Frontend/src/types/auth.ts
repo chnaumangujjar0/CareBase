@@ -13,6 +13,7 @@ export interface AuthUser {
   updatedAt: string;
   role?: string | null;
   permissions?: string[];
+  Tenant?: { approvalStatus: "pending" | "approved" | "rejected"; approvalNote: string | null } | null;
 }
 
 export type Permission = string;
@@ -34,6 +35,18 @@ export interface Tenant {
   state?: string;
   country?: string;
   postalCode?: string;
+  approvalStatus?: "pending" | "approved" | "rejected";
+  approvalNote?: string | null;
+  approvalReviewedAt?: string | null;
+}
+
+export interface PlatformTenant extends Tenant {
+  isActive: boolean;
+  approvalStatus: "pending" | "approved" | "rejected";
+  approvalNote: string | null;
+  approvalReviewedAt: string | null;
+  User: Array<{ id: string; name: string; email: string }>;
+  _count: { User: number; Patient: number };
 }
 
 export interface LoginPayload {

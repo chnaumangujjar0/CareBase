@@ -1,7 +1,7 @@
 import axios from "axios"
 const API_URL = import.meta.env.VITE_API_URL;
 import api from "./axiosinstance.js"
-import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, SignupPayload } from "../types/auth.js";
+import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, PlatformTenant, SignupPayload } from "../types/auth.js";
 import type {
   AvailabilityWindow,
   AppointmentDoctorOption,
@@ -46,6 +46,7 @@ import type {
   StockRequestRecord,
   StockRequestStatus,
   PharmacyDashboardData,
+  PharmacySaleRecord,
   BillingCategory,
   BillingInvoice,
   BillingRate,
@@ -55,7 +56,6 @@ import type { Tenant } from "../types/auth";
 // user apis
 
 export const registerUser = async (values: SignupPayload) => {
-  console.log(values)
   const res = await axios.post(`${API_URL}/user/register`, {
     name: values.name.trim(),
     email: values.email.trim(),
@@ -105,6 +105,19 @@ export const configureTenat = async (values: OnboardingPayload | FormData) => {
 
     return res.data.data as OnboardingResponseData
 }
+
+export const getPlatformTenants = async (): Promise<PlatformTenant[]> => {
+  const res = await api.get("/super-admin/tenants");
+  return res.data.data as PlatformTenant[];
+};
+
+export const updatePlatformTenantApproval = async (
+  tenantId: string,
+  payload: { status: "pending" | "approved" | "rejected"; note?: string },
+): Promise<Pick<PlatformTenant, "id" | "name" | "approvalStatus" | "approvalNote" | "approvalReviewedAt">> => {
+  const res = await api.patch(`/super-admin/tenants/${tenantId}/approval`, payload);
+  return res.data.data;
+};
 
 
 export const getTenantById = async (tenantId : string) => {
@@ -519,6 +532,11 @@ export const getPharmacies = async (): Promise<PharmacyRecord[]> => {
   return res.data.data as PharmacyRecord[];
 };
 
+export const getPharmacists = async (): Promise<Array<{ userId: string; name: string; email: string; role: string }>> => {
+  const res = await api.get("/pharmacies/pharmacists");
+  return res.data.data;
+};
+
 export const createPharmacy = async (payload: { name: string; type: "central_store" | "sub_store" }) => {
   const res = await api.post("/pharmacies", payload);
   return res.data.data as PharmacyRecord;
@@ -545,9 +563,9 @@ export const createPharmacySale = async (pharmacyId: string, payload: {
   patientId?: string | null;
   paymentMethod: "cash" | "card" | "insurance";
   items: Array<{ medicineId: string; quantity: number }>;
-}) => {
+}): Promise<PharmacySaleRecord> => {
   const res = await api.post(`/pharmacies/${pharmacyId}/sales`, payload);
-  return res.data.data;
+  return res.data.data as PharmacySaleRecord;
 };
 
 export const getPharmacyStock = async (pharmacyId: string): Promise<PharmacyStock[]> => {

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import {
   Modal,
   Input,
+  AutoComplete,
   Select,
   Switch,
   DatePicker,
@@ -38,6 +39,7 @@ import type { AuthUser } from "../../types/auth";
 import { toast } from "react-toastify";
 import type {
   AvailabilityWindow,
+  CreateStaffProfilePayload,
   Department,
   StaffDirectoryEntry,
 } from "../../types/global.types";
@@ -61,6 +63,11 @@ const themeConfig = {
   },
   components: {
     Card: { borderRadiusLG: 12 },
+    Select: {
+      optionActiveBg: '#CCFBF1',
+      optionSelectedBg: '#E6FFFB',
+      optionSelectedColor: '#0F766E',
+    },
   }
 };
 
@@ -86,7 +93,11 @@ const profileSchema = Yup.object().shape({
     .required("Staff Type is required"),
   availability: availabilityValidationSchema,
   name: Yup.string().trim().min(2, "Name must be at least 2 characters").required("Name is required"),
-  email: Yup.string().email("Enter a valid email address").required("Email Account is required"),
+  email: Yup.string().when(["type", "hasSystemAccess"], {
+    is: (type: string, hasSystemAccess: boolean) => type === "Doctor" || hasSystemAccess,
+    then: (schema) => schema.email("Enter a valid email address").required("Email Account is required"),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   employeeId: Yup.string().required("Employee ID is required"),
   departmentId: Yup.string().required("Department is required"),
   phone: Yup.string().required("Phone number is required"),
@@ -107,15 +118,25 @@ const profileSchema = Yup.object().shape({
     otherwise: (schema) => schema.notRequired(),
   }),
   description: Yup.string(),
-  designation: Yup.string(),
   wardId: Yup.string(),
   joiningDate: Yup.string().nullable(),
-  password: Yup.string()
-    .min(12, "Password must be at least 12 characters")
-    .required("Password is required"),
+  password: Yup.string().when(["type", "hasSystemAccess"], {
+    is: (type: string, hasSystemAccess: boolean) => type === "Doctor" || hasSystemAccess,
+    then: (schema) => schema.min(12, "Password must be at least 12 characters").required("Password is required"),
+    otherwise: (schema) => schema.notRequired(),
+  }),
   role: Yup.string().when("type", {
-    is: "Staff",
-    then: (schema) => schema.required("Role is required"),
+    is: (type: string) => type === "Staff",
+    then: (schema) => schema.when("hasSystemAccess", {
+      is: true,
+      then: (roleSchema) => roleSchema.required("System role is required"),
+      otherwise: (roleSchema) => roleSchema.notRequired(),
+    }),
+    otherwise: (schema) => schema.notRequired(),
+  }),
+  designation: Yup.string().when(["type", "hasSystemAccess"], {
+    is: (type: string, hasSystemAccess: boolean) => type === "Staff" && !hasSystemAccess,
+    then: (schema) => schema.required("Designation is required"),
     otherwise: (schema) => schema.notRequired(),
   }),
 });
@@ -307,6 +328,7 @@ function Staff() {
       departmentId: "",
       phone: "",
       role: "",
+      hasSystemAccess: true,
       password: "",
       isActive: true,
       specialization: "",
@@ -323,7 +345,7 @@ function Staff() {
       : profileSchema,
     onSubmit: async (values, { resetForm, setSubmitting }) => {
       const isDoctor = values.type === "Doctor";
-      const payload = isDoctor
+      const payload: CreateStaffProfilePayload = isDoctor
         ? {
             type: "Doctor" as const,
             name: values.name.trim(),
@@ -343,15 +365,17 @@ function Staff() {
         : {
             type: "Staff" as const,
             name: values.name.trim(),
-            email: values.email,
             employeeId: values.employeeId,
             departmentId: values.departmentId,
             phone: values.phone,
-            password: values.password,
             isActive: values.isActive,
             wardId: values.wardId || undefined,
             joiningDate: values.joiningDate || undefined,
-            role: values.role,
+            designation: values.designation,
+            description: values.description || undefined,
+            ...(values.hasSystemAccess
+              ? { hasSystemAccess: true as const, email: values.email, password: values.password, role: values.role }
+              : { hasSystemAccess: false as const }),
             availability: values.availability,
           };
 
@@ -380,15 +404,16 @@ function Staff() {
         const result = await createStaffProfile(payload);
         const created: StaffDirectoryEntry = {
           id: result.profile.id,
-          userId: result.user.id,
-          name: result.user.name,
-          role: values.type === "Doctor" ? values.designation || "Doctor" : values.role,
+          userId: result.user?.id ?? null,
+          hasSystemAccess: values.type === "Doctor" || values.hasSystemAccess,
+          name: result.user?.name ?? values.name,
+          role: values.type === "Doctor" ? values.designation || "Doctor" : values.hasSystemAccess ? values.role : values.designation,
           type: result.type,
-          email: result.user.email,
-          phone: values.phone,
-          bio: values.description || values.specialization || values.role,
+          email: result.user?.email ?? "",
+          phone: values.phone || "",
+          bio: values.description || values.specialization || values.designation || values.role,
           availability: result.availability,
-          image: "https://i.pravatar.cc/150?u=" + encodeURIComponent(result.user.id),
+          image: "https://i.pravatar.cc/150?u=" + encodeURIComponent(result.user?.id ?? result.profile.id),
         };
         setStaffList((current) => [created, ...current]);
         setActiveStaff(created);
@@ -437,6 +462,26 @@ function Staff() {
     s.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const exportStaff = () => {
+    const columns = ["Name", "Type", "Role", "Email", "Phone", "Availability"];
+    const csvCell = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const rows = filteredStaff.map((staff) => [
+      staff.name,
+      staff.type,
+      staff.role,
+      staff.email,
+      staff.phone,
+      formatAvailability(staff.availability ?? []).join("; "),
+    ]);
+    const csv = [columns, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `carebase-staff-${dayjs().format("YYYY-MM-DD")}.csv`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
   return (
     <ConfigProvider theme={themeConfig}>
       <div style={{ padding: 24, minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
@@ -462,7 +507,7 @@ function Staff() {
                 {dayjs().format("dddd, DD MMMM YYYY")}
               </Text>
             </Flex>
-            <Button size="large">Export</Button>
+            <Button size="large" onClick={exportStaff} disabled={filteredStaff.length === 0}>Export CSV</Button>
             <Button
               type="primary"
               size="large"
@@ -512,6 +557,9 @@ function Staff() {
                                 <Tag color={staff.type === "Doctor" ? "blue" : "orange"} style={{ margin: 0, borderRadius: 12, border: 'none' }}>
                                   {staff.type}
                                 </Tag>
+                                {staff.type === "Staff" && <Tag color={staff.hasSystemAccess ? "green" : "default"} style={{ margin: 0, borderRadius: 12 }}>
+                                  {staff.hasSystemAccess ? "System access" : "No login"}
+                                </Tag>}
                               </Flex>
                               <Text strong style={{ fontSize: 16, display: 'block', marginBottom: 4 }}>
                                 {staff.name}
@@ -526,10 +574,10 @@ function Staff() {
 
                             <Flex justify="space-between" align="flex-end" style={{ marginTop: 12 }}>
                               <Flex vertical gap={4}>
-                                <Flex align="center" gap={6}>
+                                {staff.email && <Flex align="center" gap={6}>
                                   <Mail size={12} color="#94A3B8" />
                                   <Text type="secondary" style={{ fontSize: 12 }}>{staff.email}</Text>
-                                </Flex>
+                                </Flex>}
                                 <Flex align="center" gap={6}>
                                   <Phone size={12} color="#94A3B8" />
                                   <Text type="secondary" style={{ fontSize: 12 }}>{staff.phone}</Text>
@@ -569,6 +617,9 @@ function Staff() {
                       <Tag color={activeStaff.type === "Doctor" ? "blue" : "orange"} style={{ margin: 0, borderRadius: 12, border: 'none', padding: '2px 12px', fontWeight: 500 }}>
                         {activeStaff.type}
                       </Tag>
+                      {activeStaff.type === "Staff" && <Tag color={activeStaff.hasSystemAccess ? "green" : "default"}>
+                        {activeStaff.hasSystemAccess ? "System access" : "No login"}
+                      </Tag>}
                     </Flex>
 
                     <Flex vertical align="center" style={{ marginBottom: 24 }}>
@@ -602,7 +653,7 @@ function Staff() {
 
                       <div style={{ marginBottom: 16 }}>
                         <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 13 }}>Contact</Text>
-                        <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>{activeStaff.email}</Text>
+                        {activeStaff.email && <Text type="secondary" style={{ display: 'block', fontSize: 13 }}>{activeStaff.email}</Text>}
                         <Text type="secondary" style={{ fontSize: 13 }}>{activeStaff.phone}</Text>
                       </div>
 
@@ -684,7 +735,7 @@ function Staff() {
                     />
                     {errorMessage("name")}
                   </Col>
-                  <Col xs={24} md={12}>
+                  {(formik.values.type === "Doctor" || formik.values.hasSystemAccess) && <Col xs={24} md={12}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>Email <Text type="danger">*</Text></Text>
                     <Input
                       size="large"
@@ -696,8 +747,8 @@ function Staff() {
                       status={formik.touched.email && formik.errors.email ? "error" : ""}
                     />
                     {errorMessage("email")}
-                  </Col>
-                  <Col xs={24} md={12}>
+                  </Col>}
+                  {(formik.values.type === "Doctor" || formik.values.hasSystemAccess) && <Col xs={24} md={12}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>Password <Text type="danger">*</Text></Text>
                     <Password
                       size="large"
@@ -709,7 +760,7 @@ function Staff() {
                       status={formik.touched.password && formik.errors.password ? "error" : ""}
                     />
                     {errorMessage("password")}
-                  </Col>
+                  </Col>}
                   <Col xs={24} md={12}>
                     <Text strong style={{ display: 'block', marginBottom: 8 }}>Employee ID <Text type="danger">*</Text></Text>
                     <Input
@@ -828,6 +879,21 @@ function Staff() {
                     <Divider orientation="horizontal" style={{ margin: '16px 0 24px 0' }}>
                       <Text strong>Staff Assignment Details</Text>
                     </Divider>
+                    <Flex align="center" gap={10} style={{ marginBottom: 20 }}>
+                      <Switch
+                        checked={formik.values.hasSystemAccess}
+                        onChange={(checked) => {
+                          formik.setFieldValue("hasSystemAccess", checked);
+                          if (!checked) formik.setFieldValue("role", "");
+                        }}
+                      />
+                      <div>
+                        <Text strong>System access</Text>
+                        <Text type="secondary" style={{ display: "block" }}>
+                          {formik.values.hasSystemAccess ? "This staff member can sign in with an account." : "Personnel record only; no login or password will be created."}
+                        </Text>
+                      </div>
+                    </Flex>
                     <Row gutter={[16, 16]}>
                       <Col xs={24} md={12}>
                         <Text strong style={{ display: 'block', marginBottom: 8 }}>Assigned Ward</Text>
@@ -844,6 +910,28 @@ function Staff() {
                           options={wards.map((ward) => ({ value: ward.id, label: ward.name }))}
                         />
                       </Col>
+                      {!formik.values.hasSystemAccess && <Col xs={24} md={12}>
+                        <Text strong style={{ display: 'block', marginBottom: 8 }}>Job Designation <Text type="danger">*</Text></Text>
+                        <AutoComplete
+                          className="staff-designation-autocomplete"
+                          style={{ width: '100%' }}
+                          size="large"
+                          value={formik.values.designation}
+                          options={["Security Guard", "Sweeper", "Janitor", "Driver", "Maintenance Worker", "Cook", "Laundry Attendant", "Porter"].map((designation) => ({ value: designation }))}
+                          filterOption={(inputValue, option) =>
+                            (option?.value ?? "").toLowerCase().includes(inputValue.toLowerCase())
+                          }
+                          onChange={(value) => formik.setFieldValue("designation", value)}
+                          onBlur={() => formik.setFieldTouched("designation", true)}
+                        >
+                          <Input
+                            name="designation"
+                            placeholder="e.g. Security Guard, Sweeper, Driver"
+                            status={formik.touched.designation && formik.errors.designation ? "error" : ""}
+                          />
+                        </AutoComplete>
+                        {errorMessage("designation")}
+                      </Col>}
                       <Col xs={24} md={12}>
                         <Text strong style={{ display: 'block', marginBottom: 8 }}>Joining Date</Text>
                         <DatePicker
@@ -853,7 +941,7 @@ function Staff() {
                           onChange={(_, dateString) => formik.setFieldValue("joiningDate", dateString)}
                         />
                       </Col>
-                      <Col xs={24} md={12}>
+                      {formik.values.hasSystemAccess && <Col xs={24} md={12}>
                         <Text strong style={{ display: 'block', marginBottom: 8 }}>Role <Text type="danger">*</Text></Text>
                         <Select
                           style={{ width: '100%' }}
@@ -869,7 +957,7 @@ function Staff() {
                           status={formik.touched.role && formik.errors.role ? "error" : ""}
                         />
                         {errorMessage("role")}
-                      </Col>
+                      </Col>}
                     </Row>
                   </>
                 )}

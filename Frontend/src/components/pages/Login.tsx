@@ -2,11 +2,12 @@ import { useNavigate } from "react-router";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Container, Card, Form, Button, Alert } from "react-bootstrap";
+import { Container, Card, Form, Button } from "react-bootstrap";
 import { Spin } from "antd";
 import { setUser } from "../../store/authSlice";
 import Logo from "../../assets/carebase-logo-full.svg";
-import { loginUser } from "../../services/api";
+import { getApiErrorMessage, loginUser } from "../../services/api";
+import { toast } from "react-toastify";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
 
@@ -28,7 +29,7 @@ const Login = () => {
         .min(8, "Password must be at least 8 characters")
         .required("Password is required"),
     }),
-    onSubmit: async (values, { setStatus }) => {
+    onSubmit: async (values) => {
       setIsLoading(true);
       try {
         const userData = await loginUser(values);
@@ -48,17 +49,8 @@ const Login = () => {
         }
 
         navigate("/");
-      } catch (err: unknown) {
-        const error = err as {
-          response?: { data?: { message?: string } };
-          data?: { message?: string };
-        };
-
-        setStatus(
-          error?.response?.data?.message ||
-            error?.data?.message ||
-            "Invalid credentials. Please try again."
-        );
+      } catch (error: unknown) {
+        toast.error(getApiErrorMessage(error, "Unable to sign in. Please try again."));
       } finally {
         setIsLoading(false);
       }
@@ -68,11 +60,6 @@ const Login = () => {
   return (
     <>
       <Spin fullscreen spinning={isLoading} tip="Authenticating..." />
-      {formik.status && (
-        <Alert variant="danger" className="text-center py-2">
-          {formik.status}
-        </Alert>
-      )}
       <Container fluid className="auth-shell d-flex vh-100 align-items-center justify-content-center">
         <Card className="auth-card border-0 shadow">
           <Card.Body className="p-4 p-md-5">

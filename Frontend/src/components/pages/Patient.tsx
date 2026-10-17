@@ -14,8 +14,10 @@ import {
   CalendarDays,
   CalendarPlus,
   ClipboardPlus,
+  Download,
   HeartPulse,
   Pencil,
+  Printer,
   Search,
   UserPlus,
 } from "lucide-react";
@@ -163,6 +165,8 @@ function Patient() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [listLoading, setListLoading] = useState(true);
+  const [exportLimit, setExportLimit] = useState<number | "all">(100);
+  const [exporting, setExporting] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [savingPatient, setSavingPatient] = useState(false);
   const [createPatientForm, setCreatePatientForm] = useState<CreatePatientPayload>({
@@ -170,6 +174,7 @@ function Patient() {
     firstName: "",
     lastName: "",
     dob: "",
+    address: "",
   });
   const [detailLoading, setDetailLoading] = useState(false);
   const [showMedicalForm, setShowMedicalForm] = useState(false);
@@ -276,8 +281,9 @@ function Patient() {
       lastName: createPatientForm.lastName.trim(),
       contactPhone: createPatientForm.contactPhone?.trim(),
       contactEmail: createPatientForm.contactEmail?.trim() || null,
+      address: createPatientForm.address?.trim() || null,
     };
-    if (!payload.mrn || !payload.firstName || !payload.lastName || !payload.dob || !payload.contactPhone || !payload.gender) {
+    if (!payload.mrn || !payload.firstName || !payload.lastName || !payload.dob || !payload.contactPhone || !payload.gender || !payload.address) {
       toast.error("All Fields are required");
       return;
     }
@@ -362,6 +368,69 @@ function Patient() {
   const patientDoctor = patient?.Appointment[0]?.DoctorProfile;
   const patientNote = latest?.note;
 
+  const exportPatients = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const filters = {
+        search: search.trim() || undefined,
+        isActive: activeFilter === "all" ? undefined : activeFilter,
+      };
+      const firstPage = await getPatients({ ...filters, page: 1, limit: 100 });
+      const targetCount = exportLimit === "all" ? firstPage.total : Math.min(exportLimit, firstPage.total);
+      const rows = [...firstPage.items].slice(0, targetCount);
+      const pagesNeeded = Math.ceil(targetCount / 100);
+      for (let nextPage = 2; nextPage <= pagesNeeded; nextPage += 1) {
+        const response = await getPatients({ ...filters, page: nextPage, limit: 100 });
+        rows.push(...response.items.slice(0, targetCount - rows.length));
+      }
+      if (rows.length === 0) {
+        toast.info("There are no patients to export with these filters.");
+        return;
+      }
+      const columns = ["MRN", "First name", "Last name", "Date of birth", "Gender", "Phone", "Email", "Address", "Insurance provider", "Insurance policy number", "Status"];
+      const csvCell = (value: unknown) => {
+        let text = value == null ? "" : String(value);
+        if (/^[=+@\-\t\r]/.test(text)) text = `'${text}`;
+        return `"${text.replaceAll('"', '""')}"`;
+      };
+      const csvRows = rows.map((item) => [
+        item.mrn,
+        item.firstName,
+        item.lastName,
+        item.dob ? dayjs(item.dob).format("YYYY-MM-DD") : "",
+        item.gender,
+        item.contactPhone,
+        item.contactEmail,
+        item.address,
+        item.insuranceProvider,
+        item.insurancePolicyNumber,
+        item.isActive ? "Active" : "Inactive",
+      ]);
+      const csv = [columns, ...csvRows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+      const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `carebase-patients-${dayjs().format("YYYY-MM-DD")}.csv`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success(`Exported ${rows.length} patient${rows.length === 1 ? "" : "s"}.`);
+    } catch {
+      toast.error("Could not export patients");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const printPatientRecord = () => {
+    if (!patient || !patient.isActive) return;
+    document.body.classList.add("print-patient-record-mode");
+    const cleanup = () => document.body.classList.remove("print-patient-record-mode");
+    window.addEventListener("afterprint", cleanup, { once: true });
+    window.print();
+    window.setTimeout(cleanup, 60_000);
+  };
+
   return (
     <main className="patient-page">
       <aside className="patient-list-panel">
@@ -381,6 +450,30 @@ function Patient() {
               onClick={() => setShowCreateForm(true)}
             />
           </div>
+        </div>
+
+        <div className="patient-export-controls">
+          <Select
+            aria-label="Patient export row limit"
+            className="patient-export-limit"
+            value={exportLimit}
+            onChange={setExportLimit}
+            options={[
+              { value: 30, label: "30 rows" },
+              { value: 100, label: "100 rows" },
+              { value: 250, label: "250 rows" },
+              { value: 500, label: "500 rows" },
+              { value: "all", label: "All matching" },
+            ]}
+          />
+          <Button
+            icon={<Download size={14} />}
+            aria-label="Export patient list as CSV"
+            title="Export patient list as CSV"
+            loading={exporting}
+            disabled={total === 0}
+            onClick={() => void exportPatients()}
+          >Export CSV</Button>
         </div>
 
         <div className="patient-list-controls">
@@ -509,6 +602,13 @@ function Patient() {
             value={createPatientForm.contactEmail ?? ""}
             onChange={(event) => setCreatePatientForm((current) => ({ ...current, contactEmail: event.target.value }))}
           />
+          <label htmlFor="new-patient-address">Address (optional)</label>
+          <Input
+            id="new-patient-address"
+            maxLength={254}
+            value={createPatientForm.address ?? ""}
+            onChange={(event) => setCreatePatientForm((current) => ({ ...current, address: event.target.value }))}
+          />
         </div>
       </Modal>
 
@@ -524,6 +624,15 @@ function Patient() {
                   <h2>Medical history</h2>
                 </div>
                 <div className="patient-heading-actions">
+                  <Button
+                    className="patient-print-action"
+                    icon={<Printer size={15} />}
+                    disabled={!patient.isActive}
+                    title={patient.isActive ? "Print active patient record" : "Only active patient records can be printed"}
+                    onClick={printPatientRecord}
+                  >
+                    Print record
+                  </Button>
                   <span className="patient-check-date">
                     {latest ? `Last check-up: ${dateLabel(latest.recordedAt)}` : "No measurements recorded"}
                   </span>
@@ -647,6 +756,51 @@ function Patient() {
           </section>
         )}
       </aside>
+
+      {patient && (
+        <section className="patient-print-record" aria-hidden="true">
+          <header className="patient-print-header">
+            <div><span>CAREBASE · PATIENT RECORD</span><h1>{patient.firstName} {patient.lastName}</h1></div>
+            <div><strong>MRN {patient.mrn}</strong><span>Printed {dayjs().format("MMMM D, YYYY h:mm A")}</span></div>
+          </header>
+          <section className="patient-print-section">
+            <h2>Patient details</h2>
+            <dl className="patient-print-details">
+              <div><dt>Status</dt><dd>{patient.isActive ? "Active" : "Inactive"}</dd></div>
+              <div><dt>Date of birth</dt><dd>{dateLabel(patient.dob)}</dd></div>
+              <div><dt>Gender</dt><dd>{patient.gender ?? "Not recorded"}</dd></div>
+              <div><dt>Phone</dt><dd>{patient.contactPhone || "Not recorded"}</dd></div>
+              <div><dt>Email</dt><dd>{patient.contactEmail || "Not recorded"}</dd></div>
+              <div><dt>Address</dt><dd>{patient.address || "Not recorded"}</dd></div>
+              <div><dt>Insurance</dt><dd>{patient.insuranceProvider || "Not recorded"}</dd></div>
+              <div><dt>Policy number</dt><dd>{patient.insurancePolicyNumber || "Not recorded"}</dd></div>
+              <div><dt>Emergency contact</dt><dd>{patient.emergencyContactName || "Not recorded"}{patient.emergencyContactPhone ? ` · ${patient.emergencyContactPhone}` : ""}</dd></div>
+              <div><dt>Primary doctor</dt><dd>{patientDoctor?.User.name || "Not recorded"}</dd></div>
+            </dl>
+          </section>
+          <section className="patient-print-section">
+            <h2>Medical records ({history.length})</h2>
+            {history.length ? history.map((record) => (
+              <article className="patient-print-medical-entry" key={record.id}>
+                <h3>{dateLabel(record.recordedAt)} · {timeLabel(record.recordedAt)}</h3>
+                <dl className="patient-print-details">
+                  {measurementFields.map(({ key, label, unit }) => record[key] != null && <div key={key}><dt>{label}</dt><dd>{record[key]} {unit}</dd></div>)}
+                  {record.allergies && <div><dt>Allergies</dt><dd>{record.allergies}</dd></div>}
+                  {record.chronicConditions && <div><dt>Chronic conditions</dt><dd>{record.chronicConditions}</dd></div>}
+                  {record.pastSurgeries && <div><dt>Past surgeries</dt><dd>{record.pastSurgeries}</dd></div>}
+                  {record.note && <div><dt>Clinical note</dt><dd>{record.note}</dd></div>}
+                </dl>
+              </article>
+            )) : <p>No medical records recorded.</p>}
+          </section>
+          <section className="patient-print-section">
+            <h2>Upcoming appointments</h2>
+            {patient.Appointment.length ? patient.Appointment.map((appointment) => (
+              <p key={appointment.id}>{dateLabel(appointment.scheduledAt)} · {timeLabel(appointment.scheduledAt)} — {appointment.Department.name}, Dr. {appointment.DoctorProfile.User.name}</p>
+            )) : <p>No upcoming appointments.</p>}
+          </section>
+        </section>
+      )}
 
       <Modal
         title="Edit patient insurance"

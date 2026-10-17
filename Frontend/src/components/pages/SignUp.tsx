@@ -2,7 +2,7 @@ import { useNavigate, Link } from "react-router";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { Card, Form, Button, Alert } from "react-bootstrap";
+import { Card, Form, Button } from "react-bootstrap";
 import { Spin } from "antd";
 import { setUser } from "../../store/authSlice";
 import { toast } from "react-toastify";
@@ -36,7 +36,7 @@ export const SignUp = () => {
         .oneOf([Yup.ref("password")], "Passwords must match")
         .required("Please confirm your password"),
     }),
-    onSubmit: async (values, { setStatus }) => {
+    onSubmit: async (values) => {
       setIsLoading(true)
       try {
         
@@ -62,7 +62,6 @@ export const SignUp = () => {
         navigate("/onboarding");
       } catch (err: unknown) {
         const errorMsg = getApiErrorMessage(err, "Registration failed. Please try again.");
-        setStatus(errorMsg);
         toast.error(errorMsg);
       }finally{
         setIsLoading(false)
@@ -78,12 +77,6 @@ export const SignUp = () => {
           <div className="text-center mb-4">
             <img src={Logo} />
           </div>
-
-          {formik.status && (
-            <Alert variant="danger" className="text-center py-2">
-              {formik.status}
-            </Alert>
-          )}
 
           <Form onSubmit={formik.handleSubmit}>
             <Form.Group className="mb-3" controlId="formname">

@@ -23,6 +23,9 @@ import ClinicalOperations from './components/pages/ClinicalOperations';
 import Pharmacy from './components/pages/Pharmacy';
 import AuditLogs from './components/pages/AuditLogs';
 import Billing from './components/pages/Billing';
+import ApprovalStatus from './components/pages/ApprovalStatus';
+import PlatformAdmin from './components/pages/PlatformAdmin';
+import PlatformAdminRoute from './components/common/PlatformAdminRoute';
 import { appTheme } from './theme';
 
 function App() {
@@ -31,8 +34,8 @@ function App() {
     
       <BrowserRouter>
       <ToastContainer 
-        position="bottom-center"
-        autoClose={3000}
+        position="top-center"
+        autoClose={5000}
         hideProgressBar={true} 
         newestOnTop={true}
         closeOnClick
@@ -45,6 +48,10 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          <Route path="/approval-status" element={<ApprovalStatus />} />
+          <Route element={<PlatformAdminRoute />}>
+            <Route path="/super-admin" element={<PlatformAdmin />} />
+          </Route>
           <Route element={<SuperAdmin/>}>
             <Route path="/onboarding" element={<Onboarding />} />
           </Route>
