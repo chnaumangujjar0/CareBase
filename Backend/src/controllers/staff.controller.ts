@@ -6,8 +6,9 @@ import { db } from "../db/index.js";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 import { char36Schema } from "../types/tenant.types.js";
-import { writeAuditLog } from "../utils/audit.utils.js";
+import { getAuditRequestMetadata, writeAuditLog } from "../utils/audit.utils.js";
 import { STANDARD_ROLE_NAMES, type StandardRoleName } from "../constants/roles.js";
+import { sendStaffCredentialsEmail } from "../services/staff-credentials-email.service.js";
 
 const optionalText = (maxLength: number) =>
   z.string().trim().max(maxLength).nullish().transform((value) => value || null);
@@ -93,6 +94,40 @@ const staffSchema = z.discriminatedUnion("hasSystemAccess", [
   }),
 ]);
 
+const updateStaffProfileSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  employeeId: z.string().trim().min(1).max(64).optional(),
+  departmentId: z.uuid().optional(),
+  wardId: z.uuid().nullable().optional(),
+  joiningDate: z.coerce.date().nullable().optional(),
+  designation: z.string().trim().max(120).nullable().optional(),
+  description: z.string().trim().max(2000).nullable().optional(),
+  phone: z.string().trim().max(20).nullable().optional().refine((phone) => {
+    if (!phone) return true;
+    const digits = phone.replace(/\D/g, "");
+    return digits.length >= 7 && digits.length <= 15;
+  }, "Enter a valid phone number"),
+  isActive: z.boolean().optional(),
+}).refine((data) => Object.values(data).some((value) => value !== undefined), {
+  message: "Provide at least one staff detail to update",
+});
+
+const HR_ASSIGNABLE_STAFF_ROLES = [
+  "Nurse",
+  "Receptionist",
+  "Head Receptionist",
+  "Billing Staff",
+  "Pharmacist",
+  "Head Pharmacist",
+] as const;
+
+const grantStaffAccountSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+  password: z.string().min(12, "Password must be at least 12 characters").max(72, "Password must be no more than 72 characters")
+    .refine((password) => Buffer.byteLength(password, "utf8") <= 72, "Password must be no more than 72 bytes"),
+  role: z.enum(HR_ASSIGNABLE_STAFF_ROLES),
+});
+
 export const createProfileSchema = z.union([doctorSchema, staffSchema]);
 
 const BCRYPT_ROUNDS = 12;
@@ -114,6 +149,12 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
   }
 
   const input = parsed.data;
+  if (req.role?.name === "HR" && (input.type !== "Staff" || ("hasSystemAccess" in input && input.hasSystemAccess))) {
+    throw new ApiError(403, "HR can add personnel records only; system accounts must be created by an administrator.");
+  }
+  if (input.type === "Staff" && "role" in input && input.role === "Owner" && req.role?.name !== "Owner") {
+    throw new ApiError(403, "Only an existing owner can assign the Owner role.");
+  }
   const normalizedEmployeeId = input.employeeId.trim();
 
   try {
@@ -250,9 +291,17 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
         availabilityCount: input.availability.length,
       },
     });
+    const credentialsEmail = result.user && "password" in input
+      ? await sendStaffCredentialsEmail({
+          name: input.name,
+          email: input.email,
+          password: input.password,
+          roleName: result.role?.name ?? (input.type === "Doctor" ? "Doctor" : "Staff"),
+        })
+      : null;
     return res
       .status(201)
-      .json(new ApiResponse(201, { ...result, type: input.type }, `${input.type} created successfully`));
+      .json(new ApiResponse(201, { ...result, credentialsEmail, type: input.type }, `${input.type} created successfully`));
   } catch (error: unknown) {
     if (error instanceof ApiError) {
       throw error;
@@ -278,6 +327,7 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
       where: { tenantId },
       include: {
         User: { select: { id: true, name: true, email: true } },
+        Department: { select: { name: true } },
         DoctorAvailability: {
           where: { isActive: true },
           orderBy: { dayOfWeek: "asc" },
@@ -287,6 +337,7 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
     db.staffProfile.findMany({
       where: { tenantId },
       include: {
+        Department: { select: { name: true } },
         User: {
           select: {
             id: true,
@@ -308,9 +359,13 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
       id: doctor.id,
       userId: doctor.User.id,
       name: doctor.User.name,
+      employeeId: doctor.employeeId,
+      departmentId: doctor.departmentId,
       email: doctor.User.email,
       phone: doctor.phone,
       role: doctor.designation || doctor.specialization,
+      departmentName: doctor.Department.name,
+      isActive: doctor.isActive,
       type: "Doctor" as const,
       bio: doctor.description || doctor.specialization,
       availability: doctor.DoctorAvailability,
@@ -320,9 +375,15 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
       userId: member.User?.id ?? null,
       hasSystemAccess: member.userId !== null,
       name: member.User?.name ?? member.name,
+      employeeId: member.employeeId,
+      departmentId: member.departmentId ?? undefined,
+      wardId: member.wardId,
+      joiningDate: member.joiningDate,
       email: member.User?.email ?? member.email ?? "",
       phone: member.phone || "",
       role: member.designation || member.User?.Role?.name || "Staff",
+      departmentName: member.Department?.name ?? "Unassigned",
+      isActive: member.isActive,
       type: "Staff" as const,
       bio: member.description || member.designation || member.User?.Role?.name || "Hospital staff",
       availability: member.StaffAvailability,
@@ -330,6 +391,204 @@ export const getAllStaff = asyncHandler(async (req: Request, res: Response) => {
   ].sort((left, right) => left.name.localeCompare(right.name));
 
   return res.status(200).json(new ApiResponse(200, directory, "Staff fetched successfully"));
+});
+
+export const getHrDashboard = asyncHandler(async (req: Request, res: Response) => {
+  const rawTenantId = req.user?.tenantId;
+  const parsedTenantId = char36Schema.safeParse(rawTenantId);
+  if (!parsedTenantId.success) throw new ApiError(400, "A valid tenant id is required");
+
+  const tenantId = parsedTenantId.data;
+  const [staffTotal, activeStaff, staffWithoutAccounts, doctorTotal, activeDoctors, departmentTotal] = await Promise.all([
+    db.staffProfile.count({ where: { tenantId } }),
+    db.staffProfile.count({ where: { tenantId, isActive: true } }),
+    db.staffProfile.count({ where: { tenantId, userId: null } }),
+    db.doctorProfile.count({ where: { tenantId } }),
+    db.doctorProfile.count({ where: { tenantId, isActive: true } }),
+    db.department.count({ where: { tenantId, isActive: true } }),
+  ]);
+
+  return res.status(200).json(new ApiResponse(200, {
+    totalEmployees: staffTotal + doctorTotal,
+    activeEmployees: activeStaff + activeDoctors,
+    inactiveEmployees: staffTotal + doctorTotal - activeStaff - activeDoctors,
+    staffWithoutSystemAccess: staffWithoutAccounts,
+    doctors: doctorTotal,
+    departments: departmentTotal,
+  }, "HR dashboard summary fetched successfully"));
+});
+
+export const updateStaffProfile = asyncHandler(async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+
+  const parsedId = z.uuid().safeParse(req.params.profileId);
+  const parsedBody = updateStaffProfileSchema.safeParse(req.body);
+  if (!parsedId.success) throw new ApiError(400, "A valid staff profile id is required");
+  if (!parsedBody.success) {
+    throw new ApiError(400, "Invalid staff details", parsedBody.error.issues.map(({ path, message }) => ({ path: path.join("."), message })));
+  }
+
+  const input = parsedBody.data;
+  try {
+    const updated = await db.$transaction(async (trx) => {
+      const existing = await trx.staffProfile.findFirst({ where: { id: parsedId.data, tenantId } });
+      if (!existing) throw new ApiError(404, "Staff profile not found");
+
+      if (input.employeeId && input.employeeId !== existing.employeeId) {
+        const [duplicateStaff, duplicateDoctor] = await Promise.all([
+          trx.staffProfile.findFirst({ where: { tenantId, employeeId: input.employeeId, id: { not: existing.id } }, select: { id: true } }),
+          trx.doctorProfile.findFirst({ where: { tenantId, employeeId: input.employeeId }, select: { id: true } }),
+        ]);
+        if (duplicateStaff || duplicateDoctor) throw new ApiError(409, "This employee ID is already in use in this tenant");
+      }
+
+      const departmentId = input.departmentId ?? existing.departmentId;
+      if (input.departmentId) {
+        const department = await trx.department.findFirst({ where: { id: input.departmentId, tenantId, isActive: true }, select: { id: true } });
+        if (!department) throw new ApiError(400, "An active department in this tenant is required");
+      }
+
+      const departmentChanged = input.departmentId !== undefined && input.departmentId !== existing.departmentId;
+      const wardId = input.wardId !== undefined ? input.wardId : departmentChanged ? null : existing.wardId;
+      if (wardId) {
+        const ward = await trx.ward.findFirst({ where: { id: wardId, tenantId, departmentId }, select: { id: true } });
+        if (!ward) throw new ApiError(400, "Ward must belong to the selected department and tenant");
+      }
+
+      const profile = await trx.staffProfile.update({
+        where: { id: existing.id },
+        data: {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.employeeId !== undefined ? { employeeId: input.employeeId } : {}),
+          ...(input.departmentId !== undefined ? { departmentId: input.departmentId } : {}),
+          ...(input.wardId !== undefined || departmentChanged ? { wardId } : {}),
+          ...(input.joiningDate !== undefined ? { joiningDate: input.joiningDate } : {}),
+          ...(input.designation !== undefined ? { designation: input.designation || null } : {}),
+          ...(input.description !== undefined ? { description: input.description || null } : {}),
+          ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
+          ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+        },
+      });
+
+      if (existing.userId && (input.name !== undefined || input.isActive !== undefined)) {
+        await trx.user.update({
+          where: { id: existing.userId },
+          data: {
+            ...(input.name !== undefined ? { name: input.name } : {}),
+            ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+          },
+        });
+      }
+      const { ipAddress, userAgent } = getAuditRequestMetadata(req);
+      await trx.auditLog.create({
+        data: {
+          action: "update",
+          entityType: "StaffProfile",
+          entityId: profile.id,
+          tenantId,
+          userId: req.user!.id,
+          ipAddress,
+          userAgent,
+          oldValue: { name: existing.name, employeeId: existing.employeeId, departmentId: existing.departmentId, isActive: existing.isActive },
+          newValue: { name: profile.name, employeeId: profile.employeeId, departmentId: profile.departmentId, isActive: profile.isActive },
+        },
+      });
+      return profile;
+    });
+    return res.status(200).json(new ApiResponse(200, updated, "Staff profile updated successfully"));
+  } catch (error: unknown) {
+    if (error instanceof ApiError) throw error;
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      throw new ApiError(409, "This employee ID is already in use in this tenant");
+    }
+    throw error;
+  }
+});
+
+export const grantStaffSystemAccess = asyncHandler(async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+  const parsedId = z.uuid().safeParse(req.params.profileId);
+  const parsedBody = grantStaffAccountSchema.safeParse(req.body);
+  if (!parsedId.success) throw new ApiError(400, "A valid staff profile id is required");
+  if (!parsedBody.success) {
+    throw new ApiError(400, "Invalid account details", parsedBody.error.issues.map(({ path, message }) => ({ path: path.join("."), message })));
+  }
+
+  const { email, password, role: roleName } = parsedBody.data;
+  const result = await db.$transaction(async (trx) => {
+    const profile = await trx.staffProfile.findFirst({ where: { id: parsedId.data, tenantId } });
+    if (!profile) throw new ApiError(404, "Staff profile not found");
+    if (profile.userId) throw new ApiError(409, "This employee already has system access");
+
+    const existingUser = await trx.user.findUnique({ where: { email }, select: { id: true } });
+    if (existingUser) throw new ApiError(409, "A user with this email already exists");
+    const role = await trx.role.findFirst({ where: { tenantId, name: roleName }, select: { id: true } });
+    if (!role) throw new ApiError(400, `The ${roleName} role is not configured for this tenant`);
+
+    const user = await trx.user.create({
+      data: {
+        tenantId,
+        roleId: role.id,
+        isSuperAdmin: false,
+        name: profile.name,
+        email,
+        passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS),
+        isActive: profile.isActive,
+      },
+      select: { id: true, name: true, email: true, isActive: true },
+    });
+    const updatedProfile = await trx.staffProfile.update({
+      where: { id: profile.id },
+      data: { userId: user.id, email },
+    });
+    const { ipAddress, userAgent } = getAuditRequestMetadata(req);
+    await trx.auditLog.create({
+      data: {
+        action: "update",
+        entityType: "StaffProfileAccess",
+        entityId: profile.id,
+        tenantId,
+        userId: req.user!.id,
+        ipAddress,
+        userAgent,
+        newValue: { userId: user.id, email, role: roleName },
+      },
+    });
+    return { user, profile: updatedProfile };
+  }).catch((error: unknown) => {
+    if (error instanceof ApiError) throw error;
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
+      throw new ApiError(409, "A user with this email already exists or this employee already has an account");
+    }
+    throw error;
+  });
+
+  const credentialsEmail = await sendStaffCredentialsEmail({
+    name: result.user.name,
+    email: result.user.email,
+    password,
+    roleName,
+  });
+
+  return res.status(201).json(new ApiResponse(201, {
+    profileId: result.profile.id,
+    user: result.user,
+    role: roleName,
+    credentialsEmail,
+  }, "System access granted successfully"));
+});
+
+export const getGrantableStaffRoles = asyncHandler(async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+  const roles = await db.role.findMany({
+    where: { tenantId, name: { in: [...HR_ASSIGNABLE_STAFF_ROLES] } },
+    select: { name: true },
+    orderBy: { name: "asc" },
+  });
+  return res.status(200).json(new ApiResponse(200, roles.map(({ name }) => name), "Available staff account roles fetched successfully"));
 });
 
 const updateAvailabilitySchema = z.object({

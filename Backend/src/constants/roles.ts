@@ -23,6 +23,10 @@ export const STANDARD_ROLES = {
     "billing:payments:write",
     "billing:rates:read",
     "billing:rates:write",
+    "departments:read",
+    "staff:read",
+    "staff:write",
+    "staff:accounts:write",
   ],
   Doctor: [
     "dashboard:read",
@@ -39,6 +43,7 @@ export const STANDARD_ROLES = {
     "clinical:surgeries:read",
     "clinical:surgeries:write",
     "clinical:medicines:read",
+    "departments:read",
     "billing:rates:read",
     "billing:rates:write",
   ],
@@ -49,6 +54,7 @@ export const STANDARD_ROLES = {
     "clinical:admissions:read",
     "clinical:beds:write",
     "clinical:medicines:read",
+    "departments:read",
   ],
   Receptionist: [
     "dashboard:read",
@@ -62,6 +68,7 @@ export const STANDARD_ROLES = {
     "billing:invoices:read",
     "billing:invoices:write",
     "billing:rates:read",
+    "departments:read",
   ],
   "Head Receptionist": [
     "dashboard:read",
@@ -76,6 +83,14 @@ export const STANDARD_ROLES = {
     "billing:invoices:write",
     "billing:payments:write",
     "billing:rates:read",
+    "departments:read",
+  ],
+  HR: [
+    "hr:dashboard:read",
+    "departments:read",
+    "staff:read",
+    "staff:write",
+    "staff:accounts:write",
   ],
   "Billing Staff": [
     "billing:invoices:read",
