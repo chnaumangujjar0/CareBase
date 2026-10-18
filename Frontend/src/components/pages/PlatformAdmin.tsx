@@ -12,8 +12,10 @@ import { clearTenant } from "../../store/tenantSlice";
 import "../../styles/platformAdmin.scss";
 import type { PlatformTenant } from "../../types/auth";
 import { getApiErrorMessage, getPlatformTenants, logoutUser, updatePlatformTenantApproval } from "../../services/api";
+import { appTheme } from "../../theme";
 
 const { Title, Text } = Typography;
+const themeTokens = appTheme.token!;
 type ApprovalFilter = "all" | "pending" | "approved" | "rejected";
 
 export default function PlatformAdmin() {
@@ -95,21 +97,21 @@ export default function PlatformAdmin() {
   ];
 
   return <>
-    <header className="top-header platform-admin-header">
+    <header className="top-header platform-admin-header" style={{ color: themeTokens.colorTextBase, fontFamily: themeTokens.fontFamily }}>
       <div className="header-brand"><img src={Logo} alt="CareBase" className="header-logo" /><span className="platform-admin-header__label">Platform administration</span></div>
       <div className="platform-admin-header__actions"><div className="platform-admin-header__identity"><span>{user?.name}</span><small>Super administrator</small></div><Button danger icon={<LogOut size={16} />} onClick={() => void handleLogout()}>Log out</Button></div>
     </header>
-    <div className="platform-admin-page" style={{ padding: 24, minHeight: "100vh", background: "#F1F5F9" }}>
+    <div className="platform-admin-page" style={{ padding: 24, minHeight: "100vh", background: themeTokens.colorBgLayout, color: themeTokens.colorTextBase, fontFamily: themeTokens.fontFamily }}>
     <Space direction="vertical" size="large" style={{ width: "100%" }}>
       <Row align="middle" justify="space-between" gutter={[16, 16]}>
-        <Col><Title level={2} style={{ margin: 0 }}>CareBase platform</Title><Text type="secondary">Review hospital registrations and manage approval status.</Text></Col>
+        <Col><Title level={2} style={{ margin: 0, color: themeTokens.colorTextBase }}>CareBase platform</Title><Text type="secondary">Review hospital registrations and manage approval status.</Text></Col>
         <Col><Button icon={<RefreshCw size={15} />} onClick={() => void load()} loading={loading}>Refresh</Button></Col>
       </Row>
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}><Card><Statistic title="All hospitals" value={counts.total} /></Card></Col>
-        <Col xs={12} md={6}><Card><Statistic title="Pending review" value={counts.pending} valueStyle={{ color: counts.pending ? "#D97706" : undefined }} /></Card></Col>
-        <Col xs={12} md={6}><Card><Statistic title="Approved" value={counts.approved} valueStyle={{ color: "#16A34A" }} /></Card></Col>
-        <Col xs={12} md={6}><Card><Statistic title="Rejected" value={counts.rejected} valueStyle={{ color: counts.rejected ? "#DC2626" : undefined }} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="Pending review" value={counts.pending} valueStyle={{ color: counts.pending ? themeTokens.colorWarning : undefined }} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="Approved" value={counts.approved} valueStyle={{ color: themeTokens.colorSuccess }} /></Card></Col>
+        <Col xs={12} md={6}><Card><Statistic title="Rejected" value={counts.rejected} valueStyle={{ color: counts.rejected ? themeTokens.colorError : undefined }} /></Card></Col>
       </Row>
       <Card title="Hospital registrations" extra={<Space wrap><Input.Search allowClear placeholder="Search hospital or owner" onChange={(event) => setSearch(event.target.value)} style={{ width: 240 }} /><Select value={filter} onChange={setFilter} style={{ width: 150 }} options={[{ value: "all", label: "All hospitals" }, { value: "pending", label: "Pending" }, { value: "approved", label: "Approved" }, { value: "rejected", label: "Rejected" }]} /></Space>}>
         <Table<PlatformTenant> rowKey="id" loading={loading} dataSource={rows} columns={columns} scroll={{ x: 1050 }} pagination={{ pageSize: 10, showSizeChanger: true }} locale={{ emptyText: loading ? <Spin /> : "No hospitals match this filter." }} />

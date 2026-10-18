@@ -417,7 +417,13 @@ function Staff() {
         };
         setStaffList((current) => [created, ...current]);
         setActiveStaff(created);
-        toast.success(`${values.type} profile created successfully`);
+        if (result.credentialsEmail?.sent) {
+          toast.success(`${values.type} created. Sign-in credentials were emailed to ${result.user?.email}.`);
+        } else if (result.user) {
+          toast.warning(`${values.type} created, but the credentials email could not be sent. Check the email service configuration and contact the staff member securely.`);
+        } else {
+          toast.success(`${values.type} profile created successfully`);
+        }
         setShowModal(false);
         setEditingId(null);
         resetForm();

@@ -48,7 +48,7 @@ const Login = () => {
           localStorage.setItem("refreshToken", userData.refreshToken);
         }
 
-        navigate("/");
+        navigate("/dashboard");
       } catch (error: unknown) {
         toast.error(getApiErrorMessage(error, "Unable to sign in. Please try again."));
       } finally {

@@ -26,7 +26,7 @@ const Unauthorized = () => {
 
         <button 
           className="back-button" 
-          onClick={() => navigate("/")}
+          onClick={() => navigate("/dashboard")}
         >
           <ArrowLeft size={18} strokeWidth={2.5} />
           <span>Back to Home</span>

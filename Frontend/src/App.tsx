@@ -25,8 +25,10 @@ import AuditLogs from './components/pages/AuditLogs';
 import Billing from './components/pages/Billing';
 import ApprovalStatus from './components/pages/ApprovalStatus';
 import PlatformAdmin from './components/pages/PlatformAdmin';
+import HrDashboard from './components/pages/HrDashboard';
 import PlatformAdminRoute from './components/common/PlatformAdminRoute';
 import { appTheme } from './theme';
+import LandingPage from './components/pages/LandingPage';
 
 function App() {
   return (
@@ -46,6 +48,7 @@ function App() {
         theme="light"
       />
         <Routes>
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/approval-status" element={<ApprovalStatus />} />
@@ -58,8 +61,11 @@ function App() {
           <Route path='/unauthorized' element={<Unauthorized/>} />
           <Route element={<Layout/>}>
             <Route element={<ProtectedRoute />}>
+              <Route element={<ProtectedRoute allowedPermissions={["hr:dashboard:read"]} />}>
+                <Route path='/hr' element={<HrDashboard />} />
+              </Route>
               <Route element={<ProtectedRoute allowedPermissions={["dashboard:read"]} />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/dashboard" element={<Dashboard />} />
               </Route>
               <Route element={<ProtectedRoute allowedPermissions={["patients:read"]} />}>
                 <Route path='/patient' element={<Patient/>}/>
@@ -92,7 +98,7 @@ function App() {
               <Route path='/audit-logs' element={<AuditLogs />} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

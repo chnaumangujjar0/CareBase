@@ -19,6 +19,7 @@ import {
   Hospital,
   ClipboardList,
   ReceiptText,
+  BriefcaseBusiness,
 } from "lucide-react";
 import "../../styles/sidebar.scss";
 import { clearUser, selectCurrentUser } from "../../store/authSlice";
@@ -35,7 +36,7 @@ const navConfig = [
   {
     title: "Operations",
     items: [
-      { label: "Dashboard", path: "/", icon: LayoutDashboard, permission: "dashboard:read" },
+      { label: "Dashboard", path: "/dashboard", icon: LayoutDashboard, permission: "dashboard:read" },
       { label: "Appointments", path: "/appointments", icon: Calendar, permission: "appointments:read" },
       { label: "Clinical Desk", path: "/clinical", icon: Stethoscope, permission: "clinical:encounters:read" },
       { label: "Clinical Operations", path: "/clinical/operations", icon: Activity, permission: "clinical:admissions:read" },
@@ -53,6 +54,7 @@ const navConfig = [
     title: "System",
     items: [
       { label: "Staff Management", path: "/staff", icon: UsersRound, roles: ["Owner", "Admin"] },
+      { label: "HR Dashboard", path: "/hr", icon: BriefcaseBusiness, permission: "hr:dashboard:read" },
       { label: "Audit Logs", path: "/audit-logs", icon: ClipboardList, roles: ["Owner", "Admin"] },
     ],
   },
@@ -135,7 +137,7 @@ export const Sidebar = () => {
                 const isAllowed = "permissions" in item
                   ? item.permissions?.some((permission) => hasPermission(user, permission)) ?? false
                   : "permission" in item
-                    ? hasPermission(user, item.permission)
+                    ? hasPermission(user, item.permission ?? "")
                   : hasRole(user, item.roles);
                 const contents = (
                   <>

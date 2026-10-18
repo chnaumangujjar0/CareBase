@@ -6,7 +6,9 @@ import {
   ConfigProvider,
   Empty,
   Flex,
+  Grid,
   Modal,
+  Pagination,
   Popconfirm,
   Select,
   Space,
@@ -45,6 +47,8 @@ function getErrorMessage(error: unknown): string {
 }
 
 export const RolesPage = () => {
+  const screens = Grid.useBreakpoint();
+  const isCompact = !screens.lg;
   const [roles, setRoles] = useState<RoleRecord[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -148,11 +152,12 @@ export const RolesPage = () => {
       title: 'ROLE AUTHORITY',
       dataIndex: 'name',
       key: 'name',
+      width: 220,
       render: (name: string, role) => (
         <Flex align="center" gap={16}>
           <Shield />
           <div>
-            <Text strong style={{ display: 'block', color: '#0F172A' }}>{name}</Text>
+            <Text strong style={{ display: 'block', color: '#0F172A', overflowWrap: 'anywhere' }}>{name}</Text>
             <Text type="secondary" style={{ fontSize: 12 }}>{role.code}</Text>
           </div>
         </Flex>
@@ -162,6 +167,7 @@ export const RolesPage = () => {
       title: 'PERMISSIONS',
       dataIndex: 'permissions',
       key: 'permissions',
+      width: 640,
       render: (rolePermissions: string[], role) => {
         const grantedPermissions = roleCatalog.find((option) => option.name === role.name)?.permissions ?? rolePermissions;
         return (
@@ -178,6 +184,7 @@ export const RolesPage = () => {
       title: 'USERS',
       dataIndex: 'userCount',
       key: 'userCount',
+      width: 120,
       render: (count: number) => (
         <Space size={8}>
           <Tag style={{ background: 'rgba(2, 132, 199, 0.1)', color: '#0284C7', border: 'none', fontWeight: 600 }}>
@@ -192,6 +199,7 @@ export const RolesPage = () => {
     {
       title: 'ACTIONS',
       key: 'actions',
+      width: 120,
       render: (_, role) => (
         <Space size={12}>
           <Button
@@ -221,7 +229,7 @@ export const RolesPage = () => {
 
   return (
     <ConfigProvider theme={themeConfig}>
-      <div style={{ minHeight: '100vh', padding: 24, backgroundColor: themeConfig.token.colorBgLayout }}>
+      <div style={{ minHeight: '100%', padding: 'clamp(12px, 2vw, 24px)', backgroundColor: themeConfig.token.colorBgLayout }}>
         <Flex justify="flex-start" align="center" style={{ marginBottom: 20 }}>
           <Title level={3} style={{ margin: 0, fontWeight: 600, color: '#0F172A' }}>
             User Roles & Permissions
@@ -231,7 +239,7 @@ export const RolesPage = () => {
         <Card
           bordered={false}
           style={{ boxShadow: themeConfig.token.boxShadowTertiary, borderRadius: 12 }}
-          bodyStyle={{ padding: 24 }}
+          bodyStyle={{ padding: 'clamp(14px, 2vw, 24px)' }}
         >
           <Flex justify="space-between" align="center" wrap="wrap" gap={16} style={{ marginBottom: 24 }}>
             <div>
@@ -247,20 +255,63 @@ export const RolesPage = () => {
             </Button>
           </Flex>
 
-          <Table<RoleRecord>
-            rowKey="id"
-            dataSource={roles}
-            columns={columns}
-            loading={loading}
-            locale={{ emptyText: <Empty description="No roles found" /> }}
-            pagination={{
-              current: page,
-              pageSize,
-              total,
-              showSizeChanger: false,
-              onChange: setPage,
-            }}
-          />
+          {isCompact ? (
+            <Flex vertical gap={12}>
+              {loading && roles.length === 0 ? <Card loading /> : roles.length === 0 ? <Empty description="No roles found" /> : roles.map((role) => {
+                const grantedPermissions = roleCatalog.find((option) => option.name === role.name)?.permissions ?? role.permissions;
+                return (
+                  <Card key={role.id} size="small" styles={{ body: { padding: 16 } }}>
+                    <Flex vertical gap={14}>
+                      <Flex align="flex-start" justify="space-between" gap={12}>
+                        <Flex align="center" gap={12} style={{ minWidth: 0 }}>
+                          <Shield size={20} color="#0F766E" />
+                          <div style={{ minWidth: 0 }}>
+                            <Text strong style={{ display: 'block', overflowWrap: 'anywhere' }}>{role.name}</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>{role.code}</Text>
+                          </div>
+                        </Flex>
+                        <Space size={4}>
+                          <Button type="text" aria-label={`Edit ${role.name}`} icon={<Edit2 size={16} />} onClick={() => openEditModal(role)} />
+                          <Popconfirm
+                            title="Delete this role?"
+                            description={role.userCount > 0 ? 'Roles assigned to users cannot be deleted.' : undefined}
+                            onConfirm={() => void removeRole(role)}
+                            okText="Delete"
+                            okButtonProps={{ danger: true }}
+                          >
+                            <Button type="text" danger aria-label={`Delete ${role.name}`} icon={<Trash2 size={16} />} disabled={role.userCount > 0} />
+                          </Popconfirm>
+                        </Space>
+                      </Flex>
+                      <div>
+                        <Text type="secondary" style={{ display: 'block', fontSize: 11, marginBottom: 6 }}>PERMISSIONS</Text>
+                        <Space size={[6, 6]} wrap>
+                          {grantedPermissions.length ? grantedPermissions.map((permission) => <Tag key={permission}>{permission}</Tag>) : <Text type="secondary">No permissions</Text>}
+                        </Space>
+                      </div>
+                      <Text type="secondary">{role.userCount} {role.userCount === 1 ? 'user' : 'users'} assigned</Text>
+                    </Flex>
+                  </Card>
+                );
+              })}
+              {total > pageSize && (
+                <Flex justify="center">
+                  <Pagination current={page} pageSize={pageSize} total={total} onChange={setPage} showSizeChanger={false} size="small" />
+                </Flex>
+              )}
+            </Flex>
+          ) : (
+            <Table<RoleRecord>
+              rowKey="id"
+              dataSource={roles}
+              columns={columns}
+              loading={loading}
+              tableLayout="fixed"
+              scroll={{ x: 1080 }}
+              locale={{ emptyText: <Empty description="No roles found" /> }}
+              pagination={{ current: page, pageSize, total, showSizeChanger: false, onChange: setPage }}
+            />
+          )}
         </Card>
 
         <Modal
@@ -271,6 +322,8 @@ export const RolesPage = () => {
           confirmLoading={saving}
           okText={editingRole ? 'Save Changes' : 'Create Role'}
           destroyOnHidden
+          width={isCompact ? 'calc(100vw - 24px)' : 560}
+          styles={{ body: { maxHeight: 'min(70vh, 640px)', overflowY: 'auto' } }}
         >
           <Flex vertical gap={8}>
             <Text strong>Role name</Text>

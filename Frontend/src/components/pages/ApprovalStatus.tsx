@@ -12,7 +12,7 @@ export default function ApprovalStatus() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.Tenant?.approvalStatus === "approved") navigate("/", { replace: true });
+    if (user?.Tenant?.approvalStatus === "approved") navigate("/dashboard", { replace: true });
   }, [navigate, user?.Tenant?.approvalStatus]);
 
   if (!isReady) return <Spin fullscreen spinning tip="Loading..." />;

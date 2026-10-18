@@ -11,6 +11,7 @@ import type {
   CreateAppointmentPayload,
   CreatePatientPayload,
   CreateStaffProfilePayload,
+  GrantedStaffSystemAccessResponse,
   CreatedStaffProfileResponse,
   CreatePatientMedicalDataPayload,
   PatientDetail,
@@ -18,6 +19,9 @@ import type {
   PatientMedicalData,
   PatientOption,
   StaffDirectoryEntry,
+  HrDashboardSummary,
+  GrantStaffSystemAccessPayload,
+  UpdateStaffProfilePayload,
   UpdateAppointmentPayload,
   UpdatePatientProfilePayload,
   RoleRecord,
@@ -305,10 +309,30 @@ export const getApiErrorMessage = (error: unknown, fallback: string): string => 
 
 // Staff apis
 
+export const getHrDashboard = async (): Promise<HrDashboardSummary> => {
+  const res = await api.get("/staff/hr-dashboard");
+  return res.data.data as HrDashboardSummary;
+};
+
 export const createStaffProfile = async (values: CreateStaffProfilePayload) => {
   const res = await api.post("/staff/add", values)
   return res.data.data as CreatedStaffProfileResponse
 }
+
+export const updateStaffProfile = async (profileId: string, values: UpdateStaffProfilePayload) => {
+  const res = await api.patch(`/staff/${profileId}`, values);
+  return res.data.data;
+};
+
+export const grantStaffSystemAccess = async (profileId: string, values: GrantStaffSystemAccessPayload) => {
+  const res = await api.post(`/staff/${profileId}/account`, values);
+  return res.data.data as GrantedStaffSystemAccessResponse;
+};
+
+export const getGrantableStaffRoles = async (): Promise<GrantStaffSystemAccessPayload["role"][]> => {
+  const res = await api.get("/staff/account-roles");
+  return res.data.data as GrantStaffSystemAccessPayload["role"][];
+};
 
 export const getAllStaff = async (): Promise<StaffDirectoryEntry[]> => {
   const res = await api.get("/staff/get-staff")

@@ -71,6 +71,12 @@ export interface StaffDirectoryEntry {
   id: string;
   userId: string | null;
   hasSystemAccess?: boolean;
+  departmentName?: string;
+  isActive?: boolean;
+  employeeId?: string;
+  departmentId?: string;
+  wardId?: string | null;
+  joiningDate?: string | null;
   name: string;
   email: string;
   phone: string;
@@ -79,6 +85,15 @@ export interface StaffDirectoryEntry {
   bio: string;
   availability: AvailabilityWindow[];
   image: string;
+}
+
+export interface HrDashboardSummary {
+  totalEmployees: number;
+  activeEmployees: number;
+  inactiveEmployees: number;
+  staffWithoutSystemAccess: number;
+  doctors: number;
+  departments: number;
 }
 
 interface StaffProfilePayloadBase {
@@ -135,6 +150,32 @@ export interface CreatedStaffProfileResponse {
   profile: { id: string };
   availability: AvailabilityWindow[];
   type: "Doctor" | "Staff";
+  credentialsEmail: { sent: boolean; reason?: "not_configured" | "provider_error" } | null;
+}
+
+export interface GrantedStaffSystemAccessResponse {
+  profileId: string;
+  user: { id: string; name: string; email: string; isActive: boolean };
+  role: string;
+  credentialsEmail: { sent: boolean; reason?: "not_configured" | "provider_error" };
+}
+
+export interface UpdateStaffProfilePayload {
+  name?: string;
+  employeeId?: string;
+  departmentId?: string;
+  wardId?: string | null;
+  joiningDate?: string | null;
+  designation?: string | null;
+  description?: string | null;
+  phone?: string | null;
+  isActive?: boolean;
+}
+
+export interface GrantStaffSystemAccessPayload {
+  email: string;
+  password: string;
+  role: "Nurse" | "Receptionist" | "Head Receptionist" | "Billing Staff" | "Pharmacist" | "Head Pharmacist";
 }
 
 export type AppointmentStatus = "booked" | "completed" | "cancelled" | "no_show";
