@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { writeAuditLog } from "../utils/audit.utils.js";
 import { getEffectiveRolePermissions } from "../constants/roles.js";
 import { isConfiguredSuperAdmin } from "../utils/superAdmin.utils.js";
+import { verifyRecaptcha } from "../utils/verifyRecaptcha.js";
 const options = {
   httpOnly: true,
   secure: true,
@@ -18,9 +19,10 @@ const options = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_ROUNDS = 12;
-const MIN_PASSWORD_LENGTH = 8;
+const MIN_PASSWORD_LENGTH = 12;
 
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
+  await verifyRecaptcha(req.body?.recaptchaToken, "signup");
   const { name, email, password } = req.body;
   
   if (
@@ -98,6 +100,7 @@ const MIN_PASSWORD_LENGTH = 8;
 });
 
 export const login = asyncHandler(async (req: Request, res: Response) => {
+  await verifyRecaptcha(req.body?.recaptchaToken, "login");
   const { email, password } = req.body;
 
   if (!email || typeof email !== "string" || !password || typeof password !== "string") {

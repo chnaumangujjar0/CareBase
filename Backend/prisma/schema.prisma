@@ -34,6 +34,7 @@ model Appointment {
   Updater        User?           @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
   Encounter      Encounter?
   BillingInvoice BillingInvoice?
+  PublicAccess   PublicAppointmentAccess?
 
   @@unique([id, tenantId])
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
@@ -44,6 +45,22 @@ model Appointment {
   @@index([tenantId, scheduledAt], map: "Appointment_tenantId_scheduledAt_idx_31e2839e")
   @@index([updatedBy], map: "Appointment_updatedBy_idx_0780dcde")
   @@index([doctorId, scheduledAt], map: "appointment_doctor_schedule_idx_23b246b0")
+}
+
+model PublicAppointmentAccess {
+  id              String   @id @default(uuid()) @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  appointmentId  String   @db.Uuid
+  tenantId        String   @db.Uuid
+  bookingCodeHash String   @unique
+  contactEmail    String
+  expiresAt       DateTime @db.Timestamptz(6)
+
+  Appointment Appointment @relation(fields: [appointmentId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([appointmentId, tenantId])
+  @@index([tenantId, expiresAt])
+  @@map("PublicAppointmentAccess")
 }
 
 model AuditLog {

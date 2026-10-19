@@ -1,4 +1,4 @@
-import { BrevoClient, BrevoError } from "@getbrevo/brevo";
+import nodemailer from "nodemailer";
 
 const BRAND = {
   primary: "#0F766E",
@@ -16,6 +16,16 @@ export interface StaffCredentialEmailInput {
   password: string;
   hospitalName?: string;
   roleName: string;
+}
+
+export interface PublicAppointmentEmailInput {
+  patientName: string;
+  recipientEmail: string;
+  bookingCode: string;
+  hospitalName: string;
+  doctorName: string;
+  departmentName: string;
+  scheduledAt: Date;
 }
 
 export type CredentialEmailResult = { sent: true } | { sent: false; reason: "not_configured" | "provider_error" };
@@ -93,36 +103,85 @@ const buildHtml = (input: StaffCredentialEmailInput): string => {
 </body></html>`;
 };
 
-export const sendStaffCredentialsEmail = async (input: StaffCredentialEmailInput): Promise<CredentialEmailResult> => {
-  const apiKey = process.env.BREVO_API_KEY?.trim();
-  const senderEmail = process.env.BREVO_SENDER_EMAIL?.trim();
-  if (!apiKey || !senderEmail) {
-    console.error("Staff credentials email was not sent: Brevo API key or verified sender email is not configured.");
-    return { sent: false, reason: "not_configured" };
+const sendSmtpEmail = async (input: {
+  to: { email: string; name?: string };
+  subject: string;
+  html: string;
+  text: string;
+}): Promise<void> => {
+  const host = process.env.SMTP_HOST?.trim();
+  const user = process.env.SMTP_USER?.trim();
+  const pass = process.env.SMTP_PASS;
+  const senderEmail = process.env.SMTP_FROM?.trim() || user;
+  const port = Number(process.env.SMTP_PORT?.trim() || 587);
+  if (!host || !user || !pass || !senderEmail || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("not_configured");
   }
 
-  const senderName = process.env.BREVO_SENDER_NAME?.trim() || "CareBase";
+  const transporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: process.env.SMTP_SECURE?.trim().toLowerCase() === "true" || port === 465,
+    auth: { user, pass },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
+  });
+  await transporter.sendMail({
+    from: { name: process.env.SMTP_FROM_NAME?.trim() || "CareBase", address: senderEmail },
+    to: input.to.name ? { name: input.to.name, address: input.to.email } : input.to.email,
+    subject: input.subject,
+    html: input.html,
+    text: input.text,
+  });
+};
+
+const emailFailure = (label: string, error: unknown): CredentialEmailResult => {
+  if (error instanceof Error && error.message === "not_configured") console.error(`${label} email was not sent: SMTP configuration is incomplete or invalid.`);
+  else console.error(`${label} email could not be delivered through SMTP.`, error instanceof Error ? error.name : "unknown error");
+  return { sent: false, reason: error instanceof Error && error.message === "not_configured" ? "not_configured" : "provider_error" };
+};
+
+export const sendStaffCredentialsEmail = async (input: StaffCredentialEmailInput): Promise<CredentialEmailResult> => {
   try {
-    const brevo = new BrevoClient({
-      apiKey,
-      timeoutInSeconds: 10,
-      maxRetries: 1,
-    });
-    await brevo.transactionalEmails.sendTransacEmail({
-        sender: { email: senderEmail, name: senderName },
-        to: [{ email: input.email, name: input.name }],
-        subject: "Your CareBase sign-in details",
-        htmlContent: buildHtml(input),
-        textContent: `Welcome to CareBase, ${input.name}. Your ${input.roleName} account for ${input.hospitalName || "your hospital"} is ready. Sign in with email: ${input.email} and temporary password: ${input.password}. Keep these credentials private.`,
+    await sendSmtpEmail({
+      to: { email: input.email, name: input.name },
+      subject: "Your CareBase sign-in details",
+      html: buildHtml(input),
+      text: `Welcome to CareBase, ${input.name}. Your ${input.roleName} account for ${input.hospitalName || "your hospital"} is ready. Sign in with email: ${input.email} and temporary password: ${input.password}. Keep these credentials private.`,
     });
     return { sent: true };
   } catch (error) {
-    if (error instanceof BrevoError) {
-      // Avoid logging provider response bodies because they can contain email addresses.
-      console.error(`Staff credentials email was rejected by Brevo (HTTP ${error.statusCode}).`);
-    } else {
-      console.error("Staff credentials email could not be delivered through Brevo.", error instanceof Error ? error.name : "unknown error");
+    return emailFailure("Staff credentials", error);
+  }
+};
+
+export const sendPublicAppointmentEmail = async (input: PublicAppointmentEmailInput): Promise<CredentialEmailResult> => {
+  const dateTime = new Intl.DateTimeFormat("en-PK", {
+    dateStyle: "full",
+    timeStyle: "short",
+    timeZone: "Asia/Karachi",
+  }).format(input.scheduledAt);
+  const patientName = escapeHtml(input.patientName);
+  const hospitalName = escapeHtml(input.hospitalName);
+  const doctorName = escapeHtml(input.doctorName);
+  const departmentName = escapeHtml(input.departmentName);
+  const code = escapeHtml(input.bookingCode);
+  const loginUrl = safeLoginUrl();
+  try {
+    await sendSmtpEmail({
+      to: { email: input.recipientEmail, name: input.patientName },
+      subject: "Your CareBase appointment booking",
+      html: `<!doctype html><html lang="en"><body style="margin:0;padding:28px 12px;background:${BRAND.surface};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text};"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;margin:0 auto;background:${BRAND.white};border:1px solid ${BRAND.border};border-radius:12px;"><tr><td style="padding:28px 30px;"><div style="font-size:24px;font-weight:700;letter-spacing:-1px;"><span style="color:${BRAND.primary};">Care</span><span style="color:#0F172A;">Base</span></div><p style="margin:24px 0 8px;color:${BRAND.primary};font-size:12px;font-weight:700;letter-spacing:1px;">APPOINTMENT BOOKED</p><h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;">Your appointment is confirmed</h1><p style="margin:0 0 22px;line-height:1.65;color:${BRAND.muted};">Hello ${patientName}, your appointment has been booked. Keep your private booking code to view the appointment later.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFC;border:1px solid ${BRAND.border};border-radius:8px;"><tr><td style="padding:16px 18px;font-size:14px;line-height:1.8;"><strong>${hospitalName}</strong><br>Dr. ${doctorName}<br>${departmentName}<br>${escapeHtml(dateTime)} (Pakistan Standard Time)</td></tr></table><p style="margin:22px 0 7px;font-size:12px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">PRIVATE BOOKING CODE</p><div style="padding:15px 18px;border:1px dashed ${BRAND.primary};border-radius:8px;background:#F0FDFA;color:${BRAND.primary};font-family:monospace;font-size:19px;font-weight:700;letter-spacing:2px;word-break:break-all;">${code}</div><p style="margin:14px 0 0;font-size:13px;line-height:1.65;color:${BRAND.muted};">Use this code together with ${escapeHtml(input.recipientEmail)} on the CareBase patient appointments page. Anyone with the code can access these booking details, so keep it private.</p>${loginUrl ? `<p style="margin:22px 0 0;"><a href="${escapeHtml(new URL("/my-appointments", loginUrl).toString())}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:${BRAND.primary};color:white;text-decoration:none;font-size:14px;font-weight:700;">View my appointment</a></p>` : ""}</td></tr></table></body></html>`,
+      text: `Your CareBase appointment is booked.\n\n${input.hospitalName}\nDr. ${input.doctorName}\n${input.departmentName}\n${dateTime} (Pakistan Standard Time)\n\nPrivate booking code: ${input.bookingCode}\nUse the code and your email address on the CareBase patient appointments page. Keep this code private.`,
+    });
+    return { sent: true };
+  } catch (error) {
+    if (error instanceof Error && error.message === "not_configured") {
+      console.error("Patient booking email was not sent: SMTP configuration is incomplete or invalid.");
+      return { sent: false, reason: "not_configured" };
     }
+    console.error("Patient booking email could not be delivered through SMTP.", error instanceof Error ? error.name : "unknown error");
     return { sent: false, reason: "provider_error" };
   }
 };

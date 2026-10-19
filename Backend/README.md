@@ -1,5 +1,20 @@
 # Backend setup
 
+## Patient appointment emails
+
+Configure SMTP in the backend environment to email a patient's appointment confirmation and private booking code:
+
+- `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are required.
+- `SMTP_PORT` defaults to `587`; use `465` for implicit TLS.
+- `SMTP_SECURE=true` enables implicit TLS when required by your SMTP provider.
+- `SMTP_FROM` defaults to `SMTP_USER`; `SMTP_FROM_NAME` defaults to `CareBase`.
+
+If SMTP is not configured or delivery fails, appointment booking still succeeds and the response indicates that the confirmation email was not sent. The booking code is shown once after the booking, so the patient can save it manually.
+
+## Staff credential emails
+
+Staff access and public appointment emails use the SMTP settings above. If SMTP is not configured or delivery fails, account creation or booking still succeeds and the API reports that the email was not sent.
+
 ## Platform super administrator
 
 Set `SUPER_ADMIN_EMAILS` in the backend environment to a comma-separated list of trusted CareBase platform administrator email addresses. Only these addresses can use the platform hospital review API. Public signup does not grant platform administrator access.
