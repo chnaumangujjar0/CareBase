@@ -1,34 +1,39 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
 import { ConfigProvider } from "antd";
 import { ProtectedRoute } from './components/common/ProtactedRoute';
-import Login from './components/pages/Login';
-import Dashboard from './components/pages/Dashboard';
-import { SignUp } from './components/pages/SignUp';
-import Patient from './components/pages/Patient';
-import Onboarding from './components/pages/Onboarding';
-import Layout from "./Layout"
-import Unauthorized from './components/pages/Unauthorized';
 import SuperAdmin from './components/common/SuperAdmin';
-import Departments from './components/pages/Department';
 import { ToastContainer } from 'react-toastify';
-import Staff from './components/pages/Staff';
-import Appointments from './components/pages/Appointments';
-import { RolesPage } from './components/pages/RolesPage';
-import { HospitalProfile } from './components/pages/HospitalProfile';
-import { Wards } from './components/pages/Ward';
-import { Room } from './components/pages/Room';
-import { Bed } from './components/pages/Bed';
-import ClinicalDesk from './components/pages/ClinicalDesk';
-import ClinicalOperations from './components/pages/ClinicalOperations';
-import Pharmacy from './components/pages/Pharmacy';
-import AuditLogs from './components/pages/AuditLogs';
-import Billing from './components/pages/Billing';
-import ApprovalStatus from './components/pages/ApprovalStatus';
-import PlatformAdmin from './components/pages/PlatformAdmin';
-import HrDashboard from './components/pages/HrDashboard';
 import PlatformAdminRoute from './components/common/PlatformAdminRoute';
 import { appTheme } from './theme';
-import LandingPage from './components/pages/LandingPage';
+import PageSkeleton from './components/common/PageSkeleton';
+
+const Layout = lazy(() => import('./Layout'));
+const LandingPage = lazy(() => import('./components/pages/LandingPage'));
+const PublicAppointmentBooking = lazy(() => import('./components/pages/PublicAppointmentBooking'));
+const PatientAppointments = lazy(() => import('./components/pages/PatientAppointments'));
+const Login = lazy(() => import('./components/pages/Login'));
+const SignUp = lazy(() => import('./components/pages/SignUp').then((module) => ({ default: module.SignUp })));
+const ApprovalStatus = lazy(() => import('./components/pages/ApprovalStatus'));
+const PlatformAdmin = lazy(() => import('./components/pages/PlatformAdmin'));
+const Onboarding = lazy(() => import('./components/pages/Onboarding'));
+const Unauthorized = lazy(() => import('./components/pages/Unauthorized'));
+const HrDashboard = lazy(() => import('./components/pages/HrDashboard'));
+const Dashboard = lazy(() => import('./components/pages/Dashboard'));
+const Patient = lazy(() => import('./components/pages/Patient'));
+const Appointments = lazy(() => import('./components/pages/Appointments'));
+const ClinicalDesk = lazy(() => import('./components/pages/ClinicalDesk'));
+const ClinicalOperations = lazy(() => import('./components/pages/ClinicalOperations'));
+const Pharmacy = lazy(() => import('./components/pages/Pharmacy'));
+const Billing = lazy(() => import('./components/pages/Billing'));
+const Departments = lazy(() => import('./components/pages/Department'));
+const RolesPage = lazy(() => import('./components/pages/RolesPage').then((module) => ({ default: module.RolesPage })));
+const HospitalProfile = lazy(() => import('./components/pages/HospitalProfile').then((module) => ({ default: module.HospitalProfile })));
+const Staff = lazy(() => import('./components/pages/Staff'));
+const Wards = lazy(() => import('./components/pages/Ward').then((module) => ({ default: module.Wards })));
+const Room = lazy(() => import('./components/pages/Room').then((module) => ({ default: module.Room })));
+const Bed = lazy(() => import('./components/pages/Bed').then((module) => ({ default: module.Bed })));
+const AuditLogs = lazy(() => import('./components/pages/AuditLogs'));
 
 function App() {
   return (
@@ -47,8 +52,11 @@ function App() {
         pauseOnHover
         theme="light"
       />
+        <Suspense fallback={<PageSkeleton />}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route path="/book-appointment" element={<PublicAppointmentBooking />} />
+          <Route path="/my-appointments" element={<PatientAppointments />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/approval-status" element={<ApprovalStatus />} />
@@ -101,6 +109,7 @@ function App() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Route>
         </Routes>
+        </Suspense>
       </BrowserRouter>
     </ConfigProvider>
   );

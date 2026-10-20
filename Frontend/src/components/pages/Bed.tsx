@@ -39,6 +39,8 @@ import {
 } from "../../services/api";
 import type { BedStatus } from "../../types/global.types";
 import { toast } from "react-toastify";
+import PageSkeleton from "../common/PageSkeleton";
+import { facilityTheme } from "../../theme";
 
 const { Title, Text } = Typography;
 
@@ -65,42 +67,13 @@ interface Pagination {
   totalPages: number;
 }
 
-// --- Enhanced Theme Configuration (Matches previous components) ---
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E', // Deep Teal
-    colorSuccess: '#10B981', // Modern Green
-    colorInfo: '#0EA5E9',    // Modern Blue
-    colorWarning: '#F59E0B', // Amber for Maintenance
-    colorError: '#EF4444',
-    colorTextBase: '#334155',
-    colorBgLayout: '#F8FAFC',
-    colorBorder: '#E2E8F0',
-    borderRadius: 12,
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
-    boxShadowTertiary: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-    controlHeightLG: 48,
-  },
-  components: {
-    Card: {
-      borderRadiusLG: 16,
-    },
-    Table: {
-      headerBg: '#F1F5F9',
-      headerColor: '#475569',
-      rowHoverBg: '#F8FAFC',
-      borderRadiusLG: 12,
-    }
-  }
-};
-
 export const Bed: React.FC = () => {
   const [form] = Form.useForm();
   
   // State
   const [beds, setBeds] = useState<Bed[]>([]);
   const [rooms, setRooms] = useState<{ id: string; name: string }[]>([]); // For the dropdown
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   
@@ -237,7 +210,7 @@ export const Bed: React.FC = () => {
       key: 'code',
       render: (text: string) => (
         <Flex align="center" gap={12}>
-          <div style={{ padding: 8, background: '#E0F2FE', borderRadius: 8, color: themeConfig.token.colorInfo }}>
+          <div style={{ padding: 8, background: '#E0F2FE', borderRadius: 8, color: facilityTheme.token.colorInfo }}>
             <BedSingle size={18} />
           </div>
           <Text strong style={{ fontSize: 14 }}>{text}</Text>
@@ -262,7 +235,7 @@ export const Bed: React.FC = () => {
       key: 'occupancy',
       render: (_: unknown, record: Bed) => (
         record.currentPatientId ? (
-          <Badge status="processing" text={<Text strong style={{ color: themeConfig.token.colorInfo }}>Occupied</Text>} />
+          <Badge status="processing" text={<Text strong style={{ color: facilityTheme.token.colorInfo }}>Occupied</Text>} />
         ) : (
           <Badge status="default" text={<Text type="secondary">Empty</Text>} />
         )
@@ -290,7 +263,7 @@ export const Bed: React.FC = () => {
           <Tooltip title="Edit Bed">
             <Button 
               type="text" 
-              icon={<Edit2 size={16} color={themeConfig.token.colorPrimary} />} 
+              icon={<Edit2 size={16} color={facilityTheme.token.colorPrimary} />}
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
@@ -317,9 +290,11 @@ export const Bed: React.FC = () => {
     },
   ];
 
+  if (loading && beds.length === 0) return <PageSkeleton />;
+
   return (
-    <ConfigProvider theme={themeConfig}>
-      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
+    <ConfigProvider theme={facilityTheme}>
+      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: facilityTheme.token.colorBgLayout }}>
         
         {/* Page Header */}
         <Flex justify="space-between" align="center" style={{ marginBottom: 32 }}>
@@ -343,7 +318,7 @@ export const Bed: React.FC = () => {
         </Flex>
 
         {/* Data Card */}
-        <Card bordered={false} style={{ boxShadow: themeConfig.token.boxShadowTertiary, padding: '8px 0' }}>
+        <Card bordered={false} style={{ boxShadow: facilityTheme.token.boxShadowTertiary, padding: '8px 0' }}>
           
           {/* Toolbar */}
           <Flex justify="space-between" align="center" style={{ marginBottom: 24, padding: '0 24px' }}>
@@ -376,7 +351,7 @@ export const Bed: React.FC = () => {
         {/* Create / Edit Modal */}
         <Modal
           title={
-            <Text style={{ fontSize: 18, fontWeight: 700, color: themeConfig.token.colorPrimary }}>
+            <Text style={{ fontSize: 18, fontWeight: 700, color: facilityTheme.token.colorPrimary }}>
               {editingBed ? "Edit Bed Details" : "Create New Bed"}
             </Text>
           }
@@ -386,9 +361,9 @@ export const Bed: React.FC = () => {
           zIndex={1100}
         >
           {editingBed?.currentPatientId && (
-            <div style={{ padding: '12px 16px', background: '#EFF6FF', borderLeft: `4px solid ${themeConfig.token.colorInfo}`, borderRadius: 8, marginBottom: 24 }}>
+            <div style={{ padding: '12px 16px', background: '#EFF6FF', borderLeft: `4px solid ${facilityTheme.token.colorInfo}`, borderRadius: 8, marginBottom: 24 }}>
               <Flex align="center" gap={8}>
-                <User size={18} color={themeConfig.token.colorInfo} />
+                <User size={18} color={facilityTheme.token.colorInfo} />
                 <Text style={{ color: '#1E3A8A', fontSize: 13, fontWeight: 500 }}>
                   This bed is currently occupied. Room and status cannot be changed until the patient is discharged or transferred.
                 </Text>
@@ -405,7 +380,7 @@ export const Bed: React.FC = () => {
           >
             <Form.Item 
               name="code" 
-              label={<Text strong style={{ color: '#475569' }}>Bed Code / Identifier <span style={{ color: themeConfig.token.colorError }}>*</span></Text>}
+              label={<Text strong style={{ color: '#475569' }}>Bed Code / Identifier <span style={{ color: facilityTheme.token.colorError }}>*</span></Text>}
               rules={[
                 { required: true, message: "Bed code is required" },
                 { max: 30, message: "Code cannot exceed 30 characters" }
@@ -416,7 +391,7 @@ export const Bed: React.FC = () => {
 
             <Form.Item 
               name="roomId" 
-              label={<Text strong style={{ color: '#475569' }}>Assigned Room <span style={{ color: themeConfig.token.colorError }}>*</span></Text>}
+              label={<Text strong style={{ color: '#475569' }}>Assigned Room <span style={{ color: facilityTheme.token.colorError }}>*</span></Text>}
               rules={[{ required: true, message: "Please assign this bed to a room" }]}
             >
               <Select 

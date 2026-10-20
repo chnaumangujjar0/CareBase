@@ -26,7 +26,7 @@ import { clearUser, selectCurrentUser } from "../../store/authSlice";
 import Logo from "../../../public/carebase-logo-icon.svg";
 import { logoutUser } from "../../services/api";
 import { useState } from "react";
-import { Spin } from "antd";
+import { Skeleton } from "antd";
 import { toast } from "react-toastify";
 import { clearTenant } from "../../store/tenantSlice";
 import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
@@ -116,7 +116,15 @@ export const Sidebar = () => {
 
   return (
     <>
-      <Spin fullscreen spinning={isloading || !isReady} tip={isloading ? "Signing out..." : "Loading..."} />
+      {(isloading || !isReady) && <div
+        aria-busy="true"
+        aria-label={isloading ? "Signing out" : "Loading hospital workspace"}
+        style={{ position: "fixed", inset: 0, zIndex: 2000, display: "grid", placeItems: "center", padding: 24, background: "rgba(241, 245, 249, 0.86)" }}
+      >
+        <div style={{ width: "min(100%, 520px)", padding: 24, borderRadius: 12, background: "#fff", boxShadow: "0 12px 40px rgba(15, 23, 42, 0.12)" }}>
+          <Skeleton active title={{ width: "42%" }} paragraph={{ rows: 5 }} />
+        </div>
+      </div>}
       <aside className="sidebar">
         <div className="header">
           <img

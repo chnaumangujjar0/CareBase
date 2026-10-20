@@ -28,6 +28,7 @@ import type { AppDispatch } from "../../store/store";
 import { updateTenantDetails } from "../../services/api";
 import dayjs from "dayjs";
 import { toast } from "react-toastify";
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 const { Dragger } = Upload;
@@ -46,7 +47,7 @@ const SectionTitle = ({ title, color }: { title: string; color: string }) => (
 
 export const HospitalProfile: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
-  const { tenant } = useTenantBootstrap();
+  const { tenant, isReady } = useTenantBootstrap();
   const [form] = Form.useForm();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -149,6 +150,8 @@ export const HospitalProfile: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  if (!isReady) return <PageSkeleton />;
 
   return (
     <ConfigProvider theme={themeConfig}>

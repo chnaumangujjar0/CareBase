@@ -10,6 +10,7 @@ import type { AuthUser } from "../../types/auth";
 import type { BillingCategory, BillingInvoice, BillingRate } from "../../types/global.types";
 import { addBillingInvoiceItem, collectBillingPayment, createAppointmentInvoice, createBillingRate, createInpatientInvoice, getApiErrorMessage, getBillableAdmissions, getBillableAppointments, getBillingInvoices, getBillingRates } from "../../services/api";
 import "../../styles/billing.scss";
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 const categories: BillingCategory[] = ["appointment", "bed", "surgery", "consultation", "hospital_fee"];
@@ -102,13 +103,20 @@ export default function Billing() {
 
   const printInvoice = () => {
     document.body.classList.add("print-invoice-mode");
-    const cleanup = () => document.body.classList.remove("print-invoice-mode");
+    let fallbackTimer = 0;
+    const cleanup = () => {
+      document.body.classList.remove("print-invoice-mode");
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener("afterprint", cleanup);
+    };
     window.addEventListener("afterprint", cleanup, { once: true });
-    window.print();
-    window.setTimeout(cleanup, 1000);
+    fallbackTimer = window.setTimeout(cleanup, 60_000);
+    // Let Ant Design finish its modal layout before opening the browser print UI.
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
   };
 
   if (!canRead) return <Alert type="warning" showIcon message="You do not have billing access." description="Ask an administrator to assign billing permissions to your role." />;
+  if (loading) return <PageSkeleton />;
 
   const invoiceColumns: TableProps<BillingInvoice>["columns"] = [
     { title: "INVOICE", dataIndex: "invoiceNumber" },
@@ -121,14 +129,15 @@ export default function Billing() {
     { title: "ACTION", key: "action", render: (_, invoice) => <Button size="small" onClick={() => setSelectedInvoice(invoice)}>Open</Button> },
   ];
 
-  return <Space direction="vertical" size="large" style={{ width: "100%", padding: 24 }}>
+  return <>
+  <Space direction="vertical" size="large" style={{ width: "100%", padding: 24 }}>
     <Space style={{ width: "100%", justifyContent: "space-between" }}><div><Title level={3} style={{ margin: 0 }}>Billing</Title><Text type="secondary">Appointments, inpatient charges, and payments.</Text></div><Button icon={<RefreshCw size={15} />} onClick={() => void load()} loading={loading}>Refresh</Button></Space>
     <Tabs items={[
       ...(canReadInvoices ? [{ key: "invoices", label: "Invoices", children: <Card><Table<BillingInvoice> rowKey="id" loading={loading} dataSource={invoices} columns={invoiceColumns} pagination={{ pageSize: 10 }} /></Card> }] : []),
       ...(canWrite ? [{ key: "create", label: "Create invoice", children: <Space direction="vertical" style={{ width: "100%" }}><Card title="Appointment invoice"><Form form={appointmentForm} layout="inline" onFinish={(values) => void createAppointment(values)}><Form.Item name="appointmentId" rules={[{ required: true }]}><Select showSearch optionFilterProp="label" placeholder="Select appointment" style={{ width: 360 }} onChange={() => appointmentForm.setFieldValue("rateId", undefined)} options={billableAppointments.map((appointment) => ({ value: appointment.id, label: `${appointment.Patient.firstName} ${appointment.Patient.lastName} · ${appointment.Patient.mrn} · ${appointment.DoctorProfile.User.name} · ${dayjs(appointment.scheduledAt).format("MMM D")}` }))} /></Form.Item><Form.Item name="rateId" rules={[{ required: true }]}><Select showSearch optionFilterProp="label" placeholder={selectedAppointment ? "Select doctor rate" : "Select appointment first"} disabled={!selectedAppointment} notFoundContent={selectedAppointment ? "No active appointment rate exists for this doctor." : "Select an appointment first"} options={appointmentRates.map((rate) => ({ value: rate.id, label: `${rate.name} · PKR ${rate.amount}` }))} /></Form.Item><Button type="primary" htmlType="submit" loading={saving}>Create appointment invoice</Button></Form></Card><Card title="Inpatient invoice"><Form form={inpatientForm} layout="inline" onFinish={(values) => void createInpatient(values)}><Form.Item name="admissionId" rules={[{ required: true }]}><Select showSearch optionFilterProp="label" placeholder="Select admission" style={{ width: 360 }} options={billableAdmissions.map((admission) => ({ value: admission.id, label: `${admission.Encounter.Patient.firstName} ${admission.Encounter.Patient.lastName} · ${admission.Encounter.Patient.mrn} · ${dayjs(admission.admittedAt).format("MMM D")}` }))} /></Form.Item><Button type="primary" htmlType="submit" loading={saving}>Open inpatient invoice</Button></Form></Card></Space> }] : []),
       ...(canRatesRead ? [{ key: "rates", label: user?.role === "Doctor" ? "My appointment rates" : "Rate catalog", children: <Card><Form form={rateForm} layout="inline" onFinish={(values) => void createRate(values)}><Form.Item name="code" rules={[{ required: true }]}><Input placeholder="Code" /></Form.Item><Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Rate name" /></Form.Item><Form.Item name="category" initialValue={user?.role === "Doctor" ? "appointment" : undefined} rules={[{ required: true }]}><Select disabled={user?.role === "Doctor"} placeholder="Category" options={categories.map((category) => ({ value: category, label: category }))} /></Form.Item>{user?.role === "Doctor" && <Form.Item name="appointmentType" rules={[{ required: true }]}><Input placeholder="Appointment type" /></Form.Item>}<Form.Item name="amount" rules={[{ required: true, type: "number", min: 0 }]}><InputNumber placeholder="Amount PKR" /></Form.Item><Form.Item name="taxRate" initialValue={0}><InputNumber placeholder="Tax %" min={0} /></Form.Item><Button type="primary" htmlType="submit" loading={saving} disabled={!canRates}>Add rate</Button></Form><Table rowKey="id" style={{ marginTop: 20 }} dataSource={rates} columns={[{ title: "CODE", dataIndex: "code" }, { title: "NAME", dataIndex: "name" }, { title: "CATEGORY", dataIndex: "category" }, { title: "AMOUNT", dataIndex: "amount", render: (value) => `PKR ${value}` }, { title: "TAX", dataIndex: "taxRate", render: (value) => `${value}%` }]} /></Card> }] : []),
     ]} />
-    <Modal title={selectedInvoice ? selectedInvoice.invoiceNumber : "Invoice"} open={Boolean(selectedInvoice)} onCancel={() => setSelectedInvoice(null)} footer={null} width={800} className="invoice-modal">
+    <Modal title={selectedInvoice ? selectedInvoice.invoiceNumber : "Invoice"} open={Boolean(selectedInvoice)} onCancel={() => setSelectedInvoice(null)} footer={null} width={800} zIndex={2000} wrapClassName="invoice-modal-wrap" className="invoice-modal">
       {selectedInvoice && <>
         <div className="invoice-print-actions"><Button icon={<Printer size={15} />} onClick={printInvoice}>Print invoice</Button></div>
         <section className="invoice-print">
@@ -142,5 +151,6 @@ export default function Billing() {
         {canPay && selectedInvoice.balanceAmount > 0 && selectedInvoice.totalAmount > 0 && <Form className="invoice-edit-form" form={paymentForm} layout="inline" onFinish={(values) => void collectPayment(values)}><Form.Item name="amount" initialValue={selectedInvoice.balanceAmount} rules={[{ required: true }]}><InputNumber min={0.01} precision={2} /></Form.Item><Form.Item name="method" initialValue="cash"><Select options={[{ value: "cash", label: "Cash" }, { value: "card", label: "Card" }]} /></Form.Item><Form.Item name="reference"><Input placeholder="Reference" /></Form.Item><Button type="primary" htmlType="submit" loading={saving}>Collect full payment</Button></Form>}
       </>}
     </Modal>
-  </Space>;
+  </Space>
+  </>;
 }

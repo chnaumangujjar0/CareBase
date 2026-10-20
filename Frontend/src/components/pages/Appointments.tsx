@@ -35,10 +35,12 @@ import {
   createAppointment,
   getAppointmentOptions,
   getAppointments,
+  getApiErrorMessage,
   getPatients,
   updateAppointment,
 } from "../../services/api";
 import "../../styles/appointments.scss";
+import PageSkeleton from "../common/PageSkeleton";
 
 type AppointmentTab = "booked" | "completed";
 
@@ -234,14 +236,7 @@ function Appointments() {
       setShowForm(false);
       resetForm();
     } catch (error: unknown) {
-      console.log(error)
-      const response = error as { response?: { data?: { message?: string }; status: number } };
-      if(response.response?.status == 409){
-        toast.error("Doctor is not available for this time stamp.")
-      }else{
-
-        toast.error(response.response?.data?.message || "Could not save appointment");
-      }
+      toast.error(getApiErrorMessage(error, "Could not save appointment"));
     } finally {
       setSaving(false);
     }
@@ -258,8 +253,7 @@ function Appointments() {
       if (selectedAppointment?.id === updated.id) setSelectedAppointment(updated);
       toast.success(`Appointment marked ${statusLabels[status].toLowerCase()}`);
     } catch (error: unknown) {
-      const response = error as { response?: { data?: { message?: string } } };
-      toast.error(response.response?.data?.message || "Could not update appointment");
+      toast.error(getApiErrorMessage(error, "Could not update appointment"));
     }
   };
 
@@ -382,7 +376,7 @@ function Appointments() {
       </section>
 
       {loading ? (
-        <div className="appointments-loading"><Spin size="large" /></div>
+        <PageSkeleton />
       ) : appointments.length === 0 ? (
         <div className="appointments-empty">
           <Empty description="No appointments match these filters" />

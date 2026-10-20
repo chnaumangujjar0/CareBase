@@ -1,27 +1,19 @@
 import { useEffect, useState } from 'react';
-import { Container, Row, Col, Card, Button, Badge, Modal, Form, ToastContainer } from 'react-bootstrap';
+import { Container, Row, Col, Card, Button, Badge, Modal, Form } from 'react-bootstrap';
 import { Pencil, Trash, Plus } from 'lucide-react';
 import { useFormik } from 'formik';
-import { addDepartment, deleteDepartment, getDepartments, updateDepartment } from '../../services/api';
+import { addDepartment, deleteDepartment, getApiErrorMessage, getDepartments, updateDepartment } from '../../services/api';
 import { toast } from 'react-toastify';
 import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../store/authSlice";
 import type { AuthUser } from '../../types/auth';
+import type { Department } from '../../types/global.types';
+import PageSkeleton from '../common/PageSkeleton';
 // Define the shape of our form values
 interface DepartmentFormValues {
   name: string;
   isActive: boolean;
 }
-
-interface Department {
-  id: string;
-  name: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  tenantId: string;
-}
-
 
 export default function Departments() {
   const [departments, setDepartments] = useState<Department[] | null>(null);
@@ -32,11 +24,21 @@ export default function Departments() {
   const user =useSelector(selectCurrentUser) as AuthUser
 
   useEffect(() => {
-    getDepartments(user.tenantId as string)
+    let active = true;
+    if (!user?.tenantId) {
+      return;
+    }
+    getDepartments(user.tenantId)
     .then((res) => {
-      setDepartments(res)})
-    .catch((err:Error) => toast.error(err.message))
-  }, [user.tenantId])
+      if (active) setDepartments(res)})
+    .catch((err: unknown) => {
+      if (active) {
+        setDepartments([]);
+        toast.error(getApiErrorMessage(err, "Could not load departments"));
+      }
+    })
+    return () => { active = false; };
+  }, [user?.tenantId])
 
 
   const formik = useFormik<DepartmentFormValues>({
@@ -139,9 +141,10 @@ export default function Departments() {
     setDepartmentToDelete(null);
   };
 
+  if (departments === null) return <PageSkeleton />;
+
   return (
     <>
-    <ToastContainer position='bottom-center'></ToastContainer>
     <Container fluid className="p-4 body-bg min-vh-100">
       {/* Header Section */}
       <div className="d-flex justify-content-between align-items-center mb-4">

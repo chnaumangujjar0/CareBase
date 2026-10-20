@@ -6,11 +6,15 @@
 .invoice-patient { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; }
 .invoice-print-header { padding-bottom: 1rem; border-bottom: 2px solid #0F766E; }
 .invoice-brand { color: #0F766E; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.12em; }
-.invoice-print-header h3 { margin: 0.25rem 0 0; color: #0F172A; }
+.invoice-print-header h1 { margin: 0.25rem 0 0; color: #0F172A; font-size: 1.5rem; }
 .invoice-number,
 .invoice-patient > div { display: grid; gap: 0.2rem; }
 .invoice-patient { align-items: center; padding: 1rem 0; }
 .invoice-patient .ant-typography { margin: 0; }
+.invoice-status { padding: 0.25rem 0.55rem; border-radius: 999px; color: #854D0E; background: #FEF3C7; font-size: 0.72rem; font-weight: 700; }
+.invoice-status-paid { color: #166534; background: #DCFCE7; }
+.invoice-status-void { color: #991B1B; background: #FEE2E2; }
+.invoice-items-table { width: 100%; border-collapse: collapse; th, td { padding: 0.65rem 0.5rem; border-bottom: 1px solid #E2E8F0; text-align: left; } th { color: #475569; font-size: 0.72rem; font-weight: 700; } td:last-child, th:last-child { text-align: right; } }
 .invoice-totals { display: grid; gap: 0.55rem; width: min(100%, 20rem); margin: 1rem 0 0 auto; }
 .invoice-totals > div { display: flex; justify-content: space-between; gap: 1rem; }
 .invoice-totals span { color: #475569; }
@@ -21,19 +25,26 @@
 @media print {
   @page { size: portrait; margin: 14mm; }
   body.print-invoice-mode { background: #fff !important; }
-  body.print-invoice-mode > *:not(.ant-modal-root) { display: none !important; }
-  body.print-invoice-mode .app-layout,
-  body.print-invoice-mode .top-header,
-  body.print-invoice-mode .sidebar,
-  body.print-invoice-mode .invoice-print-actions,
-  body.print-invoice-mode .invoice-edit-form,
-  body.print-invoice-mode .ant-modal-mask,
-  body.print-invoice-mode .ant-modal-close,
-  body.print-invoice-mode .ant-modal-header { display: none !important; }
+  body.print-invoice-mode > *:not(:has(.invoice-modal-wrap)) { display: none !important; }
+  body.print-invoice-mode > *:has(.invoice-modal-wrap) { display: block !important; }
   body.print-invoice-mode .ant-modal-root,
-  body.print-invoice-mode .ant-modal-wrap { position: static !important; inset: auto !important; overflow: visible !important; }
-  body.print-invoice-mode .ant-modal,
-  body.print-invoice-mode .ant-modal-content { width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; box-shadow: none !important; }
-  body.print-invoice-mode .ant-modal-body { padding: 0 !important; }
-  body.print-invoice-mode .invoice-print { padding: 0 !important; }
+  body.print-invoice-mode .invoice-modal-wrap { display: block !important; position: static !important; inset: auto !important; overflow: visible !important; width: 100% !important; height: auto !important; }
+  body.print-invoice-mode .ant-modal-mask,
+  body.print-invoice-mode .ant-modal-header,
+  body.print-invoice-mode .ant-modal-close,
+  body.print-invoice-mode .invoice-print-actions,
+  body.print-invoice-mode .invoice-modal .ant-modal-body > :not(.invoice-print) { display: none !important; }
+  body.print-invoice-mode .invoice-modal { display: block !important; position: static !important; top: 0 !important; transform: none !important; opacity: 1 !important; width: 100% !important; max-width: none !important; margin: 0 !important; padding: 0 !important; animation: none !important; }
+  body.print-invoice-mode .invoice-modal .ant-modal-content,
+  body.print-invoice-mode .invoice-modal .ant-modal-body { padding: 0 !important; color: #1E293B !important; background: #fff !important; box-shadow: none !important; }
+  body.print-invoice-mode .invoice-print { display: block !important; width: 100% !important; margin: 0 !important; padding: 0 !important; color: #1E293B !important; background: #fff !important; }
+  body.print-invoice-mode .invoice-print .ant-table,
+  body.print-invoice-mode .invoice-print .ant-table-container,
+  body.print-invoice-mode .invoice-print .ant-table-content,
+  body.print-invoice-mode .invoice-print .ant-table table { width: 100% !important; overflow: visible !important; }
+  body.print-invoice-mode .invoice-print .ant-table-thead > tr > th { color: #475569 !important; background: #fff !important; }
+  body.print-invoice-mode .invoice-print .ant-table-thead > tr > th,
+  body.print-invoice-mode .invoice-print .ant-table-tbody > tr > td { padding: 0.55rem 0.45rem !important; border-bottom: 1px solid #E2E8F0 !important; }
+  body.print-invoice-mode .invoice-print .ant-table-tbody > tr > td:last-child,
+  body.print-invoice-mode .invoice-print .ant-table-thead > tr > th:last-child { text-align: right !important; }
 }

@@ -10,6 +10,9 @@ import { getApiErrorMessage, loginUser } from "../../services/api";
 import { toast } from "react-toastify";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
+import { getRecaptchaToken } from "../../utils/recaptcha";
+import RecaptchaNotice from "../auth/RecaptchaNotice";
+import { getDefaultRoute } from "../../utils/authorization";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -32,7 +35,8 @@ const Login = () => {
     onSubmit: async (values) => {
       setIsLoading(true);
       try {
-        const userData = await loginUser(values);
+        const recaptchaToken = await getRecaptchaToken("login");
+        const userData = await loginUser({ ...values, recaptchaToken });
         const userDetails = userData.user;
         const role = userData.role?.name ?? userDetails.role ?? "user";
         const user: AuthUser = {
@@ -48,7 +52,7 @@ const Login = () => {
           localStorage.setItem("refreshToken", userData.refreshToken);
         }
 
-        navigate("/dashboard");
+        navigate(getDefaultRoute(user), { replace: true });
       } catch (error: unknown) {
         toast.error(getApiErrorMessage(error, "Unable to sign in. Please try again."));
       } finally {
@@ -96,6 +100,8 @@ const Login = () => {
                   {formik.errors.password}
                 </Form.Control.Feedback>
               </Form.Group>
+
+              <RecaptchaNotice />
 
               <Button
                 variant="primary"

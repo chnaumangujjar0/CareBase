@@ -10,6 +10,7 @@ import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../store/authSlice";
 import type { AuthUser } from "../../types/auth";
 import dayjs from "dayjs";
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 const themeTokens = appTheme.token!;
@@ -31,7 +32,7 @@ export default function HrDashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentsLoading, setDepartmentsLoading] = useState(true);
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<StaffDirectoryEntry | null>(null);
@@ -70,7 +71,6 @@ export default function HrDashboard() {
   useEffect(() => {
     if (!user?.tenantId) return;
     let active = true;
-    setDepartmentsLoading(true);
     getDepartments(user.tenantId)
       .then((records: Department[]) => {
         if (active) setDepartments(records.filter((department) => department.isActive));
@@ -285,6 +285,8 @@ export default function HrDashboard() {
       ),
     },
   ];
+
+  if (loading) return <PageSkeleton />;
 
   return (
     <div style={{ padding: 24, minHeight: "100%", background: themeTokens.colorBgLayout, color: themeTokens.colorTextBase, fontFamily: themeTokens.fontFamily }}>

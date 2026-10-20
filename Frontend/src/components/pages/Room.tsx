@@ -33,6 +33,8 @@ import {
   updateRoom,
 } from "../../services/api";
 import { toast } from "react-toastify";
+import PageSkeleton from "../common/PageSkeleton";
+import { facilityTheme } from "../../theme";
 
 const { Title, Text } = Typography;
 
@@ -58,40 +60,13 @@ interface Pagination {
   totalPages: number;
 }
 
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E', // Deep Teal
-    colorSuccess: '#10B981', // Modern Green
-    colorInfo: '#0EA5E9',    // Modern Blue
-    colorError: '#EF4444',
-    colorTextBase: '#334155',
-    colorBgLayout: '#F8FAFC',
-    colorBorder: '#E2E8F0',
-    borderRadius: 12,
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
-    boxShadowTertiary: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-    controlHeightLG: 48,
-  },
-  components: {
-    Card: {
-      borderRadiusLG: 16,
-    },
-    Table: {
-      headerBg: '#F1F5F9',
-      headerColor: '#475569',
-      rowHoverBg: '#F8FAFC',
-      borderRadiusLG: 12,
-    }
-  }
-};
-
 export const Room: React.FC = () => {
   const [form] = Form.useForm();
   
   // State
   const [rooms, setRooms] = useState<Room[]>([]);
   const [wards, setWards] = useState<{ id: string; name: string }[]>([]); // For the dropdown
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   
@@ -226,7 +201,7 @@ export const Room: React.FC = () => {
       key: 'beds',
       render: (count: { Bed: number }) => (
         <Flex align="center" gap={6}>
-          <BedDouble size={16} color={count.Bed > 0 ? themeConfig.token.colorPrimary : '#94A3B8'} />
+          <BedDouble size={16} color={count.Bed > 0 ? facilityTheme.token.colorPrimary : '#94A3B8'} />
           <Text strong style={{ color: count.Bed > 0 ? '#1E293B' : '#94A3B8' }}>
             {count.Bed} {count.Bed === 1 ? 'Bed' : 'Beds'}
           </Text>
@@ -242,7 +217,7 @@ export const Room: React.FC = () => {
           <Tooltip title="Edit Room">
             <Button 
               type="text" 
-              icon={<Edit2 size={16} color={themeConfig.token.colorPrimary} />} 
+              icon={<Edit2 size={16} color={facilityTheme.token.colorPrimary} />}
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
@@ -269,9 +244,11 @@ export const Room: React.FC = () => {
     },
   ];
 
+  if (loading && rooms.length === 0) return <PageSkeleton />;
+
   return (
-    <ConfigProvider theme={themeConfig}>
-      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
+    <ConfigProvider theme={facilityTheme}>
+      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: facilityTheme.token.colorBgLayout }}>
         
         {/* Page Header */}
         <Flex justify="space-between" align="center" style={{ marginBottom: 32 }}>
@@ -295,7 +272,7 @@ export const Room: React.FC = () => {
         </Flex>
 
         {/* Data Card */}
-        <Card bordered={false} style={{ boxShadow: themeConfig.token.boxShadowTertiary, padding: '8px 0' }}>
+        <Card bordered={false} style={{ boxShadow: facilityTheme.token.boxShadowTertiary, padding: '8px 0' }}>
           
           {/* Toolbar */}
           <Flex justify="space-between" align="center" style={{ marginBottom: 24, padding: '0 24px' }}>
@@ -329,7 +306,7 @@ export const Room: React.FC = () => {
         {/* Create / Edit Modal */}
         <Modal
           title={
-            <Text style={{ fontSize: 18, fontWeight: 700, color: themeConfig.token.colorPrimary }}>
+            <Text style={{ fontSize: 18, fontWeight: 700, color: facilityTheme.token.colorPrimary }}>
               {editingRoom ? "Edit Room Details" : "Create New Room"}
             </Text>
           }
@@ -348,7 +325,7 @@ export const Room: React.FC = () => {
           >
             <Form.Item 
               name="name" 
-              label={<Text strong style={{ color: '#475569' }}>Room Name / Number <span style={{ color: themeConfig.token.colorError }}>*</span></Text>}
+              label={<Text strong style={{ color: '#475569' }}>Room Name / Number <span style={{ color: facilityTheme.token.colorError }}>*</span></Text>}
               rules={[
                 { required: true, message: "Room name is required" },
                 { max: 50, message: "Name cannot exceed 50 characters" }
@@ -359,7 +336,7 @@ export const Room: React.FC = () => {
 
             <Form.Item 
               name="wardId" 
-              label={<Text strong style={{ color: '#475569' }}>Assigned Ward <span style={{ color: themeConfig.token.colorError }}>*</span></Text>}
+              label={<Text strong style={{ color: '#475569' }}>Assigned Ward <span style={{ color: facilityTheme.token.colorError }}>*</span></Text>}
               rules={[{ required: true, message: "Please assign this room to a ward" }]}
               tooltip="A room must belong to a ward based on hospital layout."
             >

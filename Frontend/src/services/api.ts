@@ -39,6 +39,12 @@ import type {
   ClinicalAdmissionList,
   ClinicalSurgeryList,
   DashboardSummary,
+  DashboardMonthlySales,
+  DashboardMonthlyRevenue,
+  PublicDoctorDirectoryResponse,
+  PublicAppointmentSlot,
+  PublicAppointmentResult,
+  PublicAppointmentDetails,
   ClinicalMedicine,
   ClinicalPrescription,
   ClinicalStockTransaction,
@@ -59,11 +65,12 @@ import type { Tenant } from "../types/auth";
 
 // user apis
 
-export const registerUser = async (values: SignupPayload) => {
+export const registerUser = async (values: SignupPayload & { recaptchaToken: string }) => {
   const res = await axios.post(`${API_URL}/user/register`, {
     name: values.name.trim(),
     email: values.email.trim(),
-    password: values.password.trim()
+    password: values.password.trim(),
+    recaptchaToken: values.recaptchaToken,
   })
 
   return res.data.data
@@ -71,11 +78,12 @@ export const registerUser = async (values: SignupPayload) => {
 }
 
 
-export const loginUser = async (values:LoginPayload) => {
+export const loginUser = async (values: LoginPayload & { recaptchaToken: string }) => {
   
   const res = await axios.post(`${API_URL}/user/login`,{
     email: values.email.trim(),
-    password: values.password.trim()
+    password: values.password.trim(),
+    recaptchaToken: values.recaptchaToken,
   })
 
   return res.data.data as AuthResponseData;
@@ -428,6 +436,44 @@ export const getDashboardSummary = async (): Promise<DashboardSummary> => {
   return res.data.data as DashboardSummary;
 };
 
+export const getDashboardMonthlySales = async (params: { months: 3 | 6 | 12; pharmacyId?: string }): Promise<DashboardMonthlySales> => {
+  const res = await api.get("/dashboard/monthly-sales", { params });
+  return res.data.data as DashboardMonthlySales;
+};
+
+export const getDashboardMonthlyRevenue = async (params: { months: 3 | 6 | 12; source: "all" | "billing" | "pharmacy"; paymentMethod?: "cash" | "card" | "insurance" }): Promise<DashboardMonthlyRevenue> => {
+  const res = await api.get("/dashboard/monthly-revenue", { params });
+  return res.data.data as DashboardMonthlyRevenue;
+};
+
+export const getPublicDoctors = async (params: { q?: string; hospital?: string; page?: number; limit?: number } = {}): Promise<PublicDoctorDirectoryResponse> => {
+  const res = await api.get("/public/doctors", { params });
+  return res.data.data as PublicDoctorDirectoryResponse;
+};
+
+export const getPublicDoctorSlots = async (doctorId: string, params: { from?: string; days?: number } = {}): Promise<PublicAppointmentSlot[]> => {
+  const res = await api.get(`/public/doctors/${encodeURIComponent(doctorId)}/slots`, { params });
+  return res.data.data as PublicAppointmentSlot[];
+};
+
+export const createPublicAppointment = async (payload: {
+  doctorId: string;
+  scheduledAt: string;
+  firstName: string;
+  lastName: string;
+  dob: string;
+  email: string;
+  phone?: string;
+}): Promise<PublicAppointmentResult> => {
+  const res = await api.post("/public/appointments", payload);
+  return res.data.data as PublicAppointmentResult;
+};
+
+export const lookupPublicAppointment = async (payload: { bookingCode: string; email: string }): Promise<PublicAppointmentDetails> => {
+  const res = await api.post("/public/appointments/lookup", payload);
+  return res.data.data as PublicAppointmentDetails;
+};
+
 // Clinical workflow APIs
 export const getClinicalEncounters = async (params: {
   page?: number;
@@ -603,6 +649,22 @@ export const createPharmacyStockTransaction = async (
 ) => {
   const res = await api.post(`/pharmacies/${pharmacyId}/stock-transactions`, payload);
   return res.data.data as { balance: number; stock: PharmacyStock; transaction: ClinicalStockTransaction };
+};
+
+export const transferWarehouseStock = async (payload: {
+  sourcePharmacyId: string;
+  destinationPharmacyId: string;
+  medicineId: string;
+  quantity: number;
+  reason?: string | null;
+}) => {
+  const res = await api.post("/pharmacies/transfers", payload);
+  return res.data.data as {
+    transferId: string;
+    quantity: number;
+    source: Pick<PharmacyRecord, "id" | "name">;
+    destination: Pick<PharmacyRecord, "id" | "name">;
+  };
 };
 
 export const getStockRequests = async (status?: StockRequestStatus): Promise<StockRequestRecord[]> => {

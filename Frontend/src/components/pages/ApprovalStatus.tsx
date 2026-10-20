@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { Navigate, useNavigate } from "react-router";
-import { Button, Card, Result, Spin, Typography } from "antd";
+import { Button, Card, Result, Skeleton, Typography } from "antd";
 import { useDispatch } from "react-redux";
 import { fetchCurrentUser } from "../../store/authSlice";
 import type { AppDispatch } from "../../store/store";
 import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { getDefaultRoute } from "../../utils/authorization";
 
 export default function ApprovalStatus() {
   const { isReady, user } = useAuthBootstrap();
@@ -12,10 +13,10 @@ export default function ApprovalStatus() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (user?.Tenant?.approvalStatus === "approved") navigate("/dashboard", { replace: true });
-  }, [navigate, user?.Tenant?.approvalStatus]);
+    if (user?.Tenant?.approvalStatus === "approved") navigate(getDefaultRoute(user), { replace: true });
+  }, [navigate, user]);
 
-  if (!isReady) return <Spin fullscreen spinning tip="Loading..." />;
+  if (!isReady) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F1F5F9", padding: 20 }}><Card style={{ width: "100%", maxWidth: 640 }}><Skeleton active paragraph={{ rows: 4 }} /></Card></div>;
   if (!user) return <Navigate to="/login" replace />;
   if (user.isSuperAdmin) return <Navigate to="/super-admin" replace />;
   if (!user.tenantId) return <Navigate to="/onboarding" replace />;

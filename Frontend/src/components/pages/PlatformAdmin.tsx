@@ -13,6 +13,7 @@ import "../../styles/platformAdmin.scss";
 import type { PlatformTenant } from "../../types/auth";
 import { getApiErrorMessage, getPlatformTenants, logoutUser, updatePlatformTenantApproval } from "../../services/api";
 import { appTheme } from "../../theme";
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 const themeTokens = appTheme.token!;
@@ -95,6 +96,8 @@ export default function PlatformAdmin() {
     { title: "REVIEW NOTE", dataIndex: "approvalNote", render: (note?: string | null) => note || "—" },
     { title: "ACTIONS", key: "actions", render: (_, tenant) => <Space wrap>{tenant.approvalStatus === "pending" ? <><Button size="small" type="primary" icon={<Check size={14} />} loading={savingId === tenant.id} onClick={() => void decide(tenant, "approved")}>Approve</Button><Button size="small" danger icon={<X size={14} />} onClick={() => { setRejectingTenant(tenant); setRejectionNote(""); }}>Reject</Button></> : <Button size="small" onClick={() => void decide(tenant, "pending")} loading={savingId === tenant.id}>Return to pending</Button>}</Space> },
   ];
+
+  if (loading && tenants.length === 0) return <PageSkeleton />;
 
   return <>
     <header className="top-header platform-admin-header" style={{ color: themeTokens.colorTextBase, fontFamily: themeTokens.fontFamily }}>

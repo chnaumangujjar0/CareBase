@@ -710,3 +710,70 @@ export interface DashboardSummary {
     DoctorProfile: { id: string; User: { name: string } };
   }>;
 }
+
+export interface DashboardMonthlySales {
+  months: 3 | 6 | 12;
+  pharmacyId: string | null;
+  monthlySales: Array<{ month: string; sales: number; transactions: number }>;
+  pharmacies: Array<{ id: string; name: string }>;
+  totalSales: number;
+  totalTransactions: number;
+}
+
+export interface DashboardMonthlyRevenue {
+  months: 3 | 6 | 12;
+  source: "all" | "billing" | "pharmacy";
+  paymentMethod: "cash" | "card" | "insurance" | null;
+  monthlyRevenue: Array<{ month: string; billing: number; pharmacySales: number; revenue: number; transactions: number }>;
+  totalRevenue: number;
+  totalTransactions: number;
+}
+
+export interface PublicDoctor {
+  id: string;
+  specialization: string;
+  designation: string | null;
+  qualifications: string | null;
+  User: { name: string };
+  Department: { name: string };
+  Tenant: { id: string; name: string; city: string | null; state: string | null; country: string | null; logo: string | null };
+  DoctorAvailability: Array<{ dayOfWeek: number; startMinute: number; endMinute: number }>;
+}
+
+export interface PublicDoctorDirectoryResponse {
+  items: PublicDoctor[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface PublicAppointmentSlot {
+  startsAt: string;
+  localDate: string;
+  localTime: string;
+  timeZone: string;
+  available: boolean;
+}
+
+export interface PublicAppointmentResult {
+  bookingCode: string;
+  emailSent: boolean;
+  appointment: {
+    scheduledAt: string;
+    status: string;
+    hospitalName: string;
+    doctorName: string;
+    departmentName: string;
+  };
+}
+
+export interface PublicAppointmentDetails {
+  scheduledAt: string;
+  durationMinutes: number;
+  status: string;
+  Patient: { firstName: string; lastName: string };
+  DoctorProfile: { designation: string | null; specialization: string; User: { name: string } };
+  Department: { name: string };
+  Tenant: { name: string; address: string | null; city: string | null; state: string | null; country: string | null; logo: string | null };
+}

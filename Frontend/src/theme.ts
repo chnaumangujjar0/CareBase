@@ -12,6 +12,7 @@ export const appTheme: ThemeConfig = {
     colorBgContainer: "#FFFFFF",
     borderRadius: 8,
     fontFamily: '"Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    boxShadowTertiary: "0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)",
   },
   components: {
     Layout: {
@@ -36,3 +37,29 @@ export const appTheme: ThemeConfig = {
     },
   },
 };
+
+export const facilityTheme = {
+  token: {
+    colorPrimary: "#0F766E",
+    colorSuccess: "#10B981",
+    colorInfo: "#0EA5E9",
+    colorWarning: "#F59E0B",
+    colorError: "#EF4444",
+    colorTextBase: "#334155",
+    colorBgLayout: "#F8FAFC",
+    colorBorder: "#E2E8F0",
+    borderRadius: 12,
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+    boxShadowTertiary: "0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)",
+    controlHeightLG: 48,
+  },
+  components: {
+    Card: { borderRadiusLG: 16 },
+    Table: {
+      headerBg: "#F1F5F9",
+      headerColor: "#475569",
+      rowHoverBg: "#F8FAFC",
+      borderRadiusLG: 12,
+    },
+  },
+} as const;

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { isAxiosError } from 'axios';
 import {
   Button,
   Card,
@@ -19,32 +18,11 @@ import {
 import type { TableProps } from 'antd';
 import { Edit2, Lock, Plus, Shield, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { createRole, deleteRole, getRoleCatalog, getRoles, updateRole } from '../../services/api';
+import { createRole, deleteRole, getApiErrorMessage, getRoleCatalog, getRoles, updateRole } from '../../services/api';
 import type { RoleRecord, StandardRoleOption } from '../../types/global.types';
+import { appTheme } from '../../theme';
 
 const { Title, Text } = Typography;
-
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E',
-    colorInfo: '#0284C7',
-    colorSuccess: '#16A34A',
-    colorWarning: '#D97706',
-    colorError: '#DC2626',
-    colorTextBase: '#1E293B',
-    colorBgLayout: '#F1F5F9',
-    borderRadius: 8,
-    fontFamily: '"Inter", sans-serif',
-    boxShadowTertiary: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)',
-  },
-};
-
-function getErrorMessage(error: unknown): string {
-  if (isAxiosError<{ message?: string }>(error)) {
-    return error.response?.data?.message ?? error.message;
-  }
-  return error instanceof Error ? error.message : 'Something went wrong';
-}
 
 export const RolesPage = () => {
   const screens = Grid.useBreakpoint();
@@ -68,7 +46,7 @@ export const RolesPage = () => {
       setRoles(result.roles);
       setTotal(result.total);
     } catch (error) {
-      toast.error(`Could not load roles: ${getErrorMessage(error)}`);
+      toast.error(getApiErrorMessage(error, "Could not load roles"));
     } finally {
       setLoading(false);
     }
@@ -83,7 +61,7 @@ export const RolesPage = () => {
 
   useEffect(() => {
     void getRoleCatalog().then(setRoleCatalog).catch((error) => {
-      toast.error(`Could not load standard roles: ${getErrorMessage(error)}`);
+      toast.error(getApiErrorMessage(error, "Could not load standard roles"));
     });
   }, []);
 
@@ -129,7 +107,7 @@ export const RolesPage = () => {
         else await loadRoles(1);
       }
     } catch (error) {
-      toast.error(`Could not save role: ${getErrorMessage(error)}`);
+      toast.error(getApiErrorMessage(error, "Could not save role"));
     } finally {
       setSaving(false);
     }
@@ -143,7 +121,7 @@ export const RolesPage = () => {
       if (nextPage !== page) setPage(nextPage);
       else await loadRoles(page);
     } catch (error) {
-      toast.error(`Could not delete role: ${getErrorMessage(error)}`);
+      toast.error(getApiErrorMessage(error, "Could not delete role"));
     }
   };
 
@@ -228,8 +206,8 @@ export const RolesPage = () => {
   ];
 
   return (
-    <ConfigProvider theme={themeConfig}>
-      <div style={{ minHeight: '100%', padding: 'clamp(12px, 2vw, 24px)', backgroundColor: themeConfig.token.colorBgLayout }}>
+    <ConfigProvider theme={appTheme}>
+      <div style={{ minHeight: '100%', padding: 'clamp(12px, 2vw, 24px)', backgroundColor: appTheme.token?.colorBgLayout }}>
         <Flex justify="flex-start" align="center" style={{ marginBottom: 20 }}>
           <Title level={3} style={{ margin: 0, fontWeight: 600, color: '#0F172A' }}>
             User Roles & Permissions
@@ -238,7 +216,7 @@ export const RolesPage = () => {
 
         <Card
           bordered={false}
-          style={{ boxShadow: themeConfig.token.boxShadowTertiary, borderRadius: 12 }}
+          style={{ boxShadow: appTheme.token?.boxShadowTertiary, borderRadius: 12 }}
           bodyStyle={{ padding: 'clamp(14px, 2vw, 24px)' }}
         >
           <Flex justify="space-between" align="center" wrap="wrap" gap={16} style={{ marginBottom: 24 }}>

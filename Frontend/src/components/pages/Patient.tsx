@@ -8,7 +8,7 @@ import {
   Modal,
   Pagination,
   Select,
-  Spin,
+  Skeleton,
 } from "antd";
 import {
   CalendarDays,
@@ -503,7 +503,7 @@ function Patient() {
 
         <div className="patient-list" aria-label="Patient list">
           {listLoading ? (
-            <div className="patient-list-state"><Spin /></div>
+            <div className="patient-list-state"><Skeleton active title={false} paragraph={{ rows: 4 }} /></div>
           ) : patients.length === 0 ? (
             <div className="patient-list-state"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No patients found" /></div>
           ) : patients.map((item) => (
@@ -614,7 +614,7 @@ function Patient() {
 
       <section className="patient-main-column">
         {detailLoading ? (
-          <div className="patient-main-loading"><Spin size="large" /></div>
+          <div className="patient-main-loading"><Skeleton active paragraph={{ rows: 8 }} /></div>
         ) : patient ? (
           <>
             <section className="patient-medical-panel">
@@ -688,7 +688,7 @@ function Patient() {
 
       <aside className="patient-right-column">
         {detailLoading ? (
-          <section className="patient-side-panel patient-side-loading"><Spin /></section>
+          <section className="patient-side-panel patient-side-loading"><Skeleton active paragraph={{ rows: 5 }} /></section>
         ) : patient ? (
           <>
             <section className="patient-side-panel patient-profile-panel">

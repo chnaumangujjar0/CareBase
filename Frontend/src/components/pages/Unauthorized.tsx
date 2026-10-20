@@ -2,8 +2,11 @@ import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import  '../../styles/unauthorized.scss';
 import Logo from "../../assets/shield-lock-icon.svg"
+import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { getDefaultRoute } from "../../utils/authorization";
 const Unauthorized = () => {
   const navigate = useNavigate();
+  const { user } = useAuthBootstrap();
 
   return (
     <div className="unauthorized-container">
@@ -26,7 +29,7 @@ const Unauthorized = () => {
 
         <button 
           className="back-button" 
-          onClick={() => navigate("/dashboard")}
+          onClick={() => navigate(getDefaultRoute(user))}
         >
           <ArrowLeft size={18} strokeWidth={2.5} />
           <span>Back to Home</span>

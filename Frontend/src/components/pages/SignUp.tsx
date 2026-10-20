@@ -10,6 +10,8 @@ import Logo from "../../assets/carebase-logo-full.svg"
 import { getApiErrorMessage, registerUser } from "../../services/api";
 import type { AuthUser } from "../../types/auth";
 import { useState } from "react";
+import { getRecaptchaToken } from "../../utils/recaptcha";
+import RecaptchaNotice from "../auth/RecaptchaNotice";
 
 export const SignUp = () => {
   const navigate = useNavigate();
@@ -39,11 +41,12 @@ export const SignUp = () => {
     onSubmit: async (values) => {
       setIsLoading(true)
       try {
-        
+        const recaptchaToken = await getRecaptchaToken("signup");
         const userData = await registerUser({
           name: values.name,
           email: values.email,
           password: values.password,
+          recaptchaToken,
         });
         const userDetails = userData.user;
         const role = userData.role?.name ?? userDetails.role ?? "user";
@@ -134,6 +137,8 @@ export const SignUp = () => {
                 {formik.errors.confirmPassword}
               </Form.Control.Feedback>
             </Form.Group>
+
+            <RecaptchaNotice />
 
             <Button 
               variant="primary" 

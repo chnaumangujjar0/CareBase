@@ -35,6 +35,8 @@ import { useSelector } from "react-redux";
 import { selectCurrentUser } from "../../store/authSlice";
 import type { Department } from "../../types/global.types";
 import { toast } from "react-toastify";
+import PageSkeleton from "../common/PageSkeleton";
+import { facilityTheme } from "../../theme";
 
 const { Title, Text } = Typography;
 
@@ -57,41 +59,13 @@ interface Pagination {
   totalPages: number;
 }
 
-// --- Enhanced Theme Configuration (Matches HospitalProfile) ---
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E', // Deep Teal
-    colorSuccess: '#10B981', // Modern Green
-    colorInfo: '#0EA5E9',    // Modern Blue
-    colorError: '#EF4444',
-    colorTextBase: '#334155',
-    colorBgLayout: '#F8FAFC',
-    colorBorder: '#E2E8F0',
-    borderRadius: 12,
-    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
-    boxShadowTertiary: '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05)',
-    controlHeightLG: 48,
-  },
-  components: {
-    Card: {
-      borderRadiusLG: 16,
-    },
-    Table: {
-      headerBg: '#F1F5F9',
-      headerColor: '#475569',
-      rowHoverBg: '#F8FAFC',
-      borderRadiusLG: 12,
-    }
-  }
-};
-
 export const Wards: React.FC = () => {
   const [form] = Form.useForm();
   
   // State
   const [wards, setWards] = useState<Ward[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 10, total: 0, totalPages: 0 });
   
@@ -194,7 +168,7 @@ export const Wards: React.FC = () => {
       key: 'name',
       render: (text: string) => (
         <Flex align="center" gap={12}>
-          <div style={{ padding: 8, background: '#E0F2FE', borderRadius: 8, color: themeConfig.token.colorInfo }}>
+          <div style={{ padding: 8, background: '#E0F2FE', borderRadius: 8, color: facilityTheme.token.colorInfo }}>
             <LayoutDashboard size={18} />
           </div>
           <Text strong style={{ fontSize: 14 }}>{text}</Text>
@@ -237,7 +211,7 @@ export const Wards: React.FC = () => {
           <Tooltip title="Edit Ward">
             <Button 
               type="text" 
-              icon={<Edit2 size={16} color={themeConfig.token.colorPrimary} />} 
+              icon={<Edit2 size={16} color={facilityTheme.token.colorPrimary} />}
               onClick={() => handleOpenModal(record)}
             />
           </Tooltip>
@@ -264,9 +238,11 @@ export const Wards: React.FC = () => {
     },
   ];
 
+  if (loading && wards.length === 0) return <PageSkeleton />;
+
   return (
-    <ConfigProvider theme={themeConfig}>
-      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
+    <ConfigProvider theme={facilityTheme}>
+      <div style={{ padding: '32px 40px', minHeight: '100vh', backgroundColor: facilityTheme.token.colorBgLayout }}>
         
         {/* Page Header */}
         <Flex justify="space-between" align="center" style={{ marginBottom: 32 }}>
@@ -290,7 +266,7 @@ export const Wards: React.FC = () => {
         </Flex>
 
         {/* Data Card */}
-        <Card bordered={false} style={{ boxShadow: themeConfig.token.boxShadowTertiary, padding: '8px 0' }}>
+        <Card bordered={false} style={{ boxShadow: facilityTheme.token.boxShadowTertiary, padding: '8px 0' }}>
           
           {/* Toolbar */}
           <Flex justify="space-between" align="center" style={{ marginBottom: 24, padding: '0 24px' }}>
@@ -323,7 +299,7 @@ export const Wards: React.FC = () => {
         {/* Create / Edit Modal */}
         <Modal
           title={
-            <Text style={{ fontSize: 18, fontWeight: 700, color: themeConfig.token.colorPrimary }}>
+            <Text style={{ fontSize: 18, fontWeight: 700, color: facilityTheme.token.colorPrimary }}>
               {editingWard ? "Edit Ward Details" : "Create New Ward"}
             </Text>
           }
@@ -342,7 +318,7 @@ export const Wards: React.FC = () => {
           >
             <Form.Item 
               name="name" 
-              label={<Text strong style={{ color: '#475569' }}>Ward Name <span style={{ color: themeConfig.token.colorError }}>*</span></Text>}
+              label={<Text strong style={{ color: '#475569' }}>Ward Name <span style={{ color: facilityTheme.token.colorError }}>*</span></Text>}
               rules={[
                 { required: true, message: "Ward name is required" },
                 { min: 2, message: "Name must be at least 2 characters" }

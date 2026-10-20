@@ -1,0 +1,37 @@
+.clinical-print-document { display: none; }
+
+@media print {
+  @page { size: portrait; margin: 12mm; }
+  body.print-clinical-record-mode { color: #1E293B !important; background: #fff !important; }
+  body.print-clinical-record-mode > *:not(:has(.clinical-print-document)) { display: none !important; }
+  body.print-clinical-record-mode .app-layout { display: block !important; min-height: 0 !important; padding: 0 !important; overflow: visible !important; background: #fff !important; }
+  body.print-clinical-record-mode .top-header,
+  body.print-clinical-record-mode .sidebar,
+  body.print-clinical-record-mode .Toastify,
+  body.print-clinical-record-mode .ant-modal-root { display: none !important; }
+  body.print-clinical-record-mode .main-wrapper { display: block !important; }
+  body.print-clinical-record-mode .page-content { width: 100% !important; margin: 0 !important; }
+  body.print-clinical-record-mode .clinical-desk-page { display: block !important; min-height: 0 !important; padding: 0 !important; background: #fff !important; }
+  body.print-clinical-record-mode .clinical-desk-page > :not(.clinical-print-document) { display: none !important; }
+  body.print-clinical-record-mode .clinical-print-document { display: block !important; color: #1E293B !important; }
+  .clinical-print-header { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 0.8rem; border-bottom: 2px solid #0F766E; }
+  .clinical-print-header h1 { margin: 0.25rem 0 0; color: #0F172A; font-size: 1.5rem; }
+  .clinical-print-header > div { display: grid; align-content: start; gap: 0.25rem; }
+  .clinical-print-header > div:last-child { text-align: right; }
+  .clinical-print-header span { color: #475569; font-size: 0.75rem; }
+  .clinical-print-header > div:first-child > span { color: #0F766E; font-weight: 700; letter-spacing: 0.08em; }
+  .clinical-print-section { margin-top: 1rem; }
+  .clinical-print-section h2 { margin: 0 0 0.5rem; padding-bottom: 0.35rem; border-bottom: 1px solid #CBD5E1; color: #0F766E; font-size: 1rem; }
+  .clinical-print-details { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1.25rem; margin: 0; }
+  .clinical-print-details > div { display: grid; grid-template-columns: minmax(7rem, 0.7fr) minmax(0, 1.3fr); gap: 0.5rem; padding: 0.2rem 0; border-bottom: 1px solid #E2E8F0; }
+  .clinical-print-details dt,
+  .clinical-print-details dd { margin: 0; font-size: 0.75rem; line-height: 1.4; overflow-wrap: anywhere; }
+  .clinical-print-details dt { color: #475569; }
+  .clinical-print-entry { margin-top: 0.65rem; padding: 0.55rem; border: 1px solid #E2E8F0; border-left: 3px solid #0F766E; break-inside: avoid; }
+  .clinical-print-entry h3 { margin: 0 0 0.35rem; color: #0F172A; font-size: 0.85rem; }
+  .clinical-print-entry p,
+  .clinical-print-section > p,
+  .clinical-print-entry li { margin: 0.2rem 0; font-size: 0.75rem; line-height: 1.4; }
+  .clinical-print-entry ul { margin: 0.3rem 0; padding-left: 1.2rem; }
+  .clinical-print-footer { margin-top: 1.5rem; padding-top: 0.5rem; border-top: 1px solid #CBD5E1; color: #64748B; font-size: 0.7rem; }
+}

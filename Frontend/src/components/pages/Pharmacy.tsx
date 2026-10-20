@@ -21,10 +21,12 @@ import {
   Typography,
 } from "antd";
 import type { TableProps } from "antd";
-import { AlertTriangle, Package, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowRightLeft, Package, Plus, Printer, RefreshCw, Trash2 } from "lucide-react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip as RechartsTooltip, XAxis, YAxis } from "recharts";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
+import PageSkeleton from "../common/PageSkeleton";
+import { appTheme } from "../../theme";
 
 import { selectCurrentUser } from "../../store/authSlice";
 import type { AuthUser } from "../../types/auth";
@@ -53,6 +55,7 @@ import {
   updatePharmacy,
   updateStockRequestStatus,
   setClinicalMedicineActive,
+  transferWarehouseStock,
 } from "../../services/api";
 
 const { Title, Text } = Typography;
@@ -92,26 +95,18 @@ interface ReceiptFormValues {
   [key: string]: number | undefined;
 }
 
+interface TransferFormValues {
+  destinationPharmacyId: string;
+  quantity: number;
+  reason?: string;
+}
+
 interface PharmacyUser {
   userId: string;
   name: string;
   email: string;
   role: string;
 }
-
-const themeConfig = {
-  token: {
-    colorPrimary: "#0F766E",
-    colorInfo: "#0284C7",
-    colorSuccess: "#16A34A",
-    colorWarning: "#D97706",
-    colorError: "#DC2626",
-    colorTextBase: "#1E293B",
-    colorBgLayout: "#F1F5F9",
-    borderRadius: 8,
-    fontFamily: '"Inter", sans-serif',
-  },
-};
 
 const statusColor: Record<StockRequestStatus, string> = {
   pending: "gold",
@@ -133,7 +128,9 @@ export default function Pharmacy() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [medicineSearch, setMedicineSearch] = useState("");
   const [stockMedicine, setStockMedicine] = useState<{ pharmacy: PharmacyRecord; stock: PharmacyStock | null; medicine: ClinicalMedicine } | null>(null);
+  const [transferMedicine, setTransferMedicine] = useState<ClinicalMedicine | null>(null);
   const [receiptRequest, setReceiptRequest] = useState<StockRequestRecord | null>(null);
   const [completedSale, setCompletedSale] = useState<PharmacySaleRecord | null>(null);
   const [medicineForm] = Form.useForm<MedicineFormValues>();
@@ -142,6 +139,7 @@ export default function Pharmacy() {
   const [requestForm] = Form.useForm<RequestFormValues>();
   const [saleForm] = Form.useForm<SaleFormValues>();
   const [receiptForm] = Form.useForm<ReceiptFormValues>();
+  const [transferForm] = Form.useForm<TransferFormValues>();
   const saleItems = Form.useWatch("items", saleForm) ?? [];
 
   const hasPermission = useCallback((permission: string) =>
@@ -283,6 +281,25 @@ export default function Pharmacy() {
     finally { setSaving(false); }
   };
 
+  const submitDirectTransfer = async (values: TransferFormValues) => {
+    if (!transferMedicine || !centralWarehouse) return;
+    setSaving(true);
+    try {
+      const result = await transferWarehouseStock({
+        sourcePharmacyId: centralWarehouse.id,
+        destinationPharmacyId: values.destinationPharmacyId,
+        medicineId: transferMedicine.id,
+        quantity: values.quantity,
+        reason: values.reason?.trim() || null,
+      });
+      transferForm.resetFields();
+      setTransferMedicine(null);
+      toast.success(`${result.quantity} units sent to ${result.destination.name}`);
+      await load();
+    } catch (error) { toast.error(getApiErrorMessage(error, "Could not transfer stock")); }
+    finally { setSaving(false); }
+  };
+
   const submitRequest = async (values: RequestFormValues) => {
     setSaving(true);
     try {
@@ -326,14 +343,23 @@ export default function Pharmacy() {
     finally { setSaving(false); }
   };
 
-  const defaultStockPharmacy = pharmacies.find(({ type, isActive }) => type === "central_store" && isActive) ?? pharmacies.find(({ isActive }) => isActive);
+  const defaultStockPharmacy = pharmacies.find(({ type, isActive }) => type === "central_store" && isActive);
+  const activeSubPharmacies = pharmacies.filter(({ type, isActive }) => type === "sub_store" && isActive);
+  const filteredMedicines = useMemo(() => {
+    const query = medicineSearch.trim().toLocaleLowerCase();
+    if (!query) return medicines;
+    return medicines.filter((medicine) =>
+      [medicine.name, medicine.genericName, medicine.form, medicine.strength]
+        .some((value) => value?.toLocaleLowerCase().includes(query)),
+    );
+  }, [medicines, medicineSearch]);
   const catalogueColumns: TableProps<ClinicalMedicine>["columns"] = [
     { title: "NAME", dataIndex: "name", render: (name: string, medicine) => <Text strong>{name}{medicine.strength ? ` · ${medicine.strength}` : ""}</Text> },
     { title: "GENERIC NAME", dataIndex: "genericName", render: (value?: string | null) => value || "—" },
     { title: "FORM", dataIndex: "form", render: (value?: string | null) => value || "—" },
     { title: "TOTAL STOCK", key: "stock", render: (_, medicine) => <Tag color={(medicineStock.get(medicine.id) ?? 0) > 0 ? "green" : "red"}>{medicineStock.get(medicine.id) ?? 0} units</Tag> },
     ...(canManageWarehouse ? [{ title: "ACTIVE", dataIndex: "isActive", render: (active: boolean, medicine: ClinicalMedicine) => <Switch checked={active} onChange={(checked) => void toggleMedicine(medicine, checked)} /> }] : []),
-    ...(canManageWarehouse ? [{ title: "STOCK", key: "manageStock", render: (_: unknown, medicine: ClinicalMedicine) => <Button type="link" disabled={!defaultStockPharmacy} onClick={() => defaultStockPharmacy && setStockMedicine({ pharmacy: defaultStockPharmacy, stock: defaultStockPharmacy.Stocks.find(({ medicineId }) => medicineId === medicine.id) ?? null, medicine })}>Manage stock</Button> }] : []),
+    ...(canManageWarehouse ? [{ title: "STOCK", key: "manageStock", render: (_: unknown, medicine: ClinicalMedicine) => <Space><Button type="link" disabled={!defaultStockPharmacy} onClick={() => defaultStockPharmacy && setStockMedicine({ pharmacy: defaultStockPharmacy, stock: defaultStockPharmacy.Stocks.find(({ medicineId }) => medicineId === medicine.id) ?? null, medicine })}>Manage stock</Button><Button type="link" icon={<ArrowRightLeft size={15} />} disabled={!defaultStockPharmacy || activeSubPharmacies.length === 0} onClick={() => { transferForm.resetFields(); setTransferMedicine(medicine); }}>Send to sub-pharmacy</Button></Space> }] : []),
   ];
 
   const requestColumns: TableProps<StockRequestRecord>["columns"] = [
@@ -348,6 +374,7 @@ export default function Pharmacy() {
   if (!canRead) {
     return <Alert type="warning" showIcon message="You do not have pharmacy access." description="Ask a hospital administrator to grant medicine catalogue read permission." />;
   }
+  if (loading) return <PageSkeleton />;
 
   const activePharmacies = pharmacies.filter((pharmacy) => pharmacy.isActive);
   const requestPharmacyOptions = (isHead ? activePharmacies : activePharmacies.filter((pharmacy) => pharmacy.id === assignedSubPharmacy?.id))
@@ -356,7 +383,7 @@ export default function Pharmacy() {
     .map((pharmacy) => ({ value: pharmacy.id, label: pharmacy.name }));
 
   return (
-    <ConfigProvider theme={themeConfig}>
+    <ConfigProvider theme={appTheme}>
       <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
         <Space direction="vertical" size="large" style={{ width: "100%" }}>
           <Row justify="space-between" align="middle" gutter={[16, 16]}>
@@ -381,7 +408,7 @@ export default function Pharmacy() {
               key: "locations", label: isHead ? "Locations" : "My pharmacy", children: <Space direction="vertical" style={{ width: "100%" }} size="middle">{isHead && <Card title="Add pharmacy location" extra={<Plus size={18} />}><Form form={pharmacyForm} layout="inline" onFinish={(values) => void addPharmacy(values)}><Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Sub-pharmacy name" /></Form.Item><Form.Item name="type" initialValue="sub_store" rules={[{ required: true }]}><Select style={{ width: 170 }} options={centralWarehouse ? [{ value: "sub_store", label: "Sub store" }] : [{ value: "central_store", label: "Main warehouse" }, { value: "sub_store", label: "Sub store" }]} /></Form.Item><Button type="primary" htmlType="submit" loading={saving} disabled={!canManageWarehouse}>Add location</Button></Form><Text type="secondary">The hospital has one main warehouse. Create sub-pharmacies here and assign each one pharmacist.</Text></Card>}<Row gutter={[16, 16]}>{(isHead ? pharmacies : assignedSubPharmacy ? [assignedSubPharmacy] : []).map((pharmacy) => <Col xs={24} md={12} xl={8} key={pharmacy.id}><Card title={pharmacy.name} extra={isHead && <Switch checked={pharmacy.isActive} onChange={(checked) => void togglePharmacy(pharmacy, checked)} />}><Space direction="vertical" style={{ width: "100%" }}><Tag>{pharmacy.type === "central_store" ? "Main warehouse" : "Sub-pharmacy"}</Tag>{isHead && pharmacy.type === "sub_store" && <Select allowClear value={pharmacy.pharmacistUserId ?? undefined} placeholder="Assign pharmacist" options={staff.filter((member) => member.role.toLowerCase().includes("pharmacist")).map((member) => ({ value: member.userId, label: member.name }))} onChange={(value) => void assignStaff(pharmacy.id, value ?? null)} style={{ width: "100%" }} />}<Text><Package size={14} /> {pharmacy.stockCount} units across {pharmacy.Stocks.length} medicines</Text><Text type={pharmacy.lowStockCount ? "danger" : "secondary"}>{pharmacy.lowStockCount} low stock alerts</Text>{pharmacy.Stocks.slice(0, 5).map((stock) => <Button key={stock.id} type="link" style={{ padding: 0, textAlign: "left" }} disabled={!canManageWarehouse || pharmacy.type !== "central_store"} onClick={() => setStockMedicine({ pharmacy, stock, medicine: stock.Medicine })}>{stock.Medicine.name}: {stock.currentStock} units · Manage warehouse stock</Button>)}</Space></Card></Col>)}</Row>{!isHead && assignedSubPharmacy && <Card title={`My stock · ${assignedSubPharmacy.name}`}><Table rowKey="id" dataSource={assignedStockRows} loading={loading} pagination={{ pageSize: 8 }} locale={{ emptyText: "No stock has been received yet." }} columns={[{ title: "MEDICINE", key: "medicine", render: (_, stock) => `${stock.Medicine.name}${stock.Medicine.strength ? ` · ${stock.Medicine.strength}` : ""}` }, { title: "AVAILABLE", dataIndex: "currentStock" }, { title: "REORDER AT", dataIndex: "reorderLevel" }]} /></Card>}</Space>,
             },
             {
-              key: "catalogue", label: "Medicine catalogue", children: <Card title="Medicine catalogue" extra={<Space><Switch checked={includeInactive} onChange={setIncludeInactive} /><Text>Show inactive</Text></Space>}>{canManageWarehouse && <Form form={medicineForm} layout="inline" onFinish={(values) => void addMedicine(values)} style={{ marginBottom: 16 }}><Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Medicine name" /></Form.Item><Form.Item name="genericName"><Input placeholder="Generic name" /></Form.Item><Form.Item name="form"><Input placeholder="Form" /></Form.Item><Form.Item name="strength"><Input placeholder="Strength" /></Form.Item><Form.Item name="purchasePrice"><InputNumber min={0} precision={2} placeholder="Purchase price" /></Form.Item><Form.Item name="sellingPrice"><InputNumber min={0} precision={2} placeholder="Selling price" /></Form.Item><Button type="primary" htmlType="submit" loading={saving}>Add medicine</Button></Form>}<Table<ClinicalMedicine> rowKey="id" loading={loading} dataSource={medicines} columns={catalogueColumns} pagination={{ pageSize: 8 }} /></Card>,
+              key: "catalogue", label: "Medicine catalogue", children: <Card title="Medicine catalogue" extra={<Space><Switch checked={includeInactive} onChange={setIncludeInactive} /><Text>Show inactive</Text></Space>}><Input.Search aria-label="Search medicine catalogue" placeholder="Search by medicine, generic name, form, or strength" allowClear value={medicineSearch} onChange={(event) => setMedicineSearch(event.target.value)} style={{ maxWidth: 420, marginBottom: 16 }} />{canManageWarehouse && <Form form={medicineForm} layout="inline" onFinish={(values) => void addMedicine(values)} style={{ marginBottom: 16 }}><Form.Item name="name" rules={[{ required: true }]}><Input placeholder="Medicine name" /></Form.Item><Form.Item name="genericName"><Input placeholder="Generic name" /></Form.Item><Form.Item name="form"><Input placeholder="Form" /></Form.Item><Form.Item name="strength"><Input placeholder="Strength" /></Form.Item><Form.Item name="purchasePrice"><InputNumber min={0} precision={2} placeholder="Purchase price" /></Form.Item><Form.Item name="sellingPrice"><InputNumber min={0} precision={2} placeholder="Selling price" /></Form.Item><Button type="primary" htmlType="submit" loading={saving}>Add medicine</Button></Form>}<Table<ClinicalMedicine> rowKey="id" loading={loading} dataSource={filteredMedicines} columns={catalogueColumns} pagination={{ pageSize: 8 }} locale={{ emptyText: medicineSearch ? "No medicines match your search" : "No medicines in the catalogue" }} /></Card>,
             },
             {
               key: "sales", label: "Sell medicines", children: assignedSubPharmacy ? <Card title={`Sell from ${assignedSubPharmacy.name}`}><Form form={saleForm} layout="vertical" onFinish={(values) => void sellMedicine(values)} initialValues={{ paymentMethod: "cash", items: [{ quantity: 1 }] }}><Row gutter={16}><Col xs={24} md={14}><Form.Item name="customerName" label="Customer name" rules={[{ required: true }]}><Input /></Form.Item></Col><Col xs={24} md={10}><Form.Item name="customerPhone" label="Customer phone"><Input /></Form.Item></Col></Row><Form.List name="items" rules={[{ validator: async (_, items: SaleFormValues["items"]) => { if (!items?.length) throw new Error("Add at least one medicine to the sale."); } }]}>{(fields, { add, remove }, { errors }) => <Space direction="vertical" size="middle" style={{ width: "100%" }}>{fields.map((field) => { const selectedIds = saleItems.filter((_, index) => index !== field.name).map((item) => item?.medicineId).filter(Boolean); const selectedMedicineId = saleItems[field.name]?.medicineId; const availableStock = assignedSubPharmacy.Stocks.find((stock) => stock.medicineId === selectedMedicineId)?.currentStock; return <Card key={field.key} size="small" title={`Medicine ${field.name + 1}`} extra={fields.length > 1 && <Button danger type="text" aria-label="Remove medicine" icon={<Trash2 size={16} />} onClick={() => remove(field.name)} />}><Row gutter={12} align="bottom"><Col xs={24} md={16}><Form.Item name={[field.name, "medicineId"]} label="Medicine" rules={[{ required: true, message: "Select a medicine" }]}><Select showSearch optionFilterProp="label" options={assignedSubPharmacy.Stocks.filter(({ currentStock, medicineId }) => currentStock > 0 && !selectedIds.includes(medicineId)).map((stock) => ({ value: stock.medicineId, label: `${stock.Medicine.name}${stock.Medicine.strength ? ` · ${stock.Medicine.strength}` : ""} · ${stock.currentStock} available · PKR ${Number(stock.Medicine.sellingPrice).toFixed(2)}` }))} onChange={() => saleForm.setFieldValue(["items", field.name, "quantity"], 1)} /></Form.Item></Col><Col xs={24} md={8}><Form.Item name={[field.name, "quantity"]} label="Quantity" rules={[{ required: true, type: "number", min: 1, message: "Enter a quantity of at least 1" }]}><InputNumber min={1} precision={0} max={availableStock} style={{ width: "100%" }} /></Form.Item></Col></Row></Card>; })}<Button type="dashed" icon={<Plus size={15} />} onClick={() => add({ quantity: 1 })} block>Add another medicine</Button><Form.ErrorList errors={errors} /></Space>}</Form.List><Row gutter={16}><Col xs={24} sm={12}><Form.Item name="paymentMethod" label="Payment"><Select options={[{ value: "cash", label: "Cash" }, { value: "card", label: "Card" }, { value: "insurance", label: "Insurance" }]} /></Form.Item></Col><Col xs={24} sm={12} style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", paddingBottom: 24 }}><Button type="primary" htmlType="submit" loading={saving} disabled={!canWrite}>Complete sale</Button></Col></Row></Form></Card> : <Alert type="info" message="No sub-pharmacy is assigned to your account." description="A head pharmacist must assign you to a sub-pharmacy before you can sell medicines." />,
@@ -391,6 +418,20 @@ export default function Pharmacy() {
             },
           ]} />
         </Space>
+        <Modal title={transferMedicine ? `Send to sub-pharmacy · ${transferMedicine.name}` : "Send stock"} open={Boolean(transferMedicine)} onCancel={() => { setTransferMedicine(null); transferForm.resetFields(); }} footer={null} destroyOnClose>
+          {transferMedicine && centralWarehouse && <Form form={transferForm} layout="vertical" onFinish={(values) => void submitDirectTransfer(values)}>
+            <Alert showIcon type="info" message="This transfer updates stock immediately" description={`The quantity will be deducted from ${centralWarehouse.name} and added to the selected sub-pharmacy as soon as you confirm.`} />
+            <Text type="secondary">Available in main warehouse: {centralWarehouse.Stocks.find(({ medicineId }) => medicineId === transferMedicine.id)?.currentStock ?? 0} units</Text>
+            <Form.Item name="destinationPharmacyId" label="Sub-pharmacy" rules={[{ required: true, message: "Choose a destination sub-pharmacy" }]}>
+              <Select options={activeSubPharmacies.map((pharmacy) => ({ value: pharmacy.id, label: pharmacy.name }))} placeholder="Choose a destination" />
+            </Form.Item>
+            <Form.Item name="quantity" label="Quantity" rules={[{ required: true, type: "number", min: 1, message: "Enter at least one unit" }]}>
+              <InputNumber min={1} max={centralWarehouse.Stocks.find(({ medicineId }) => medicineId === transferMedicine.id)?.currentStock ?? 0} precision={0} style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="reason" label="Transfer note"><Input.TextArea rows={2} maxLength={1000} /></Form.Item>
+            <Button type="primary" htmlType="submit" loading={saving} disabled={!canManageWarehouse}>Confirm transfer</Button>
+          </Form>}
+        </Modal>
         <Modal title={stockMedicine ? `Manage stock · ${stockMedicine.medicine.name}` : "Manage stock"} open={Boolean(stockMedicine)} onCancel={() => setStockMedicine(null)} footer={null} destroyOnClose>
           {stockMedicine && <Form form={stockForm} layout="vertical" onFinish={(values) => void recordStock(values)}><Text type="secondary">{stockMedicine.pharmacy.name} currently has {stockMedicine.stock?.currentStock ?? 0} units.</Text><Form.Item name="type" label="Movement" initialValue="IN" rules={[{ required: true }]}><Select options={[{ value: "IN", label: "Stock received" }, { value: "OUT", label: "Dispensed" }]} /></Form.Item><Form.Item name="quantity" label="Quantity" rules={[{ required: true, type: "number", min: 1 }]}><InputNumber min={1} precision={0} style={{ width: "100%" }} /></Form.Item><Form.Item name="reorderLevel" label="Reorder level"><InputNumber min={0} precision={0} style={{ width: "100%" }} placeholder={String(stockMedicine.stock?.reorderLevel ?? 10)} /></Form.Item><Form.Item name="reason" label="Reason"><Input.TextArea maxLength={1000} rows={2} /></Form.Item><Button type="primary" htmlType="submit" loading={saving} disabled={!canManageWarehouse}>Record movement</Button></Form>}
         </Modal>

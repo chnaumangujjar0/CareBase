@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ConfigProvider, Card, Typography, Button, Space, Badge, Calendar, Flex, Row, Col, Tag, Empty, Spin } from 'antd';
+import { ConfigProvider, Card, Typography, Button, Space, Badge, Calendar, Flex, Row, Col, Tag, Empty, Skeleton } from 'antd';
 import { 
   Users, 
   Calendar as CalendarIcon, 
@@ -14,6 +14,7 @@ import dayjs from 'dayjs';
 import { toast } from 'react-toastify';
 import { getAppointmentStat } from '../../services/api';
 import type { AppointmentRecord, AppointmentStats, AppointmentStatus } from '../../types/global.types';
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 
@@ -102,6 +103,8 @@ export const DoctorDashboard = () => {
       },
     },
   };
+
+  if (loading && !stats) return <PageSkeleton />;
 
   const kpis = [
     {
@@ -232,7 +235,7 @@ export const DoctorDashboard = () => {
                   <Badge color={themeConfig.token.colorSuccess} />
                   <Title level={5} style={{ margin: 0 }}>Appointments on {currentDate.format('MMM D')}</Title>
                 </Flex>
-                <Spin spinning={loading}>
+                <Skeleton loading={loading} active>
                   {selectedDayAppointments.length ? (
                     <Flex vertical gap={12} style={{ maxHeight: 220, overflowY: 'auto' }}>
                       {selectedDayAppointments.map((appointment) => (
@@ -248,7 +251,7 @@ export const DoctorDashboard = () => {
                   ) : (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="No appointments on this day" />
                   )}
-                </Spin>
+                </Skeleton>
               </Card>
 
               {/* Recharts Analytics Panel */}

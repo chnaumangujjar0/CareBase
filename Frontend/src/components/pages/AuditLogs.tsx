@@ -16,6 +16,7 @@ import dayjs from "dayjs";
 import { toast } from "react-toastify";
 import { getApiErrorMessage, getAuditLogs } from "../../services/api";
 import type { AuditLogEntry } from "../../types/global.types";
+import PageSkeleton from "../common/PageSkeleton";
 
 const { Title, Text } = Typography;
 const pageSize = 25;
@@ -35,7 +36,7 @@ export default function AuditLogs() {
   const [total, setTotal] = useState(0);
   const [actionFilter, setActionFilter] = useState("");
   const [entityFilter, setEntityFilter] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -97,6 +98,8 @@ export default function AuditLogs() {
       width: 150,
     },
   ];
+
+  if (loading && items.length === 0) return <PageSkeleton />;
 
   return (
     <ConfigProvider theme={themeConfig}>

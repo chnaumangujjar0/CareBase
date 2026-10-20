@@ -37,6 +37,8 @@ import {
   updateClinicalSurgery,
   updateClinicalTheatre,
 } from "../../services/api";
+import PageSkeleton from "../common/PageSkeleton";
+import { appTheme } from "../../theme";
 
 const { Title, Text } = Typography;
 
@@ -56,21 +58,6 @@ const nextSurgeryStatuses: Record<SurgeryStatus, SurgeryStatus[]> = {
 };
 
 
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E',
-    colorInfo: '#0284C7',
-    colorSuccess: '#16A34A',
-    colorWarning: '#D97706',
-    colorError: '#DC2626',
-    colorTextBase: '#1E293B',
-    colorBgLayout: '#F1F5F9',
-    borderRadius: 8,
-    fontFamily: '"Inter", sans-serif',
-    boxShadowTertiary: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)',
-  },
-};
-
 export default function ClinicalOperations() {
   const user = useSelector(selectCurrentUser) as AuthUser | null;
   const navigate = useNavigate();
@@ -83,7 +70,7 @@ export default function ClinicalOperations() {
   const [surgeryTotal, setSurgeryTotal] = useState(0);
   const [surgeryStatusChanges, setSurgeryStatusChanges] = useState<Record<string, SurgeryStatus>>({});
   const [theatres, setTheatres] = useState<ClinicalTheatre[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
   const [theatreForm] = Form.useForm<TheatreFormValues>();
@@ -394,8 +381,10 @@ export default function ClinicalOperations() {
     }] : []),
   ];
 
+  if (loading && (canReadAdmissions || canReadSurgeries) && admissions.length === 0 && surgeries.length === 0 && theatres.length === 0) return <PageSkeleton />;
+
   return (
-    <ConfigProvider theme={themeConfig}>
+    <ConfigProvider theme={appTheme}>
     <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
       <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 20 }}>
         <div>

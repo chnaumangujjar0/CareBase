@@ -13,14 +13,14 @@ import {
   Modal,
   Select,
   Space,
-  Spin,
+  Skeleton,
   Table,
   Tag,
   Typography,
   ConfigProvider
 } from "antd";
 import type { TableProps } from "antd";
-import { Activity, BedDouble, ClipboardPlus, RefreshCw, Stethoscope } from "lucide-react";
+import { Activity, BedDouble, ClipboardPlus, Printer, RefreshCw, Stethoscope } from "lucide-react";
 import dayjs, { type Dayjs } from "dayjs";
 import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router";
@@ -62,6 +62,9 @@ import {
   updateClinicalEncounter,
   updateClinicalSurgery,
 } from "../../services/api";
+import "../../styles/clinical-desk.scss";
+import PageSkeleton from "../common/PageSkeleton";
+import { appTheme } from "../../theme";
 
 const { Title, Text } = Typography;
 
@@ -154,20 +157,6 @@ const actionTitles: Record<Action, string> = {
 
 const errorMessage = (error: unknown, fallback: string) => getApiErrorMessage(error, fallback);
 
-const themeConfig = {
-  token: {
-    colorPrimary: '#0F766E',
-    colorInfo: '#0284C7',
-    colorSuccess: '#16A34A',
-    colorWarning: '#D97706',
-    colorError: '#DC2626',
-    colorTextBase: '#1E293B',
-    colorBgLayout: '#F1F5F9',
-    borderRadius: 8,
-    fontFamily: '"Inter", sans-serif',
-    boxShadowTertiary: '0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.06)',
-  },
-};
 export default function ClinicalDesk() {
   const user = useSelector(selectCurrentUser) as AuthUser | null;
   const [searchParams] = useSearchParams();
@@ -292,6 +281,19 @@ export default function ClinicalDesk() {
         toast.error(errorMessage(error, "Could not refresh encounter"));
       }
     }
+  };
+
+  const printClinicalRecord = () => {
+    document.body.classList.add("print-clinical-record-mode");
+    let fallbackTimer = 0;
+    const cleanup = () => {
+      document.body.classList.remove("print-clinical-record-mode");
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup, { once: true });
+    fallbackTimer = window.setTimeout(cleanup, 60_000);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
   };
 
   const openAction = async (nextAction: Action) => {
@@ -816,15 +818,18 @@ export default function ClinicalDesk() {
     }
   };
 
+  if (loading && canReadQueue && encounters.length === 0) return <PageSkeleton />;
+
   return (
-    <ConfigProvider theme={themeConfig}>
-    <div style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
+    <ConfigProvider theme={appTheme}>
+    <div className="clinical-desk-page" style={{ padding: 24, background: "#f8fafc", minHeight: "100%" }}>
       <Space align="center" style={{ width: "100%", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <Title level={3} style={{ margin: 0 }}>Clinical desk</Title>
           <Text type="secondary">Check in patients, manage the care queue, and document visits.</Text>
         </div>
         <Space>
+          {detail && <Button icon={<Printer size={16} />} onClick={printClinicalRecord}>Print record</Button>}
           <Button icon={<RefreshCw size={16} />} onClick={() => void reload()} loading={loading}>Refresh</Button>
           {canWrite && (
             <Button type="primary" icon={<ClipboardPlus size={16} />} onClick={() => void openAction("checkin")}>
@@ -870,7 +875,7 @@ export default function ClinicalDesk() {
           extra={detail ? <Tag color={statusColor[detail.status]}>{detail.status.replace("_", " ")}</Tag> : null}
           style={{ minHeight: 420 }}
         >
-          {detailLoading ? <Spin /> : !detail ? <Empty description="Select a patient from the queue" /> : (
+          {detailLoading ? <Skeleton active title={{ width: "40%" }} paragraph={{ rows: 8 }} /> : !detail ? <Empty description="Select a patient from the queue" /> : (
             <Space direction="vertical" size={14} style={{ width: "100%" }}>
               <Descriptions size="small" column={1}>
                 <Descriptions.Item label="Patient">
@@ -1025,6 +1030,48 @@ export default function ClinicalDesk() {
           )}
         </Card>
       </div>
+
+      {detail && <article className="clinical-print-document">
+        <header className="clinical-print-header">
+          <div><span>CAREBASE · CLINICAL RECORD</span><h1>Patient visit summary</h1></div>
+          <div><strong>{detail.Patient.mrn}</strong><span>{dayjs(detail.startedAt).format("MMM D, YYYY h:mm A")}</span></div>
+        </header>
+        <section className="clinical-print-section">
+          <h2>Patient and visit</h2>
+          <dl className="clinical-print-details">
+            <div><dt>Patient</dt><dd>{detail.Patient.firstName} {detail.Patient.lastName}</dd></div>
+            <div><dt>Medical record no.</dt><dd>{detail.Patient.mrn}</dd></div>
+            <div><dt>Contact</dt><dd>{detail.Patient.contactPhone || "—"}</dd></div>
+            <div><dt>Department</dt><dd>{detail.Department.name}</dd></div>
+            <div><dt>Doctor</dt><dd>{detail.DoctorProfile?.User.name ?? "Unassigned"}</dd></div>
+            <div><dt>Visit type</dt><dd>{detail.type} · {detail.source}</dd></div>
+            <div><dt>Visit status</dt><dd>{detail.status.replace("_", " ")}</dd></div>
+            {detail.chiefComplaint && <div><dt>Chief complaint</dt><dd>{detail.chiefComplaint}</dd></div>}
+          </dl>
+        </section>
+        <section className="clinical-print-section">
+          <h2>Diagnosis and consultation</h2>
+          {detail.Admission?.admissionDiagnosis && <p><strong>Admission diagnosis:</strong> {detail.Admission.admissionDiagnosis}</p>}
+          {detail.Consultation.length ? detail.Consultation.map((consultation) => <div className="clinical-print-entry" key={consultation.id}>
+            <h3>{consultation.kind.replace("_", " ")} · {dayjs(consultation.createdAt).format("MMM D, YYYY h:mm A")}</h3>
+            {consultation.DoctorProfile?.User.name && <p><strong>Doctor:</strong> {consultation.DoctorProfile.User.name}</p>}
+            {consultation.diagnosis && <p><strong>Diagnosis:</strong> {consultation.diagnosis}</p>}
+            {consultation.findings && <p><strong>Findings:</strong> {consultation.findings}</p>}
+            {consultation.notes && <p><strong>Notes:</strong> {consultation.notes}</p>}
+          </div>) : !detail.Admission?.admissionDiagnosis && <p>No diagnosis recorded.</p>}
+        </section>
+        <section className="clinical-print-section">
+          <h2>Prescriptions</h2>
+          {detail.Prescription.length ? detail.Prescription.map((prescription) => <div className="clinical-print-entry" key={prescription.id}>
+            <h3>{dayjs(prescription.createdAt).format("MMM D, YYYY h:mm A")} · {prescription.status}</h3>
+            {prescription.PrescriptionItem.length ? <ul>{prescription.PrescriptionItem.map((item) => <li key={item.id}>
+              <strong>{item.medicineName}{item.Medicine?.strength ? ` ${item.Medicine.strength}` : ""}</strong> — {item.dose}, {item.frequency}{item.durationDays ? ` for ${item.durationDays} days` : ""}{item.instructions ? ` · ${item.instructions}` : ""}
+            </li>)}</ul> : <p>No medicines listed.</p>}
+            {prescription.notes && <p><strong>Notes:</strong> {prescription.notes}</p>}
+          </div>) : <p>No prescriptions recorded.</p>}
+        </section>
+        <footer className="clinical-print-footer">Printed {dayjs().format("MMM D, YYYY h:mm A")} · CareBase clinical record</footer>
+      </article>}
 
       <Modal
         title={action ? actionTitles[action] : ""}

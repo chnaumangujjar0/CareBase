@@ -1,0 +1,80 @@
+.public-booking-page {
+  min-height: 100vh;
+  background: #f1f5f9;
+  color: #1e293b;
+  font-family: Inter, system-ui, sans-serif;
+
+  a { color: #0f766e; text-decoration: none; }
+  a:hover { color: #115e59; }
+  .ant-btn-primary { box-shadow: none; }
+}
+
+.public-booking-header {
+  min-height: 72px;
+  padding: 0 clamp(18px, 5vw, 76px);
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.public-booking-header-links { gap: 28px !important; }
+.public-booking-nav-link { font-weight: 600; }
+.public-booking-nav-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+.public-booking-brand { color: #0f172a !important; font-size: 23px; font-weight: 750; letter-spacing: -1px; span { color: #0f766e; } }
+.public-booking-hero { max-width: 1200px; margin: 0 auto; padding: 64px 28px 38px; }
+.public-booking-hero .ant-typography { max-width: 680px; }
+.public-booking-hero h1.ant-typography { margin: 14px 0 12px; color: #0f172a; font-size: clamp(32px, 5vw, 48px); letter-spacing: -1.8px; line-height: 1.08; }
+.public-booking-hero p.ant-typography { color: #64748b; font-size: 16px; line-height: 1.7; }
+.public-booking-eyebrow { display: flex; align-items: center; gap: 8px; color: #0f766e; font-size: 11px; font-weight: 750; letter-spacing: 1.15px; }
+.public-privacy-note { display: flex; align-items: center; gap: 9px; width: fit-content; max-width: 100%; padding: 10px 14px; border: 1px solid #ccfbf1; border-radius: 9px; background: #f0fdfa; color: #0f766e; font-size: 13px; }
+.public-booking-content { max-width: 1200px; margin: 0 auto; padding: 0 28px 56px; }
+.public-doctor-search { display: flex; align-items: end; gap: 14px; padding: 18px; margin-bottom: 22px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; box-shadow: 0 1px 3px #0f172a0a; }
+.public-doctor-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.public-results-count { display: block; margin: 0 0 14px; color: #64748b; font-size: 13px; }
+.public-load-more { display: flex; justify-content: center; padding-top: 24px; }
+.public-doctor-card { border-color: #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px #0f172a0a; .ant-card-body { display: flex; flex-direction: column; gap: 18px; height: 100%; } .ant-btn { margin-top: auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; } }
+.public-doctor-card-head { display: flex; align-items: center; gap: 12px; min-width: 0; .ant-typography { margin: 0; } h4 { color: #0f172a; font-size: 17px; } }
+.public-doctor-avatar { width: 46px; height: 46px; flex: 0 0 46px; border-radius: 12px; display: grid; place-items: center; background: #ccfbf1; color: #0f766e; font-weight: 750; }
+.public-doctor-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.public-doctor-hospital { display: flex; flex-direction: column; gap: 5px; color: #334155; font-size: 14px; span { display: flex; align-items: center; gap: 5px; color: #64748b; font-size: 12px; } }
+.public-availability { display: flex; flex-direction: column; gap: 9px; color: #64748b; font-size: 12px; > div { display: flex; flex-wrap: wrap; gap: 4px; } .ant-tag { margin: 0; color: #475569; font-size: 11px; } }
+.public-empty { padding: 64px 16px; background: white; border-radius: 12px; }
+.public-booking-footer { min-height: 64px; padding: 18px clamp(18px, 5vw, 76px); display: flex; justify-content: space-between; align-items: center; gap: 16px; border-top: 1px solid #e2e8f0; background: #fff; color: #64748b; font-size: 12px; }
+.public-slot-list { max-height: min(55vh, 480px); overflow: auto; display: flex; flex-direction: column; gap: 18px; }
+.public-slot-day { display: flex; flex-direction: column; gap: 9px; color: #334155; > div { display: flex; flex-wrap: wrap; gap: 8px; } .ant-btn { min-width: 84px; } }
+.public-slot-selected { margin-top: 16px; }
+.public-slot-continue { width: 100%; margin-top: 18px; }
+.public-form-intro { margin: 0 0 18px; color: #64748b; }
+.public-form-name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.public-full-width { width: 100%; }
+.public-submit-booking { margin-top: 18px; }
+.public-confirmation { display: flex; flex-direction: column; gap: 14px; .ant-alert { margin-bottom: 4px; } p { margin: 0; color: #64748b; } code { padding: 14px; border: 1px dashed #0f766e; border-radius: 8px; background: #f0fdfa; color: #0f766e; font-size: 18px; font-weight: 700; overflow-wrap: anywhere; text-align: center; } }
+.lookup-hero { padding-bottom: 28px; }
+.public-lookup-content { width: min(100% - 36px, 920px); margin: 0 auto; padding-bottom: 64px; display: grid; grid-template-columns: minmax(260px, .8fr) minmax(300px, 1.2fr); gap: 20px; align-items: start; }
+.public-lookup-card, .public-lookup-result { border-color: #e2e8f0; border-radius: 12px; box-shadow: 0 2px 8px #0f172a0a; }
+.public-lookup-hint { margin: 14px 0 0 !important; color: #64748b; font-size: 12px; }
+.public-lookup-result { .ant-alert { margin-bottom: 18px; } h4 { margin-top: 18px; color: #0f172a; } }
+.public-detail-row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; color: #475569; font-size: 14px; strong { width: 88px; flex: 0 0 88px; color: #64748b; font-weight: 500; } svg { color: #0f766e; flex: 0 0 auto; } }
+.public-lookup-actions { margin-top: 20px; }
+
+@media (max-width: 900px) {
+  .public-doctor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .public-lookup-content { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .public-booking-header { min-height: 62px; padding-inline: 16px; }
+  .public-booking-hero { padding: 40px 18px 28px; }
+  .public-booking-content { padding-inline: 16px; }
+  .public-doctor-search { align-items: stretch; flex-direction: column; padding: 14px; gap: 8px; }
+  .public-doctor-search .ant-form-item { width: 100%; }
+  .public-doctor-grid { grid-template-columns: 1fr; }
+  .public-booking-footer { align-items: flex-start; flex-direction: column; }
+  .public-form-name-row { grid-template-columns: 1fr; gap: 0; }
+  .public-lookup-content { width: calc(100% - 32px); }
+  .public-detail-row { align-items: flex-start; }
+}

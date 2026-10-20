@@ -24,6 +24,7 @@ import { Search, Calendar, Plus, Mail, Phone } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import dayjs from "dayjs";
+import PageSkeleton from "../common/PageSkeleton";
 import {
   createStaffProfile,
   getAllWards,
@@ -227,6 +228,7 @@ function Staff() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [staffList, setStaffList] = useState<StaffDirectoryEntry[]>([]);
+  const [staffLoading, setStaffLoading] = useState(true);
   const [activeStaff, setActiveStaff] = useState<StaffDirectoryEntry | null>(null);
   const [departments, setDepartments] = useState<Department[] | null>(null);
   const [wards, setWards] = useState<{ id: string; name: string }[]>([]);
@@ -316,7 +318,7 @@ function Staff() {
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : "Failed to load staff";
         toast.error(message);
-      });
+      }).finally(() => setStaffLoading(false));
   }, [user?.tenantId]);
 
   const formik = useFormik({
@@ -488,12 +490,14 @@ function Staff() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
+  if (staffLoading) return <PageSkeleton />;
+
   return (
     <ConfigProvider theme={themeConfig}>
-      <div style={{ padding: 24, minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
+      <div className="staff-directory-page" style={{ padding: 24, minHeight: '100vh', backgroundColor: themeConfig.token.colorBgLayout }}>
         
         {/* Header Bar */}
-        <Flex justify="space-between" align="center" style={{ backgroundColor: '#fff', padding: '16px 24px', borderRadius: 8, marginBottom: 24, boxShadow: themeConfig.token.boxShadowTertiary }}>
+        <Flex className="staff-directory-toolbar" justify="space-between" align="center" wrap="wrap" gap={12} style={{ backgroundColor: '#fff', padding: '16px 24px', borderRadius: 8, marginBottom: 24, boxShadow: themeConfig.token.boxShadowTertiary }}>
           <Title level={4} style={{ margin: 0, fontWeight: 700 }}>Staff Directory</Title>
 
           <Input
@@ -501,12 +505,13 @@ function Staff() {
             placeholder="Search staff members..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            className="staff-directory-search"
             style={{ width: 320, borderRadius: 8 }}
             size="large"
             allowClear
           />
 
-          <Flex align="center" gap={12}>
+          <Flex className="staff-directory-actions" align="center" gap={12} wrap="wrap">
             <Flex align="center" gap={8} style={{ backgroundColor: themeConfig.token.colorBgLayout, padding: '8px 16px', borderRadius: 8 }}>
               <Calendar size={16} color="#64748B" />
               <Text strong style={{ color: themeConfig.token.colorTextBase, fontSize: 13 }}>
