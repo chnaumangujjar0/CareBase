@@ -666,6 +666,9 @@ export const updateAvailability = asyncHandler(async (req: Request, res: Respons
       endMinute,
     })),
   });
+  if (type === "Doctor") {
+    req.app.get("io")?.to(`public-appointment-slots:${profileId}`).emit("public:slots:changed", { doctorId: profileId });
+  }
   return res.status(200).json(
     new ApiResponse(200, savedAvailability, "Availability updated successfully"),
   );

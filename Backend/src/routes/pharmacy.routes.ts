@@ -4,6 +4,7 @@ import { checkEligibilty, requirePermissions } from "../middlewares/RBAC.middlew
 import {
   createPharmacy,
   createPharmacyStockTransaction,
+  transferWarehouseStock,
   createStockRequest,
   createSale,
   assignPharmacist,
@@ -30,6 +31,7 @@ router.patch("/:pharmacyId/pharmacist", requirePermissions("clinical:medicines:w
 router.get("/:pharmacyId/stock", requirePermissions("clinical:medicines:read"), listPharmacyStock);
 router.get("/:pharmacyId/stock-transactions", requirePermissions("clinical:medicines:read"), listPharmacyStockTransactions);
 router.post("/:pharmacyId/stock-transactions", requirePermissions("clinical:medicines:write"), createPharmacyStockTransaction);
+router.post("/transfers", requirePermissions("clinical:medicines:write"), transferWarehouseStock);
 router.post("/:pharmacyId/sales", requirePermissions("clinical:medicines:write"), createSale);
 
 router.get("/dashboard", requirePermissions("clinical:medicines:read"), getPharmacyDashboard);

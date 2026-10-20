@@ -14,6 +14,7 @@ import {
 } from "../utils/facility.utils";
 import { db } from "../db";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { getTenantContext } from "../utils/request.utils.js";
 
 const roomNameSchema = z
   .string()
@@ -52,7 +53,7 @@ const assertWardInTenant = async (wardId: string, tenantId: string) => {
 };
 
 export const createRoom = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { name, wardId } = parseOrThrow(createRoomSchema, req.body);
 
   await assertWardInTenant(wardId, tenantId);
@@ -77,7 +78,7 @@ export const createRoom = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listRooms = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { page, limit, wardId, search } = parseOrThrow(
     listRoomsQuerySchema,
     req.query
@@ -113,7 +114,7 @@ export const listRooms = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getRoom = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const room = await db.room.findFirst({
@@ -139,7 +140,7 @@ export const getRoom = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateRoom = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
   const data = parseOrThrow(updateRoomSchema, req.body);
 
@@ -181,7 +182,7 @@ export const updateRoom = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteRoom = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const room = await db.room.findFirst({

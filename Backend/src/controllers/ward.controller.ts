@@ -14,6 +14,7 @@ import {
 } from "../utils/facility.utils";
 import { db } from "../db";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { getTenantContext } from "../utils/request.utils.js";
 
 
 const createWardSchema = z.object({
@@ -47,7 +48,7 @@ const assertDepartmentInTenant = async (departmentId: string, tenantId: string) 
 };
 
 export const createWard = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { name, departmentId } = parseOrThrow(createWardSchema, req.body);
 
   if (departmentId) {
@@ -76,7 +77,7 @@ export const createWard = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listWards = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { page, limit, departmentId, search } = parseOrThrow(
     listWardsQuerySchema,
     req.query
@@ -112,7 +113,7 @@ export const listWards = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getWard = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const ward = await db.ward.findFirst({
@@ -138,7 +139,7 @@ export const getWard = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateWard = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
   const data = parseOrThrow(updateWardSchema, req.body);
 
@@ -181,7 +182,7 @@ export const updateWard = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteWard = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const ward = await db.ward.findFirst({

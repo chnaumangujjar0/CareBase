@@ -1,10 +1,11 @@
 import type { Request, Response } from "express";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { getAuditRequestMetadata } from "../utils/audit.utils.js";
+import { writeAuditLog } from "../utils/audit.utils.js";
 import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
 
 const uuidSchema = z.uuid();
@@ -46,19 +47,6 @@ const requestInclude = {
   Receiver: { select: { id: true, name: true } },
   Items: { include: { Medicine: { select: { id: true, name: true, genericName: true, form: true, strength: true } } } },
 } as const;
-
-const writeAudit = (req: Request, action: string, entityType: string, entityId: string, newValue: Record<string, unknown>) =>
-  db.auditLog.create({
-    data: {
-      action,
-      entityType,
-      entityId,
-      tenantId: req.user!.tenantId,
-      userId: req.user!.id,
-      ...getAuditRequestMetadata(req),
-      newValue: newValue as object,
-    },
-  });
 
 const pharmacySchema = z.object({
   name: z.string().trim().min(2).max(160),
@@ -110,7 +98,7 @@ export const createPharmacy = asyncHandler(async (req: Request, res: Response) =
     throw new ApiError(409, "This hospital already has a main warehouse.");
   }
   const pharmacy = await db.pharmacy.create({ data: { ...input, tenantId }, select: pharmacySelect });
-  await writeAudit(req, "create", "Pharmacy", pharmacy.id, { name: pharmacy.name, type: pharmacy.type });
+  await writeAuditLog(req, { action: "create", entityType: "Pharmacy", entityId: pharmacy.id, newValue: { name: pharmacy.name, type: pharmacy.type } });
   return res.status(201).json(new ApiResponse(201, pharmacy, "Pharmacy created successfully."));
 });
 
@@ -128,7 +116,7 @@ export const updatePharmacy = asyncHandler(async (req: Request, res: Response) =
     throw new ApiError(400, "The main warehouse cannot have an assigned pharmacist.");
   }
   const pharmacy = await db.pharmacy.update({ where: { id: pharmacyId }, data: input, select: pharmacySelect });
-  await writeAudit(req, "update", "Pharmacy", pharmacy.id, input);
+  await writeAuditLog(req, { action: "update", entityType: "Pharmacy", entityId: pharmacy.id, newValue: input });
   return res.status(200).json(new ApiResponse(200, pharmacy, "Pharmacy updated successfully."));
 });
 
@@ -146,6 +134,79 @@ const stockSchema = z.object({
   quantity: z.number().int().positive().max(1_000_000),
   reason: z.string().trim().max(1000).nullish(),
   reorderLevel: z.number().int().nonnegative().max(1_000_000).optional(),
+});
+
+const directTransferSchema = z.object({
+  sourcePharmacyId: uuidSchema,
+  destinationPharmacyId: uuidSchema,
+  medicineId: uuidSchema,
+  quantity: z.number().int().positive().max(1_000_000),
+  reason: z.string().trim().max(1000).nullish(),
+});
+
+export const transferWarehouseStock = asyncHandler(async (req: Request, res: Response) => {
+  const { tenantId, userId } = getTenantContext(req);
+  if (!isHeadPharmacist(req)) throw new ApiError(403, "Only a head pharmacist can transfer warehouse stock directly.");
+  const input = parseRequest(directTransferSchema, req.body);
+  if (input.sourcePharmacyId === input.destinationPharmacyId) throw new ApiError(400, "Choose a sub-pharmacy different from the warehouse.");
+
+  const transferId = randomUUID();
+  const result = await db.$transaction(async (tx) => {
+    const [source, destination, medicine] = await Promise.all([
+      tx.pharmacy.findFirst({ where: { id: input.sourcePharmacyId, tenantId, isActive: true }, select: { id: true, name: true, type: true } }),
+      tx.pharmacy.findFirst({ where: { id: input.destinationPharmacyId, tenantId, isActive: true }, select: { id: true, name: true, type: true } }),
+      tx.medicine.findFirst({ where: { id: input.medicineId, tenantId, isActive: true }, select: { id: true, name: true } }),
+    ]);
+    if (!source || !destination) throw new ApiError(404, "Both pharmacy locations must be active in this hospital.");
+    if (source.type !== "central_store" || destination.type !== "sub_store") {
+      throw new ApiError(400, "Transfers must go from the main warehouse to a sub-pharmacy.");
+    }
+    if (!medicine) throw new ApiError(404, "Active medicine not found.");
+
+    const lockKeys = [source.id, destination.id].sort();
+    for (const pharmacyId of lockKeys) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${tenantId}:pharmacy-stock:${pharmacyId}:${input.medicineId}`}, 0))`;
+    }
+
+    const sourceStock = await tx.pharmacyStock.findUnique({ where: { pharmacyId_medicineId_tenantId: { pharmacyId: source.id, medicineId: input.medicineId, tenantId } } });
+    if (!sourceStock || sourceStock.currentStock < input.quantity) {
+      throw new ApiError(409, `Only ${sourceStock?.currentStock ?? 0} units are currently in the main warehouse.`);
+    }
+    const decrement = await tx.pharmacyStock.updateMany({
+      where: { id: sourceStock.id, tenantId, currentStock: { gte: input.quantity } },
+      data: { currentStock: { decrement: input.quantity } },
+    });
+    if (decrement.count !== 1) throw new ApiError(409, "Warehouse stock changed. Refresh and try again.");
+
+    const destinationStock = await tx.pharmacyStock.upsert({
+      where: { pharmacyId_medicineId_tenantId: { pharmacyId: destination.id, medicineId: input.medicineId, tenantId } },
+      create: { pharmacyId: destination.id, medicineId: input.medicineId, tenantId, currentStock: input.quantity },
+      update: { currentStock: { increment: input.quantity } },
+      include: stockInclude,
+    });
+    const sourceBalance = await tx.pharmacyStock.findUniqueOrThrow({ where: { id: sourceStock.id }, include: stockInclude });
+    const reason = `Direct transfer ${transferId} from ${source.name} to ${destination.name}${input.reason ? `: ${input.reason}` : ""}`;
+    const [outTransaction, inTransaction] = await Promise.all([
+      tx.stockTransaction.create({ data: { pharmacyId: source.id, medicineId: input.medicineId, tenantId, type: "OUT", quantity: input.quantity, reason, recordedBy: userId } }),
+      tx.stockTransaction.create({ data: { pharmacyId: destination.id, medicineId: input.medicineId, tenantId, type: "IN", quantity: input.quantity, reason, recordedBy: userId } }),
+    ]);
+    return { transferId, medicine, source, destination, quantity: input.quantity, sourceStock: sourceBalance, destinationStock, transactions: [outTransaction, inTransaction] };
+  }, { isolationLevel: "Serializable" });
+
+  await writeAuditLog(req, {
+    action: "create",
+    entityType: "PharmacyStockTransfer",
+    entityId: result.transferId,
+    newValue: {
+      sourcePharmacyId: result.source.id,
+      destinationPharmacyId: result.destination.id,
+      medicineId: result.medicine.id,
+      quantity: result.quantity,
+      sourceBalance: result.sourceStock.currentStock,
+      destinationBalance: result.destinationStock.currentStock,
+    },
+  });
+  return res.status(201).json(new ApiResponse(201, result, "Stock transferred to sub-pharmacy successfully."));
 });
 
 export const createPharmacyStockTransaction = asyncHandler(async (req: Request, res: Response) => {
@@ -178,7 +239,7 @@ export const createPharmacyStockTransaction = asyncHandler(async (req: Request, 
     });
     return { balance: nextBalance, stock, transaction };
   }, { isolationLevel: "Serializable" });
-  await writeAudit(req, "create", "StockTransaction", result.transaction.id, { pharmacyId, medicineId: input.medicineId, type: input.type, quantity: input.quantity });
+  await writeAuditLog(req, { action: "create", entityType: "StockTransaction", entityId: result.transaction.id, newValue: { pharmacyId, medicineId: input.medicineId, type: input.type, quantity: input.quantity } });
   return res.status(201).json(new ApiResponse(201, result, "Pharmacy stock transaction recorded successfully."));
 });
 
@@ -201,7 +262,10 @@ const requestSchema = z.object({
   fulfillingPharmacyId: uuidSchema,
   notes: z.string().trim().max(2000).nullish(),
   items: z.array(z.object({ medicineId: uuidSchema, requestedQuantity: z.number().int().positive().max(1_000_000) })).min(1).max(100),
-});
+}).refine(
+  ({ items }) => new Set(items.map((item) => item.medicineId)).size === items.length,
+  { message: "Each medicine can appear only once in a stock request.", path: ["items"] },
+);
 
 export const listStockRequests = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId, userId } = getTenantContext(req);
@@ -229,7 +293,7 @@ export const createStockRequest = asyncHandler(async (req: Request, res: Respons
     if (medicines.length !== new Set(input.items.map((item) => item.medicineId)).size) throw new ApiError(404, "One or more requested medicines are not active.");
     return tx.stockRequest.create({ data: { tenantId, requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, requestedBy: userId, notes: input.notes ?? null, Items: { create: input.items.map((item) => ({ medicineId: item.medicineId, requestedQuantity: item.requestedQuantity })) } }, include: requestInclude });
   });
-  await writeAudit(req, "create", "StockRequest", request.id, { requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, itemCount: input.items.length });
+  await writeAuditLog(req, { action: "create", entityType: "StockRequest", entityId: request.id, newValue: { requestingPharmacyId: input.requestingPharmacyId, fulfillingPharmacyId: input.fulfillingPharmacyId, itemCount: input.items.length } });
   return res.status(201).json(new ApiResponse(201, request, "Stock request created successfully."));
 });
 
@@ -266,11 +330,21 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
       }
     }
     if (input.status === "dispatched") {
+      const lockKeys = request.Items
+        .map((item) => `${tenantId}:pharmacy-stock:${request.fulfillingPharmacyId}:${item.medicineId}`)
+        .sort();
+      for (const lockKey of lockKeys) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      }
       for (const item of request.Items) {
         const quantity = item.approvedQuantity ?? item.requestedQuantity;
         const stock = await tx.pharmacyStock.findUnique({ where: { pharmacyId_medicineId_tenantId: { pharmacyId: request.fulfillingPharmacyId, medicineId: item.medicineId, tenantId } } });
         if (!stock || stock.currentStock < quantity) throw new ApiError(409, "The fulfilling pharmacy does not have enough stock for this request.");
-        await tx.pharmacyStock.update({ where: { id: stock.id }, data: { currentStock: { decrement: quantity } } });
+        const deducted = await tx.pharmacyStock.updateMany({
+          where: { id: stock.id, tenantId, currentStock: { gte: quantity } },
+          data: { currentStock: { decrement: quantity } },
+        });
+        if (deducted.count !== 1) throw new ApiError(409, "Warehouse stock changed. Refresh and try again.");
         await tx.stockTransaction.create({ data: { pharmacyId: request.fulfillingPharmacyId, medicineId: item.medicineId, tenantId, type: "OUT", quantity, reason: `Stock request ${request.id}`, recordedBy: userId } });
       }
     }
@@ -298,6 +372,13 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
         || (input.status === "not_received" && totalReceived !== 0)) {
         throw new ApiError(400, "Received quantities do not match the selected delivery status.");
       }
+      const lockKeys = request.Items
+        .filter((item) => (receivedQuantities.get(item.medicineId) ?? 0) > 0)
+        .map((item) => `${tenantId}:pharmacy-stock:${request.requestingPharmacyId}:${item.medicineId}`)
+        .sort();
+      for (const lockKey of lockKeys) {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+      }
       for (const item of request.Items) {
         const quantity = receivedQuantities.get(item.medicineId)!;
         await tx.stockRequestItem.update({ where: { id: item.id }, data: { receivedQuantity: quantity } });
@@ -309,7 +390,7 @@ export const updateStockRequestStatus = asyncHandler(async (req: Request, res: R
     }
     return tx.stockRequest.update({ where: { id: requestId }, data: { status: input.status, ...(input.notes !== undefined ? { notes: input.notes } : {}), ...(input.receiptNote !== undefined ? { receiptNote: input.receiptNote } : {}), ...(input.status === "approved" || input.status === "rejected" || input.status === "dispatched" ? { handledBy: userId } : {}), ...(input.status === "dispatched" ? { dispatchedAt: new Date() } : {}), ...(input.status === "received" || input.status === "partially_received" || input.status === "not_received" ? { receivedBy: userId, receivedAt: new Date() } : {}) }, include: requestInclude });
   }, { isolationLevel: "Serializable" });
-  await writeAudit(req, "update", "StockRequest", requestId, { status: input.status });
+  await writeAuditLog(req, { action: "update", entityType: "StockRequest", entityId: requestId, newValue: { status: input.status } });
   return res.status(200).json(new ApiResponse(200, result, "Stock request updated successfully."));
 });
 
@@ -336,7 +417,7 @@ export const assignPharmacist = asyncHandler(async (req: Request, res: Response)
     }
   }
   const updated = await db.pharmacy.update({ where: { id: pharmacyId }, data: { pharmacistUserId: input.pharmacistUserId ?? null }, include: { Pharmacist: { select: { id: true, name: true, email: true } } } });
-  await writeAudit(req, "update", "Pharmacy", pharmacyId, { pharmacistUserId: input.pharmacistUserId ?? null });
+  await writeAuditLog(req, { action: "update", entityType: "Pharmacy", entityId: pharmacyId, newValue: { pharmacistUserId: input.pharmacistUserId ?? null } });
   return res.status(200).json(new ApiResponse(200, updated, "Pharmacist assignment updated successfully."));
 });
 
@@ -380,7 +461,7 @@ export const createSale = asyncHandler(async (req: Request, res: Response) => {
     }
     return tx.sale.create({ data: { tenantId, pharmacyId, soldBy: userId, customerName: input.customerName, customerPhone: input.customerPhone ?? null, patientId: input.patientId ?? null, paymentMethod: input.paymentMethod, totalAmount: total.toFixed(2), Items: { create: items } }, include: { Items: { include: { Medicine: { select: { id: true, name: true, strength: true } } } }, Pharmacy: { select: { id: true, name: true } } } });
   }, { isolationLevel: "Serializable" });
-  await writeAudit(req, "create", "Sale", result.id, { pharmacyId, customerName: input.customerName, totalAmount: result.totalAmount.toString() });
+  await writeAuditLog(req, { action: "create", entityType: "Sale", entityId: result.id, newValue: { pharmacyId, customerName: input.customerName, totalAmount: result.totalAmount.toString() } });
   return res.status(201).json(new ApiResponse(201, result, "Medicine sale recorded successfully."));
 });
 

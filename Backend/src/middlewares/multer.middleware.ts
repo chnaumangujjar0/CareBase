@@ -16,7 +16,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + path.extname(file.originalname));
   }
 })
-const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/x-icon","image/svg"]);
+const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/x-icon"]);
 
 export const upload = multer({
   storage,

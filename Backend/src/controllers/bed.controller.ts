@@ -16,6 +16,7 @@ import {
 } from "../utils/facility.utils";
 import { db } from "../db";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { getTenantContext } from "../utils/request.utils.js";
 
 const bedCodeSchema = z
   .string()
@@ -62,7 +63,7 @@ const assertRoomInTenant = async (roomId: string, tenantId: string) => {
 };
 
 export const createBed = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { code, roomId, status } = parseOrThrow(createBedSchema, req.body);
 
   await assertRoomInTenant(roomId, tenantId);
@@ -87,7 +88,7 @@ export const createBed = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const listBeds = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { page, limit, roomId, wardId, status, search } = parseOrThrow(
     listBedsQuerySchema,
     req.query
@@ -122,7 +123,7 @@ export const listBeds = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const getBed = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const bed = await db.bed.findFirst({
@@ -149,7 +150,7 @@ export const getBed = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const updateBed = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
   const { version, ...changes } = parseOrThrow(updateBedSchema, req.body);
 
@@ -225,7 +226,7 @@ export const updateBed = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const deleteBed = asyncHandler(async (req: Request, res: Response) => {
-  const tenantId = req.user?.tenantId as string;
+  const { tenantId } = getTenantContext(req);
   const { id } = parseOrThrow(idParamSchema, req.params);
 
   const bed = await db.bed.findFirst({

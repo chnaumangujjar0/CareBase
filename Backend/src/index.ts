@@ -2,7 +2,7 @@ import dns from "node:dns"
 dns.setServers(["8.8.8.8", "8.8.4.4"])
 
 import 'dotenv/config';
-import { app, httpServer } from "./app.js";
+import { httpServer } from "./app.js";
 import { connectDB } from "./db/index.js"
 
 connectDB().then(() => {

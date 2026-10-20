@@ -56,6 +56,44 @@ const appointmentInclude = {
 
 type AppointmentTransaction = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
+const getPakistanScheduleParts = (date: Date) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Karachi",
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "0";
+  const weekdayIndex: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return {
+    weekday: weekdayIndex[value("weekday")] ?? -1,
+    minuteOfDay: Number(value("hour")) * 60 + Number(value("minute")),
+  };
+};
+
+const ensureWithinDoctorAvailability = async (
+  transaction: AppointmentTransaction,
+  tenantId: string,
+  doctorId: string,
+  scheduledAt: Date,
+  durationMinutes: number,
+) => {
+  const { weekday, minuteOfDay } = getPakistanScheduleParts(scheduledAt);
+  const availability = await transaction.doctorAvailability.findMany({
+    where: { doctorId, tenantId, isActive: true },
+    select: { dayOfWeek: true, startMinute: true, endMinute: true },
+  });
+  const isWithinAvailability = availability.some((window) =>
+    window.dayOfWeek === weekday &&
+    window.startMinute <= minuteOfDay &&
+    window.endMinute >= minuteOfDay + durationMinutes,
+  );
+  if (!isWithinAvailability) {
+    throw new ApiError(400, "The selected doctor is not available for the full appointment time");
+  }
+};
+
 const withAppointmentConflictHandling = async <T>(
   operation: (transaction: AppointmentTransaction) => Promise<T>,
 ): Promise<T> => {
@@ -128,12 +166,8 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
   }
 
   const input = parsed.data;
-  const scheduledDate = new Date(input.scheduledAt);
-  const scheduleday = scheduledDate.getDay();
-  const scheduledTime = scheduledDate.getHours() * 60 + scheduledDate.getMinutes();
-
   const result = await withAppointmentConflictHandling(async (transaction) => {
-    const [patient, doctor, department,availability] = await Promise.all([
+    const [patient, doctor, department] = await Promise.all([
       transaction.patient.findFirst({
         where: { id: input.patientId, tenantId, isActive: true, deletedAt: null },
         select: { id: true },
@@ -146,7 +180,6 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
         where: { id: input.departmentId, tenantId, isActive: true },
         select: { id: true },
       }),
-      transaction.doctorAvailability.findMany({where: {doctorId: input.doctorId, tenantId, isActive: true}})
     ]);
 
     if (!patient) throw new ApiError(404, "Active patient not found in this tenant");
@@ -155,14 +188,7 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
     if (doctor.departmentId !== department.id) {
       throw new ApiError(400, "The selected doctor does not belong to this department");
     }
-    const isWithinAvailability = availability.some((avail) =>
-      avail.dayOfWeek === scheduleday
-      && avail.startMinute <= scheduledTime
-      && avail.endMinute >= scheduledTime + input.durationMinutes,
-    );
-    if (!isWithinAvailability) {
-      throw new ApiError(400, "The selected doctor is not available at the requested time");
-    }
+    await ensureWithinDoctorAvailability(transaction, tenantId, input.doctorId, input.scheduledAt, input.durationMinutes);
     await ensureNoConflict(
       transaction,
       tenantId,
@@ -201,6 +227,7 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
       status: result.status,
     },
   });
+  req.app.get("io")?.to(`public-appointment-slots:${input.doctorId}`).emit("public:slots:changed", { doctorId: input.doctorId });
   return res.status(201).json(new ApiResponse(201, result, "Appointment created successfully"));
 });
 
@@ -338,6 +365,7 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
     }
 
     if (scheduleChanged) {
+      await ensureWithinDoctorAvailability(transaction, tenantId, current.doctorId, scheduledAt, durationMinutes);
       await ensureNoConflict(
         transaction,
         tenantId,
@@ -383,6 +411,9 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
       notesPresent: Boolean(result.appointment.notes),
     } : {},
   });
+  if (result.appointment) {
+    req.app.get("io")?.to(`public-appointment-slots:${result.appointment.doctorId}`).emit("public:slots:changed", { doctorId: result.appointment.doctorId });
+  }
   return res.status(200).json(new ApiResponse(200, result.appointment, "Appointment updated successfully"));
 });
 

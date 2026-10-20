@@ -5,7 +5,7 @@ import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { getAuditRequestMetadata } from "../utils/audit.utils.js";
+import { writeAuditLog } from "../utils/audit.utils.js";
 import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
 
 const uuidSchema = z.uuid();
@@ -26,9 +26,6 @@ const invoiceInclude = {
   Items: { orderBy: { createdAt: "asc" as const } },
   Payments: { orderBy: { createdAt: "desc" as const }, include: { Collector: { select: { id: true, name: true } } } },
 } as const;
-
-const writeAudit = (req: Request, action: string, entityType: string, entityId: string, newValue: Record<string, unknown>) =>
-  db.auditLog.create({ data: { action, entityType, entityId, tenantId: req.user!.tenantId, userId: req.user!.id, ...getAuditRequestMetadata(req), newValue: newValue as object } });
 
 const recalculateInvoice = async (tx: Transaction, invoiceId: string, tenantId: string) => {
   const invoice = await tx.billingInvoice.findFirst({ where: { id: invoiceId, tenantId }, include: { Items: true, Payments: { where: { status: "completed" } } } });
@@ -91,7 +88,7 @@ export const createRate = asyncHandler(async (req: Request, res: Response) => {
     throw new ApiError(400, "Doctors can create appointment rates only, and appointment type is required.");
   }
   const rate = await db.billingRate.create({ data: { ...input, amount: amountString(input.amount), taxRate: amountString(input.taxRate), tenantId, appointmentType: input.appointmentType ?? null, procedureCode: input.procedureCode ?? null, doctorId, bedId: isDoctor(req) ? null : input.bedId ?? null } });
-  await writeAudit(req, "create", "BillingRate", rate.id, { code: rate.code, category: rate.category, amount: input.amount });
+  await writeAuditLog(req, { action: "create", entityType: "BillingRate", entityId: rate.id, newValue: { code: rate.code, category: rate.category, amount: input.amount } });
   return res.status(201).json(new ApiResponse(201, { ...rate, amount: Number(rate.amount), taxRate: Number(rate.taxRate) }, "Billing rate created successfully."));
 });
 
@@ -108,7 +105,7 @@ export const updateRate = asyncHandler(async (req: Request, res: Response) => {
     if (input.appointmentType !== undefined && !input.appointmentType?.trim()) throw new ApiError(400, "Appointment type is required.");
   }
   const rate = await db.billingRate.update({ where: { id: rateId }, data: { ...input, ...(isDoctor(req) ? { category: "appointment", doctorId: current.doctorId, bedId: null } : {}), ...(input.amount === undefined ? {} : { amount: amountString(input.amount) }), ...(input.taxRate === undefined ? {} : { taxRate: amountString(input.taxRate) }) }, });
-  await writeAudit(req, "update", "BillingRate", rate.id, { ...input });
+  await writeAuditLog(req, { action: "update", entityType: "BillingRate", entityId: rate.id, newValue: input });
   return res.status(200).json(new ApiResponse(200, { ...rate, amount: Number(rate.amount), taxRate: Number(rate.taxRate) }, "Billing rate updated successfully."));
 });
 
@@ -129,7 +126,7 @@ export const createAppointmentInvoice = asyncHandler(async (req: Request, res: R
     const created = await tx.billingInvoice.create({ data: { tenantId, patientId: appointment.patientId, appointmentId: appointment.id, kind: "appointment", invoiceNumber: invoiceNumber(), currency: rate.currency, subtotal: amountString(amount), taxAmount: amountString(tax), totalAmount: amountString(amount + tax), balanceAmount: amountString(amount + tax), createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null, Items: { create: { category: "appointment", description: rate.name, quantity: 1, unitPrice: rate.amount, taxRate: rate.taxRate, subtotal: rate.amount, taxAmount: amountString(tax), totalAmount: amountString(amount + tax) } } }, include: invoiceInclude });
     return created;
   });
-  await writeAudit(req, "create", "BillingInvoice", invoice.id, { kind: "appointment", appointmentId: input.appointmentId, rateId: input.rateId });
+  await writeAuditLog(req, { action: "create", entityType: "BillingInvoice", entityId: invoice.id, newValue: { kind: "appointment", appointmentId: input.appointmentId, rateId: input.rateId } });
   return res.status(201).json(new ApiResponse(201, serializeInvoice(invoice), "Appointment invoice created successfully."));
 });
 
@@ -141,7 +138,7 @@ export const createInpatientInvoice = asyncHandler(async (req: Request, res: Res
   const admission = await db.admission.findFirst({ where: { id: input.admissionId, tenantId }, include: { Encounter: { select: { patientId: true } } } });
   if (!admission) throw new ApiError(404, "Admission not found.");
   const invoice = await db.billingInvoice.create({ data: { tenantId, patientId: admission.Encounter.patientId, admissionId: input.admissionId, kind: "inpatient", invoiceNumber: invoiceNumber(), currency: "PKR", subtotal: 0, taxAmount: 0, totalAmount: 0, balanceAmount: 0, createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null } });
-  await writeAudit(req, "create", "BillingInvoice", invoice.id, { kind: "inpatient", admissionId: input.admissionId });
+  await writeAuditLog(req, { action: "create", entityType: "BillingInvoice", entityId: invoice.id, newValue: { kind: "inpatient", admissionId: input.admissionId } });
   return res.status(201).json(new ApiResponse(201, serializeInvoice({ ...invoice, Items: [], Payments: [] }), "Inpatient invoice created successfully."));
 });
 
@@ -165,7 +162,7 @@ export const addInvoiceItem = asyncHandler(async (req: Request, res: Response) =
     await tx.billingInvoiceItem.create({ data: { tenantId, invoiceId, category: rate.category, description: input.description ?? rate.name, quantity: input.quantity, unitPrice: rate.amount, taxRate: rate.taxRate, subtotal: amountString(subtotal), taxAmount: amountString(tax), totalAmount: amountString(subtotal + tax) } });
     return recalculateInvoice(tx, invoiceId, tenantId);
   });
-  await writeAudit(req, "create", "BillingInvoiceItem", invoiceId, { rateId: input.rateId, quantity: input.quantity });
+  await writeAuditLog(req, { action: "create", entityType: "BillingInvoiceItem", entityId: invoiceId, newValue: { rateId: input.rateId, quantity: input.quantity } });
   return res.status(201).json(new ApiResponse(201, serializeInvoice(invoice), "Invoice charge added successfully."));
 });
 
@@ -184,7 +181,7 @@ export const collectPayment = asyncHandler(async (req: Request, res: Response) =
     await tx.billingPayment.create({ data: { tenantId, invoiceId, collectedBy: userId, amount: amountString(input.amount), method: input.method, reference: input.reference ?? null, notes: input.notes ?? null } });
     return recalculateInvoice(tx, invoiceId, tenantId);
   });
-  await writeAudit(req, "create", "BillingPayment", invoiceId, { amount: input.amount, method: input.method });
+  await writeAuditLog(req, { action: "create", entityType: "BillingPayment", entityId: invoiceId, newValue: { amount: input.amount, method: input.method } });
   return res.status(201).json(new ApiResponse(201, serializeInvoice(invoice), "Payment recorded successfully."));
 });
 

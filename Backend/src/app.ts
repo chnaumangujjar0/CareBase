@@ -3,6 +3,7 @@ import cors from "cors"
 import cookieParser from "cookie-parser";
 import http from "http"
 import {Server} from "socket.io"
+import { registerPublicAppointmentSockets } from "./services/public-appointment-socket.service.js"
 
 const app = express()
 const httpServer = http.createServer(app);
@@ -15,6 +16,7 @@ const io = new Server(httpServer, {
 });
 
 app.set("io",io)
+registerPublicAppointmentSockets(io)
 app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true

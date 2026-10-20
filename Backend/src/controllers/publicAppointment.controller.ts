@@ -202,7 +202,7 @@ export const getPublicDoctorSlots = asyncHandler(async (req: Request, res: Respo
   });
 
   const nowWithBookingBuffer = Date.now() + 30 * 60_000;
-  const slots: Array<{ startsAt: string; localDate: string; localTime: string; timeZone: string }> = [];
+  const slots: Array<{ startsAt: string; localDate: string; localTime: string; timeZone: string; available: boolean }> = [];
   for (let dayOffset = 0; dayOffset < parsedQuery.data.days; dayOffset += 1) {
     const localParts = addLocalDays(from, dayOffset);
     const localDate = formatLocalDate(localParts);
@@ -216,12 +216,12 @@ export const getPublicDoctorSlots = asyncHandler(async (req: Request, res: Respo
           appointment.scheduledAt.getTime() < endsAt &&
           appointment.scheduledAt.getTime() + appointment.durationMinutes * 60_000 > startsAt.getTime(),
         );
-        if (startsAt.getTime() <= nowWithBookingBuffer || hasConflict) continue;
         slots.push({
           startsAt: startsAt.toISOString(),
           localDate,
           localTime: `${String(Math.floor(startMinute / 60)).padStart(2, "0")}:${String(startMinute % 60).padStart(2, "0")}`,
           timeZone: PUBLIC_TIME_ZONE,
+          available: startsAt.getTime() > nowWithBookingBuffer && !hasConflict,
         });
       }
     }
@@ -339,6 +339,8 @@ export const createPublicAppointment = asyncHandler(async (req: Request, res: Re
         departmentName: doctor.Department.name,
       };
     });
+
+    req.app.get("io")?.to(`public-appointment-slots:${input.doctorId}`).emit("public:slots:changed", { doctorId: input.doctorId });
 
     const emailResult = await sendPublicAppointmentEmail({
       patientName: `${result.patient.firstName} ${result.patient.lastName}`,
