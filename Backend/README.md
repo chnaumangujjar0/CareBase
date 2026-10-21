@@ -1,26 +1,128 @@
-# Backend setup
+# CareBase Backend
 
-## Patient appointment emails
+CareBase Backend is a TypeScript API built with Express 5 and Prisma. It provides authentication, tenant-scoped hospital workflows, public appointment booking, live appointment slot updates, and platform hospital approval endpoints. PostgreSQL is the primary database.
 
-Configure SMTP in the backend environment to email a patient's appointment confirmation and private booking code:
+## Requirements
 
-- `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are required.
-- `SMTP_PORT` defaults to `587`; use `465` for implicit TLS.
-- `SMTP_SECURE=true` enables implicit TLS when required by your SMTP provider.
-- `SMTP_FROM` defaults to `SMTP_USER`; `SMTP_FROM_NAME` defaults to `CareBase`.
+- Node.js and npm versions compatible with the dependencies in `package.json`.
+- PostgreSQL reachable from the backend process.
+- A database connection string and the required local environment configuration.
 
-If SMTP is not configured or delivery fails, appointment booking still succeeds and the response indicates that the confirmation email was not sent. The booking code is shown once after the booking, so the patient can save it manually.
+## Setup
 
-## Staff credential emails
+From this directory:
 
-Staff access and public appointment emails use the SMTP settings above. If SMTP is not configured or delivery fails, account creation or booking still succeeds and the API reports that the email was not sent.
+```bash
+npm install
+```
 
-## Platform super administrator
+Create a local `.env` file in `Backend/`. Set the following variables for your environment; do not commit secrets:
 
-Set `SUPER_ADMIN_EMAILS` in the backend environment to a comma-separated list of trusted CareBase platform administrator email addresses. Only these addresses can use the platform hospital review API. Public signup does not grant platform administrator access.
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | PostgreSQL connection string used by Prisma. |
+| `PORT` | HTTP and Socket.IO server port; defaults to `8000`. |
+| `CORS_ORIGIN` | Allowed frontend origin for HTTP and Socket.IO requests. |
+| `ACCESS_TOKEN_SECRET` | Secret used to sign and verify access tokens. |
+| `REFRESH_TOKEN_SECRET` | Secret used to sign and verify refresh tokens. |
+| `ACCESS_TOKEN_EXPIRY` | Access token lifetime accepted by the token helper. |
+| `REFRESH_TOKEN_EXPIRY` | Refresh token lifetime accepted by the token helper. |
+| `RECAPTCHA_SECRET_KEY` | Server-side key for login and signup reCAPTCHA verification. |
+| `FRONTEND_URL` | Frontend origin used to build links in emails. |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | SMTP connection settings for email delivery. |
+| `SMTP_SECURE` | Set to `true` when the SMTP provider requires implicit TLS. |
+| `SMTP_FROM`, `SMTP_FROM_NAME` | Optional sender email and display name. The sender email defaults to `SMTP_USER`; the display name defaults to `CareBase`. |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional Cloudinary credentials for image uploads. |
+| `SUPER_ADMIN_EMAILS` | Comma-separated trusted platform administrator email addresses. |
+| `NODE_ENV` | Runtime environment, such as `development` or `production`. |
 
-Create a separate platform administrator account with `npm run super-admin:create -- admin@example.com`. The email must be listed in `SUPER_ADMIN_EMAILS`. Public hospital signup always creates an ordinary hospital owner account and sends that owner to hospital onboarding.
+Never commit `.env` files or include real credentials in documentation, screenshots, or issue reports.
 
-## Hospital approvals
+## Database
 
-Apply Prisma migrations with `npm run db:deploy`. Existing hospitals are marked approved by default; hospitals created through new onboarding are marked pending until a platform administrator approves them.
+Prisma schema is in `prisma/schema.prisma`; SQL migration history is in `prisma/migrations/`.
+
+```bash
+npm run db:generate  # Generate the Prisma client
+npm run db:migrate   # Create and apply a development migration
+npm run db:deploy    # Apply committed migrations in deployment environments
+```
+
+`npm install` also runs Prisma client generation through the package's `postinstall` script. Apply migrations before starting the API against a new database. In deployed environments, use `db:deploy` with the committed migration history.
+
+## Run and validate
+
+```bash
+npm run dev        # Watch and run src/index.ts
+npm run build      # Compile TypeScript into dist/
+npm run typecheck  # Type-check without emitting files
+npm start          # Run the compiled server
+```
+
+The server connects to PostgreSQL before listening. The HTTP API is mounted under `/api/v1`; the same HTTP server hosts Socket.IO for live appointment slot updates.
+
+## API areas
+
+| Base path | Purpose |
+| --- | --- |
+| `/api/v1/user` | Signup, login, refresh, current-user, and logout. |
+| `/api/v1/tenant` | Hospital onboarding and profile management. |
+| `/api/v1/super-admin` | Platform hospital review and approval. |
+| `/api/v1/department`, `/api/v1/staff`, `/api/v1/roles` | Hospital structure, staff profiles, and role permissions. |
+| `/api/v1/patients`, `/api/v1/appointments` | Patient records and appointment management. |
+| `/api/v1/clinical` | Encounters, consultations, prescriptions, admissions, and related clinical workflows. |
+| `/api/v1/facility` | Wards, rooms, and beds. |
+| `/api/v1/pharmacies`, `/api/v1/medicines` | Pharmacy locations, stock, transfers, requests, sales, and medicine catalogue. |
+| `/api/v1/billing` | Billing rates, invoices, charges, and payments. |
+| `/api/v1/dashboard`, `/api/v1/audit-logs` | Hospital dashboards and audit history. |
+| `/api/v1/public` | Public doctor search, appointment slots, booking, and booking lookup. |
+
+Most hospital endpoints require a valid access token, an approved hospital, and the relevant role permission. Public booking routes do not require a user login. Consult the route files in `src/routes/` for individual methods and authorization requirements.
+
+## Public appointment flow
+
+1. The frontend requests the public doctor directory and a doctor's available slots.
+2. A patient selects a returned slot and submits contact details.
+3. The backend rechecks the doctor's active availability and appointment conflicts before creating the booking.
+4. A private booking code is returned for appointment lookup. Confirmation email delivery is attempted when SMTP is configured.
+5. Socket.IO notifies subscribed booking pages when a doctor's slot state changes.
+
+Appointment schedules and public slot dates currently use the `Asia/Karachi` time zone. Booking email failure does not undo a successfully created appointment; the response reports whether the email was sent.
+
+## Email and platform administrator setup
+
+Staff credential emails and public appointment confirmations use the SMTP variables above. If SMTP is absent or delivery fails, the associated account or booking workflow can still complete and reports the email result.
+
+Set `SUPER_ADMIN_EMAILS` to a comma-separated allowlist before creating a platform administrator. Then run:
+
+```bash
+npm run super-admin:create -- admin@example.com
+```
+
+The email passed to the command must be in the allowlist. Public signup creates an ordinary hospital owner and does not grant platform administrator privileges. New hospitals remain pending until an authorized platform administrator approves them.
+
+## Project structure
+
+```text
+prisma/             Database schema and migrations
+src/
+  constants/        Role and permission definitions
+  controllers/      HTTP workflow handlers
+  db/               Prisma client and connection setup
+  middlewares/      Authentication, authorization, uploads, and errors
+  routes/           Express route definitions
+  scripts/          Administrative command-line tools
+  services/         Email and Socket.IO workflows
+  types/            Shared backend types
+  utils/            Validation, API responses, auditing, tokens, and helpers
+  app.ts            Express app, Socket.IO setup, and route mounting
+  index.ts          Database connection and HTTP server startup
+```
+
+## Security and operations notes
+
+- Keep access-token, refresh-token, database, SMTP, Cloudinary, and reCAPTCHA secrets private.
+- Use separate credentials for development and production.
+- Keep Prisma migrations committed and apply them before deploying code that depends on schema changes.
+- Configure `CORS_ORIGIN` and `FRONTEND_URL` to the deployed frontend origin.
+- Protect the platform administrator allowlist and use a dedicated administrator account.

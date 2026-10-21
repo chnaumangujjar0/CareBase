@@ -15,6 +15,7 @@ import { char36Schema } from "../types/tenant.types.js";
 import type { Tenant } from "../types/tenant.types.js";
 import z from "zod";
 import { writeAuditLog } from "../utils/audit.utils.js";
+import { sendTenantRegistrationEmail } from "../services/staff-credentials-email.service.js";
 type AuthenticatedRequest = Request & {
   user?: Request["user"] & { id: string };
 };
@@ -120,12 +121,21 @@ export const completeOnboarding = asyncHandler(
       userId,
       newValue: { name: result.tenant.name, slug: result.tenant.slug, ownerRoleId: result.user.roleId },
     });
+    const emailDelivery = await sendTenantRegistrationEmail({
+      tenantName: result.tenant.name,
+      tenantId: result.tenant.id,
+      ownerName: result.user.name,
+      ownerEmail: result.user.email,
+      city: result.tenant.city,
+      state: result.tenant.state,
+      country: result.tenant.country,
+    });
     return res
       .status(201)
       .json(
         new ApiResponse(
           201,
-          result,
+          { ...result, emailDelivery },
           "Hospital submitted for approval successfully."
         )
       );

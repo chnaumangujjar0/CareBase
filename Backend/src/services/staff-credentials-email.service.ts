@@ -28,6 +28,16 @@ export interface PublicAppointmentEmailInput {
   scheduledAt: Date;
 }
 
+export interface TenantRegistrationEmailInput {
+  tenantName: string;
+  tenantId: string;
+  ownerName: string;
+  ownerEmail: string;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+}
+
 export type CredentialEmailResult = { sent: true } | { sent: false; reason: "not_configured" | "provider_error" };
 
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (character) => ({
@@ -183,5 +193,31 @@ export const sendPublicAppointmentEmail = async (input: PublicAppointmentEmailIn
     }
     console.error("Patient booking email could not be delivered through SMTP.", error instanceof Error ? error.name : "unknown error");
     return { sent: false, reason: "provider_error" };
+  }
+};
+
+export const sendTenantRegistrationEmail = async (input: TenantRegistrationEmailInput): Promise<CredentialEmailResult> => {
+  const recipientEmail = process.env.OWNER_EMAIL?.trim();
+  if (!recipientEmail) {
+    console.error("Tenant registration email was not sent: OWNER_EMAIL is not configured.");
+    return { sent: false, reason: "not_configured" };
+  }
+
+  const tenantName = escapeHtml(input.tenantName);
+  const ownerName = escapeHtml(input.ownerName);
+  const ownerEmail = escapeHtml(input.ownerEmail);
+  const tenantId = escapeHtml(input.tenantId);
+  const location = [input.city, input.state, input.country].filter(Boolean).join(", ");
+  const safeLocation = escapeHtml(location || "Not provided");
+  try {
+    await sendSmtpEmail({
+      to: { email: recipientEmail },
+      subject: `New hospital registration: ${input.tenantName}`,
+      html: `<!doctype html><html lang="en"><body style="font-family:Arial,Helvetica,sans-serif;color:${BRAND.text};"><h1>New hospital registration</h1><p>A hospital has been submitted for approval on CareBase.</p><table role="presentation" cellspacing="0" cellpadding="8"><tr><td><strong>Hospital</strong></td><td>${tenantName}</td></tr><tr><td><strong>Tenant ID</strong></td><td>${tenantId}</td></tr><tr><td><strong>Owner</strong></td><td>${ownerName} (${ownerEmail})</td></tr><tr><td><strong>Location</strong></td><td>${safeLocation}</td></tr></table></body></html>`,
+      text: `A hospital has been submitted for approval on CareBase.\n\nHospital: ${input.tenantName}\nTenant ID: ${input.tenantId}\nOwner: ${input.ownerName} (${input.ownerEmail})\nLocation: ${location || "Not provided"}`,
+    });
+    return { sent: true };
+  } catch (error) {
+    return emailFailure("Tenant registration", error);
   }
 };
