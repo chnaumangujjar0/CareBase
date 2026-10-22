@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch } from "./store";
 import {
+  clearUser,
   fetchCurrentUser,
   selectAuthInitialized,
   selectCurrentUser,
@@ -15,16 +16,23 @@ export function useAuthBootstrap() {
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
-    if (hasDispatched.current || !token) {
+    const refreshToken = localStorage.getItem("refreshToken");
+    if (hasDispatched.current) {
       return;
     }
 
     hasDispatched.current = true;
-    dispatch(fetchCurrentUser());
+    if (token || refreshToken) {
+      dispatch(fetchCurrentUser());
+    } else {
+      dispatch(clearUser());
+    }
   }, [dispatch]);
 
-  const hasToken = typeof window !== "undefined" && Boolean(localStorage.getItem("accessToken"));
-  const isReady = initialized || !hasToken;
+  const hasStoredSession = typeof window !== "undefined" && Boolean(
+    localStorage.getItem("accessToken") || localStorage.getItem("refreshToken"),
+  );
+  const isReady = initialized || !hasStoredSession;
 
   return { isReady, user };
 }

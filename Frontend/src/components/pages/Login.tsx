@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
@@ -9,15 +10,30 @@ import Logo from "../../assets/carebase-logo-full.svg";
 import { getApiErrorMessage, loginUser } from "../../services/api";
 import { toast } from "react-toastify";
 import type { AuthUser } from "../../types/auth";
-import { useState } from "react";
 import { getRecaptchaToken } from "../../utils/recaptcha";
 import RecaptchaNotice from "../auth/RecaptchaNotice";
 import { getDefaultRoute } from "../../utils/authorization";
+import { useAuthBootstrap } from "../../store/Useauthbootstrap";
 
 const Login = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [isLoading, setIsLoading] = useState(false);
+  const { isReady, user: currentUser } = useAuthBootstrap();
+
+  useEffect(() => {
+    if (!isReady) return;
+
+    if (currentUser) {
+      navigate(getDefaultRoute(currentUser), { replace: true });
+      return;
+    }
+
+    if (sessionStorage.getItem("carebase-session-expired") === "true") {
+      sessionStorage.removeItem("carebase-session-expired");
+      toast.info("Your session has expired. Please sign in again.");
+    }
+  }, [currentUser, isReady, navigate]);
 
   const formik = useFormik({
     initialValues: {
@@ -63,7 +79,7 @@ const Login = () => {
 
   return (
     <>
-      <Spin fullscreen spinning={isLoading} tip="Authenticating..." />
+      <Spin fullscreen spinning={isLoading || !isReady} tip={isLoading ? "Authenticating..." : "Checking your session..."} />
       <Container fluid className="auth-shell d-flex vh-100 align-items-center justify-content-center">
         <Card className="auth-card border-0 shadow">
           <Card.Body className="p-4 p-md-5">

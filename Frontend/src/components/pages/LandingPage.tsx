@@ -21,7 +21,7 @@ import {
   X,
 } from "lucide-react";
 import Logo from "../../assets/carebase-logo-full.svg";
-import FooterLogo from "../../assets/carebase-logo-white.svg";
+import FooterLogo from "../../assets/carebase-logo-full.svg";
 import styles from "../../styles/LandingPage.module.scss";
 
 const workflowSteps = [

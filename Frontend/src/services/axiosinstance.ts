@@ -111,6 +111,8 @@ api.interceptors.response.use(
         
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
+        localStorage.removeItem("carebase-user");
+        sessionStorage.setItem("carebase-session-expired", "true");
 
         if (window.location.pathname !== "/login") {
           window.location.href = "/login";

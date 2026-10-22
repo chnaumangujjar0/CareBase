@@ -43,9 +43,9 @@ export const fetchCurrentUser = createAsyncThunk<
   { rejectValue: { message: string; isAuthFailure: boolean } }
 >("auth/fetchCurrentUser", async (_, { rejectWithValue }) => {
   try {
-    const token = localStorage.getItem("accessToken");
-    if (!token) {
-      return rejectWithValue({ message: "No access token found", isAuthFailure: true });
+    const hasSessionToken = localStorage.getItem("accessToken") || localStorage.getItem("refreshToken");
+    if (!hasSessionToken) {
+      return rejectWithValue({ message: "No session token found", isAuthFailure: true });
     }
 
     const response = await api.get("/user/current-user");
