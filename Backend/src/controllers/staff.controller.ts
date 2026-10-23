@@ -307,7 +307,7 @@ export const addStaff = asyncHandler(async (req: Request, res: Response) => {
       throw error;
     }
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      throw new ApiError(409, "A user, role, or employee ID already exists");
+      throw new ApiError(409, "A user, employee ID, or phone number already exists in this hospital");
     }
     throw error;
   }
@@ -500,7 +500,7 @@ export const updateStaffProfile = asyncHandler(async (req: Request, res: Respons
   } catch (error: unknown) {
     if (error instanceof ApiError) throw error;
     if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") {
-      throw new ApiError(409, "This employee ID is already in use in this tenant");
+      throw new ApiError(409, "This employee ID or phone number is already in use in this hospital");
     }
     throw error;
   }

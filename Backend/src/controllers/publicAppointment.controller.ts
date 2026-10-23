@@ -199,10 +199,12 @@ export const getPublicDoctorSlots = asyncHandler(async (req: Request, res: Respo
   const appointments = await db.appointment.findMany({
     where: { tenantId: doctor.tenantId, doctorId: doctor.id, status: "booked", scheduledAt: { gte: rangeStart, lt: rangeEnd } },
     select: { scheduledAt: true, durationMinutes: true },
+    orderBy: { scheduledAt: "asc" },
   });
 
   const nowWithBookingBuffer = Date.now() + 30 * 60_000;
   const slots: Array<{ startsAt: string; localDate: string; localTime: string; timeZone: string; available: boolean }> = [];
+  let firstPotentialConflict = 0;
   for (let dayOffset = 0; dayOffset < parsedQuery.data.days; dayOffset += 1) {
     const localParts = addLocalDays(from, dayOffset);
     const localDate = formatLocalDate(localParts);
@@ -212,9 +214,16 @@ export const getPublicDoctorSlots = asyncHandler(async (req: Request, res: Respo
       for (let startMinute = window.startMinute; startMinute + SLOT_DURATION_MINUTES <= window.endMinute; startMinute += SLOT_DURATION_MINUTES) {
         const startsAt = new Date(localDateToUtcStart(localDate).getTime() + startMinute * 60_000);
         const endsAt = startsAt.getTime() + SLOT_DURATION_MINUTES * 60_000;
-        const hasConflict = appointments.some((appointment) =>
-          appointment.scheduledAt.getTime() < endsAt &&
-          appointment.scheduledAt.getTime() + appointment.durationMinutes * 60_000 > startsAt.getTime(),
+        while (
+          firstPotentialConflict < appointments.length &&
+          appointments[firstPotentialConflict]!.scheduledAt.getTime() +
+            appointments[firstPotentialConflict]!.durationMinutes * 60_000 <= startsAt.getTime()
+        ) {
+          firstPotentialConflict += 1;
+        }
+        const nextAppointment = appointments[firstPotentialConflict];
+        const hasConflict = Boolean(
+          nextAppointment && nextAppointment.scheduledAt.getTime() < endsAt,
         );
         slots.push({
           startsAt: startsAt.toISOString(),

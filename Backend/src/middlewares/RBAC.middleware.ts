@@ -39,8 +39,7 @@ export const checkEligibilty = asyncHandler(
     if (!role) {
       throw new ApiError(403, "You do not have access to this tenant");
     }
-    const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { approvalStatus: true } });
-    if (!tenant || tenant.approvalStatus !== "approved") {
+    if (!req.user.Tenant || req.user.Tenant.approvalStatus !== "approved") {
       throw new ApiError(403, "This hospital is awaiting CareBase approval.");
     }
     req.role = role

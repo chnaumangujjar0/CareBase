@@ -1,3 +1,4 @@
+// Every change from the original is marked with a "// OPT:" comment.
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -26,12 +27,13 @@ model Appointment {
   updatedBy    String? @db.Uuid
 
   // Relations
-  Tenant         Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
-  Department     Department      @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "appointment_departmentId_fkey")
-  DoctorProfile  DoctorProfile   @relation(fields: [doctorId], references: [id], onUpdate: NoAction, map: "appointment_doctorId_fkey")
-  Patient        Patient         @relation(fields: [patientId], references: [id], onUpdate: NoAction, map: "appointment_patientId_fkey")
-  Creator        User?           @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
-  Updater        User?           @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
+  Tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
+  // OPT: department/doctor/patient now include tenantId, so an appointment can never point to another tenant's data
+  Department     Department              @relation(fields: [departmentId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_departmentId_fkey")
+  DoctorProfile  DoctorProfile           @relation(fields: [doctorId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_doctorId_fkey")
+  Patient        Patient                 @relation(fields: [patientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_patientId_fkey")
+  Creator        User?                   @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
+  Updater        User?                   @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
   Encounter      Encounter?
   BillingInvoice BillingInvoice?
   PublicAccess   PublicAppointmentAccess?
@@ -39,18 +41,19 @@ model Appointment {
   @@unique([id, tenantId])
   @@index([createdBy], map: "Appointment_createdBy_idx_ba0f792f")
   @@index([departmentId], map: "Appointment_departmentId_idx_8e261ed8")
-  @@index([doctorId], map: "Appointment_doctorId_idx_04369053")
   @@index([patientId], map: "Appointment_patientId_idx_e5f07e88")
-  @@index([tenantId], map: "Appointment_tenantId_idx_c93ed4f1")
   @@index([tenantId, scheduledAt], map: "Appointment_tenantId_scheduledAt_idx_31e2839e")
   @@index([updatedBy], map: "Appointment_updatedBy_idx_0780dcde")
   @@index([doctorId, scheduledAt], map: "appointment_doctor_schedule_idx_23b246b0")
+  // OPT: removed [tenantId] (covered by [tenantId, scheduledAt]) and [doctorId] (covered by [doctorId, scheduledAt])
+  // OPT: added for "today's booked appointments" style screens
+  @@index([tenantId, status, scheduledAt])
 }
 
 model PublicAppointmentAccess {
   id              String   @id @default(uuid()) @db.Uuid
   createdAt       DateTime @default(now()) @db.Timestamptz(6)
-  appointmentId  String   @db.Uuid
+  appointmentId   String   @db.Uuid
   tenantId        String   @db.Uuid
   bookingCodeHash String   @unique
   contactEmail    String
@@ -82,7 +85,7 @@ model AuditLog {
 
   @@index([entityType, entityId], map: "AuditLog_entityType_entityId_idx_ea0fa809")
   @@index([tenantId, createdAt], map: "AuditLog_tenantId_createdAt_idx_88162366")
-  @@index([tenantId], map: "AuditLog_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by [tenantId, createdAt]). This table grows fastest, so fewer indexes = faster writes
   @@index([userId], map: "AuditLog_userId_idx_a489d58a")
 }
 
@@ -107,8 +110,9 @@ model Bed {
   @@unique([roomId, code], map: "bed_room_code_key_aff24a4e")
   @@unique([id, tenantId])
   @@index([currentPatientId], map: "Bed_currentPatientId_idx_41689716")
-  @@index([roomId], map: "Bed_roomId_idx_fe51d647")
-  @@index([tenantId], map: "Bed_tenantId_idx_c93ed4f1")
+  // OPT: removed [roomId] (covered by unique [roomId, code])
+  // OPT: added to quickly find available beds
+  @@index([tenantId, status])
 }
 
 model Department {
@@ -130,7 +134,7 @@ model Department {
 
   @@unique([tenantId, name], map: "department_tenant_name_key_efdfefee")
   @@unique([id, tenantId])
-  @@index([tenantId], map: "Department_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 }
 
 model DoctorProfile {
@@ -144,7 +148,7 @@ model DoctorProfile {
   qualifications String?
   licenseNumber  String?
   description    String?
-  phone          String   @unique
+  phone          String // OPT: no longer globally unique, now unique per hospital (see @@unique below)
 
   userId       String @unique @db.Uuid
   tenantId     String @db.Uuid
@@ -152,7 +156,8 @@ model DoctorProfile {
 
   User       User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_userId_fkey")
   Tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_tenantId_fkey")
-  Department Department @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
+  // OPT: department link now includes tenantId (same-tenant guarantee)
+  Department Department @relation(fields: [departmentId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
 
   Appointment        Appointment[]
   Encounter          Encounter[]
@@ -165,8 +170,11 @@ model DoctorProfile {
   BillingRate        BillingRate[]
 
   @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
+  // OPT: phone and employeeId are unique inside one hospital, not across the whole system
+  @@unique([tenantId, phone])
+  @@unique([tenantId, employeeId])
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
-  @@index([tenantId], map: "DoctorProfile_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId]; both composite unique indexes above start with tenantId
 }
 
 model DoctorAvailability {
@@ -196,7 +204,7 @@ model Patient {
   mrn                   String
   firstName             String
   lastName              String
-  dob                   DateTime @db.Timestamptz(6)
+  dob                   DateTime @db.Date // OPT: was Timestamptz; a birth date has no time, and time zones could shift it by a day
   gender                String?
   address               String?
   contactEmail          String?
@@ -219,7 +227,7 @@ model Patient {
 
   @@unique([tenantId, mrn], map: "patient_tenant_mrn_key_0c21d836")
   @@unique([id, tenantId], map: "patient_id_tenantId_key")
-  @@index([tenantId], map: "Patient_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by tenantId+MRN and tenantId+lastName indexes)
   @@index([tenantId, lastName], map: "Patient_tenantId_lastName_idx_8d5f431c")
 }
 
@@ -252,7 +260,7 @@ model PatientMedicalData {
   Encounter Encounter? @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([tenantId, patientId, recordedAt], map: "patientMedicalData_tenant_patient_recordedAt_idx")
-  @@index([patientId, recordedAt], map: "patientMedicalData_patient_recordedAt_idx")
+  // OPT: removed [patientId, recordedAt]; the tenant version above does the same job. This table gets many inserts, so one less index helps
   @@index([recordedBy], map: "patientMedicalData_recordedBy_idx")
   @@index([encounterId, tenantId])
 }
@@ -269,7 +277,7 @@ model Role {
   User     User[]
 
   @@unique([tenantId, name], map: "role_tenant_name_key_efdfefee")
-  @@index([tenantId], map: "Role_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 }
 
 model Room {
@@ -287,7 +295,7 @@ model Room {
 
   @@unique([wardId, name])
   @@index([tenantId], map: "Room_tenantId_idx_c93ed4f1")
-  @@index([wardId], map: "Room_wardId_idx_6180a90a")
+  // OPT: removed [wardId] (covered by unique [wardId, name])
 }
 
 model Session {
@@ -303,7 +311,7 @@ model Session {
   User   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "session_userId_fkey")
 
   @@index([expiresAt], map: "Session_expiresAt_idx_6b6b8c10")
-  @@index([revokedAt], map: "Session_revokedAt_idx_f1d8e6b3")
+  // OPT: removed [revokedAt]; it is NULL for most rows so the index almost never helps, but costs a write on every login/logout
   @@index([userId], map: "Session_userId_idx_a489d58a")
 }
 
@@ -327,14 +335,15 @@ model StaffProfile {
 
   User              User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
   Tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_tenantId_fkey")
-  Department        Department?         @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
+  // OPT: department link now includes tenantId (same-tenant guarantee)
+  Department        Department?         @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
   Ward              Ward?               @relation(fields: [wardId], references: [id], onUpdate: NoAction, map: "staffProfile_wardId_fkey")
   StaffAvailability StaffAvailability[]
 
   @@unique([tenantId, employeeId], map: "staffProfile_tenant_employeeId_key_c90418e2")
   @@unique([id, tenantId], map: "staffProfile_id_tenantId_key")
   @@index([departmentId], map: "StaffProfile_departmentId_idx_8e261ed8")
-  @@index([tenantId], map: "StaffProfile_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by unique [tenantId, employeeId])
   @@index([wardId], map: "StaffProfile_wardId_idx_6180a90a")
 }
 
@@ -356,21 +365,21 @@ model StaffAvailability {
 }
 
 model Tenant {
-  id         String   @id @default(uuid()) @db.Uuid
-  createdAt  DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
-  isActive   Boolean  @default(true)
-  name       String
-  slug       String   @unique
-  address    String?
-  city       String?
-  state      String?
-  country    String   @default("PK")
-  postalCode String?
-  favicon    String
-  logo       String
-  approvalStatus String @default("approved")
-  approvalNote   String?
+  id                 String    @id @default(uuid()) @db.Uuid
+  createdAt          DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+  isActive           Boolean   @default(true)
+  name               String
+  slug               String    @unique
+  address            String?
+  city               String?
+  state              String?
+  country            String    @default("PK")
+  postalCode         String?
+  favicon            String
+  logo               String
+  approvalStatus     String    @default("approved")
+  approvalNote       String?
   approvalReviewedAt DateTime? @db.Timestamptz(6)
 
   Appointment         Appointment[]
@@ -463,14 +472,15 @@ model Ward {
   departmentId String? @db.Uuid
 
   Tenant     Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "ward_tenantId_fkey")
-  Department Department? @relation(fields: [departmentId], references: [id], onUpdate: NoAction, map: "ward_departmentId_fkey")
+  // OPT: department link now includes tenantId (same-tenant guarantee)
+  Department Department? @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "ward_departmentId_fkey")
 
   Room         Room[]
   StaffProfile StaffProfile[]
 
   @@unique([tenantId, name])
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
-  @@index([tenantId], map: "Ward_tenantId_idx_c93ed4f1")
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 }
 
 model Encounter {
@@ -640,7 +650,10 @@ model StockTransaction {
   User     User?    @relation("StockTransactionRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
 
   @@index([medicineId, createdAt])
-  @@index([tenantId])
+  // OPT: [tenantId] became [tenantId, createdAt] so "recent stock movements" is sorted by the index itself
+  @@index([tenantId, createdAt])
+  // OPT: added for a pharmacy's stock history (was missing entirely)
+  @@index([pharmacyId, createdAt])
 }
 
 model Admission {
@@ -837,6 +850,8 @@ model PharmacyStock {
 
   // Ensures a pharmacy doesn't have two separate rows for Panadol
   @@unique([pharmacyId, medicineId, tenantId])
+  // OPT: added for "which pharmacies have this medicine?" and for deleting a medicine safely (was unindexed)
+  @@index([tenantId, medicineId])
 }
 
 model StockRequest {
@@ -872,6 +887,9 @@ model StockRequest {
 
   @@unique([id, tenantId])
   @@index([tenantId, status, createdAt])
+  // OPT: added so each pharmacy can quickly see its own sent / incoming requests
+  @@index([requestingPharmacyId, status, createdAt])
+  @@index([fulfillingPharmacyId, status, createdAt])
 }
 
 model StockRequestItem {
@@ -1030,7 +1048,7 @@ model BillingInvoiceItem {
 
   @@index([invoiceId])
   @@index([tenantId, category])
-  @@index([saleId])
+  // OPT: removed [saleId]; saleId is already @unique, which creates the same index
 }
 
 model BillingPayment {
