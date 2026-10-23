@@ -7,6 +7,8 @@ export interface TenantState {
   data: Tenant | null;
   loading: boolean;
   initialized: boolean;
+  requestId: string | null;
+  requestedTenantId: string | null;
   error: string | null;
 }
 
@@ -14,13 +16,15 @@ const initialState: TenantState = {
   data: null,
   loading: false,
   initialized: false,
+  requestId: null,
+  requestedTenantId: null,
   error: null,
 };
 
 export const fetchTenantById = createAsyncThunk<
   Tenant,
   string,
-  { rejectValue: { message: string; isAuthFailure: boolean } }
+  { rejectValue: { message: string; isAuthFailure: boolean }; state: { tenant: TenantState } }
 >("tenant/getTenantById", async (tenantId, { rejectWithValue }) => {
   try {
     const response = await api.get(`/tenant/${tenantId}`);
@@ -35,6 +39,8 @@ export const fetchTenantById = createAsyncThunk<
 
     return rejectWithValue({ message, isAuthFailure });
   }
+}, {
+  condition: (_tenantId, { getState }) => !getState().tenant.loading,
 });
 
 export const tenantSlice = createSlice({
@@ -45,30 +51,43 @@ export const tenantSlice = createSlice({
       state.data = action.payload;
       state.loading = false;
       state.initialized = true;
+      state.requestId = null;
+      state.requestedTenantId = action.payload.id;
       state.error = null;
     },
     clearTenant: (state) => {
       state.data = null;
       state.loading = false;
       state.initialized = true;
+      state.requestId = null;
+      state.requestedTenantId = null;
       state.error = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchTenantById.pending, (state) => {
+      .addCase(fetchTenantById.pending, (state, action) => {
         state.loading = true;
+        state.initialized = false;
+        state.requestId = action.meta.requestId;
+        state.requestedTenantId = action.meta.arg;
         state.error = null;
+        if (state.data?.id !== action.meta.arg) state.data = null;
       })
-      .addCase(fetchTenantById.fulfilled, (state, action: PayloadAction<Tenant>) => {
+      .addCase(fetchTenantById.fulfilled, (state, action) => {
+        if (state.requestId !== action.meta.requestId) return;
         state.data = action.payload;
         state.loading = false;
         state.initialized = true;
+        state.requestId = null;
+        state.requestedTenantId = action.payload.id;
         state.error = null;
       })
       .addCase(fetchTenantById.rejected, (state, action) => {
+        if (state.requestId !== action.meta.requestId) return;
         state.loading = false;
         state.initialized = true;
+        state.requestId = null;
         state.error = action.payload?.message || "Failed to load tenant";
 
         // Same principle as authSlice: a network blip shouldn't wipe
@@ -87,4 +106,6 @@ export const selectCurrentTenant = (state: { tenant: TenantState }) => state.ten
 export const selectTenantLoading = (state: { tenant: TenantState }) => state.tenant.loading;
 export const selectTenantInitialized = (state: { tenant: TenantState }) =>
   state.tenant.initialized;
+export const selectRequestedTenantId = (state: { tenant: TenantState }) =>
+  state.tenant.requestedTenantId;
 export const selectTenantError = (state: { tenant: TenantState }) => state.tenant.error;

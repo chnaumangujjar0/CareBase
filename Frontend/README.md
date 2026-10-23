@@ -53,6 +53,7 @@ src/
     auth/       Authentication-related UI
     common/     Shared route guards and loading components
     pages/      Public, hospital, and platform pages
+  hooks/        Authentication, tenant, and shared React hooks
   services/     HTTP API and public booking Socket.IO clients
   store/        Redux Toolkit state
   styles/       Sass stylesheets

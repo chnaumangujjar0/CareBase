@@ -2,7 +2,7 @@ import { useNavigate } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import  '../../styles/unauthorized.scss';
 import Logo from "../../assets/shield-lock-icon.svg"
-import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 import { getDefaultRoute } from "../../utils/authorization";
 const Unauthorized = () => {
   const navigate = useNavigate();

@@ -13,7 +13,7 @@ import type { AuthUser } from "../../types/auth";
 import { getRecaptchaToken } from "../../utils/recaptcha";
 import RecaptchaNotice from "../auth/RecaptchaNotice";
 import { getDefaultRoute } from "../../utils/authorization";
-import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 
 const Login = () => {
   const navigate = useNavigate();

@@ -4,6 +4,7 @@ import { Bell, ChevronDown, LogOut } from "lucide-react";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import { selectCurrentUser, clearUser } from "../../store/authSlice";
+import { clearTenant } from "../../store/tenantSlice";
 import { logoutUser } from "../../services/api";
 import Logo from "../../assets/carebase-logo-full.svg";
 import "../../styles/header.scss"; 
@@ -21,9 +22,7 @@ export const Header = () => {
       console.error("Logout failed:", error);
     } finally {
       dispatch(clearUser());
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("carbase-user");
+      dispatch(clearTenant());
       navigate("/login", { replace: true });
     }
   };

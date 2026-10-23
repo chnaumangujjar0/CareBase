@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Card, Form, Button, Alert, Row, Col, Image } from "react-bootstrap";
 import { Spin } from "antd";
-import { configureTenat } from "../../services/api";
+import { configureTenant } from "../../services/api";
 import { useDispatch, useSelector } from "react-redux";
 import { selectCurrentUser, setUser } from "../../store/authSlice";
 import { setTenant } from "../../store/tenantSlice";
@@ -58,7 +58,7 @@ const Onboarding = () => {
           }
         });
 
-        const res = await configureTenat(formData);
+        const res = await configureTenant(formData);
 
         dispatch(setUser(res.user))
         dispatch(setTenant(res.tenant))

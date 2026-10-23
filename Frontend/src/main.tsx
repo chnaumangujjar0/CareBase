@@ -1,14 +1,17 @@
-import { createRoot } from 'react-dom/client'
-import App from './App.tsx'
-import { Provider } from 'react-redux'
-import { store } from './store/store.ts'
-import 'react-toastify/dist/ReactToastify.css';
-import "./styles/index.scss"
+import { createRoot } from "react-dom/client";
+import { Provider } from "react-redux";
+import App from "./App";
+import { store } from "./store/store";
+import "react-toastify/dist/ReactToastify.css";
+import "./styles/index.scss";
 
-createRoot(document.getElementById('root')!).render(
-  
-    <Provider store={store}>
-      <App />
-    </Provider>
-  
-)
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error('Missing application root element with id "root".');
+}
+
+createRoot(rootElement).render(
+  <Provider store={store}>
+    <App />
+  </Provider>,
+);

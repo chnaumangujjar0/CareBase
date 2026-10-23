@@ -1,6 +1,6 @@
 import { Navigate, Outlet } from "react-router";
 import { Spin } from "antd";
-import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 import { hasAnyPermission, hasPermission, hasRole } from "../../utils/authorization";
 
 interface ProtectedRouteProps {

@@ -1,7 +1,7 @@
 import axios from "axios"
 const API_URL = import.meta.env.VITE_API_URL;
-import api from "./axiosinstance.js"
-import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, PlatformTenant, SignupPayload } from "../types/auth.js";
+import api from "./axiosinstance"
+import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, PlatformTenant, SignupPayload } from "../types/auth";
 import type {
   AvailabilityWindow,
   AppointmentDoctorOption,
@@ -108,7 +108,7 @@ export const getAuditLogs = async (params: {
 
 // Tenant Apis
 
-export const configureTenat = async (values: OnboardingPayload | FormData) => {
+export const configureTenant = async (values: OnboardingPayload | FormData) => {
     const res = await api.post("/tenant/onboarding", values, {
       headers: values instanceof FormData
         ? { "Content-Type": "multipart/form-data" }

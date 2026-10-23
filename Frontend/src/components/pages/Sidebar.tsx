@@ -29,7 +29,7 @@ import { useState } from "react";
 import { Skeleton } from "antd";
 import { toast } from "react-toastify";
 import { clearTenant } from "../../store/tenantSlice";
-import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
+import { useTenantBootstrap } from "../../hooks/useTenantBootstrap";
 import { hasPermission, hasRole } from "../../utils/authorization";
 
 const navConfig = [
@@ -100,9 +100,6 @@ export const Sidebar = () => {
     } finally {
       dispatch(clearUser());
       dispatch(clearTenant());
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("carbase-user");
 
       setIsloading(false);
       navigate("/login", { replace: true });

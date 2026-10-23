@@ -23,7 +23,7 @@ import {
 import { useDispatch } from "react-redux";
 import { isAxiosError } from "axios";
 import { setTenant } from "../../store/tenantSlice";
-import { useTenantBootstrap } from "../../store/Usetenantbootstrap";
+import { useTenantBootstrap } from "../../hooks/useTenantBootstrap";
 import type { AppDispatch } from "../../store/store";
 import { updateTenantDetails } from "../../services/api";
 import dayjs from "dayjs";

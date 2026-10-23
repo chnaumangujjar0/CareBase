@@ -1,12 +1,14 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "./authSlice";
-import tenantReducer from "./tenantSlice"
+import authReducer, { authListenerMiddleware } from "./authSlice";
+import tenantReducer from "./tenantSlice";
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    tenant: tenantReducer
+    tenant: tenantReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware().prepend(authListenerMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

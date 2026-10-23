@@ -4,7 +4,7 @@ import { Button, Card, Result, Skeleton, Typography } from "antd";
 import { useDispatch } from "react-redux";
 import { fetchCurrentUser } from "../../store/authSlice";
 import type { AppDispatch } from "../../store/store";
-import { useAuthBootstrap } from "../../store/Useauthbootstrap";
+import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 import { getDefaultRoute } from "../../utils/authorization";
 
 export default function ApprovalStatus() {
