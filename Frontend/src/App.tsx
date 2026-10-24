@@ -15,6 +15,7 @@ const PatientAppointments = lazy(() => import('./components/pages/PatientAppoint
 const Login = lazy(() => import('./components/pages/Login'));
 const SignUp = lazy(() => import('./components/pages/SignUp').then((module) => ({ default: module.SignUp })));
 const ApprovalStatus = lazy(() => import('./components/pages/ApprovalStatus'));
+const Subscription = lazy(() => import('./components/pages/Subscription'));
 const PlatformAdmin = lazy(() => import('./components/pages/PlatformAdmin'));
 const Onboarding = lazy(() => import('./components/pages/Onboarding'));
 const Unauthorized = lazy(() => import('./components/pages/Unauthorized'));
@@ -59,6 +60,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/approval-status" element={<ApprovalStatus />} />
+            <Route path="/subscription" element={<Subscription />} />
             <Route element={<PlatformAdminRoute />}>
               <Route path="/super-admin" element={<PlatformAdmin />} />
             </Route>

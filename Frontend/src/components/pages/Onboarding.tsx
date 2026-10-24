@@ -4,7 +4,7 @@ import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Card, Form, Button, Alert, Row, Col, Image } from "react-bootstrap";
 import { Spin } from "antd";
-import { configureTenant } from "../../services/api";
+import { configureTenant, startSubscriptionCheckout, type SubscriptionPlanKey } from "../../services/api";
 import { useDispatch, useSelector } from "react-redux";
 import { selectCurrentUser, setUser } from "../../store/authSlice";
 import { setTenant } from "../../store/tenantSlice";
@@ -30,12 +30,14 @@ const Onboarding = () => {
       state: "",
       country: "PK",
       postalCode: "",
+      plan: "starter" as SubscriptionPlanKey,
     },
     validationSchema: Yup.object({
       tenantName: Yup.string().required("Hospital name is required"),
       logo: Yup.mixed().required("Please select a hospital logo"),
       favicon: Yup.mixed().required("Please select a favicon"),
       country: Yup.string().required("Country is required"),
+      plan: Yup.string().oneOf(["starter", "growth", "plus"]).required("Choose a plan"),
     }),
     onSubmit: async (values, { setStatus }) => {
       setIsLoading(true);
@@ -43,9 +45,10 @@ const Onboarding = () => {
         const formData = new FormData();
 
         formData.append("tenantName", values.tenantName);
+        formData.append("subscriptionPlan", values.plan);
 
         Object.entries(values).forEach(([key, value]) => {
-          if (key === "tenantName" || key === "logo" || key === "favicon") {
+          if (key === "tenantName" || key === "logo" || key === "favicon" || key === "plan") {
             if (key === "tenantName") return;
             if (value instanceof File) {
               formData.append(key, value);
@@ -62,8 +65,12 @@ const Onboarding = () => {
 
         dispatch(setUser(res.user))
         dispatch(setTenant(res.tenant))
-        
-        navigate("/approval-status");
+        try {
+          const checkoutUrl = await startSubscriptionCheckout(values.plan);
+          window.location.assign(checkoutUrl);
+        } catch {
+          navigate("/subscription?checkout=retry");
+        }
       } catch (err) {
           if(err instanceof Error) {
 
@@ -158,6 +165,31 @@ const Onboarding = () => {
             <hr className="my-4 text-muted" />
             <h5 className="fw-bold text-dark mb-3">Location Details</h5>
 
+            <hr className="my-4 text-muted" />
+            <h5 className="fw-bold text-dark mb-1">Choose a monthly plan</h5>
+            <p className="text-muted small mb-3">USD billing starts now. Your hospital still needs CareBase approval before staff can access the workspace.</p>
+            <Row className="g-3 mb-4">
+              {([
+                { id: "starter", title: "Starter", price: "$100", detail: "Core hospital workflows and standard support." },
+                { id: "growth", title: "Growth", price: "$200", detail: "Core workflows, pharmacy operations, and expanded reporting." },
+                { id: "plus", title: "Plus", price: "$250", detail: "All current modules, advanced reporting, and onboarding assistance." },
+              ] as const).map((plan) => (
+                <Col md={4} key={plan.id}>
+                  <button
+                    type="button"
+                    className={`w-100 h-100 text-start border rounded p-3 bg-white ${formik.values.plan === plan.id ? "border-primary border-2" : ""}`}
+                    disabled={isLoading}
+                    aria-pressed={formik.values.plan === plan.id}
+                    onClick={() => void formik.setFieldValue("plan", plan.id)}
+                  >
+                    <span className="d-block fw-bold">{plan.title}</span>
+                    <span className="d-block fs-4 fw-bold">{plan.price}<small className="fs-6 fw-normal"> / month</small></span>
+                    <span className="d-block small text-muted mt-2">{plan.detail}</span>
+                  </button>
+                </Col>
+              ))}
+            </Row>
+
             <Form.Group className="mb-3">
               <Form.Label className="fw-semibold small">Street Address</Form.Label>
               <Form.Control
@@ -233,7 +265,7 @@ const Onboarding = () => {
                   Saving...
                 </>
               ) : (
-                "Complete Setup"
+                "Continue to secure payment"
               )}
             </Button>
           </Form>

@@ -118,6 +118,29 @@ export const configureTenant = async (values: OnboardingPayload | FormData) => {
     return res.data.data as OnboardingResponseData
 }
 
+export type SubscriptionPlanKey = "starter" | "growth" | "plus";
+export interface CurrentSubscription {
+  plan: SubscriptionPlanKey | null;
+  status: string;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
+export const startSubscriptionCheckout = async (plan: SubscriptionPlanKey): Promise<string> => {
+  const res = await api.post("/subscriptions/checkout", { plan });
+  return res.data.data.url as string;
+};
+
+export const getCurrentSubscription = async (): Promise<CurrentSubscription> => {
+  const res = await api.get("/subscriptions/current");
+  return res.data.data as CurrentSubscription;
+};
+
+export const openSubscriptionBillingPortal = async (): Promise<string> => {
+  const res = await api.post("/subscriptions/portal");
+  return res.data.data.url as string;
+};
+
 export const getPlatformTenants = async (): Promise<PlatformTenant[]> => {
   const res = await api.get("/super-admin/tenants");
   return res.data.data as PlatformTenant[];

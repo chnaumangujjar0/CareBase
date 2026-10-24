@@ -13,7 +13,11 @@ export interface AuthUser {
   updatedAt: string;
   role?: string | null;
   permissions?: string[];
-  Tenant?: { approvalStatus: "pending" | "approved" | "rejected"; approvalNote: string | null } | null;
+  Tenant?: {
+    approvalStatus: "pending" | "approved" | "rejected";
+    approvalNote: string | null;
+    PlatformSubscription?: { plan: string; status: string; currentPeriodEnd: string | null; cancelAtPeriodEnd: boolean } | null;
+  } | null;
 }
 
 export type Permission = string;

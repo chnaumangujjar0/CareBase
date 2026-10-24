@@ -38,6 +38,15 @@ export const ProtectedRoute = ({
   }
 
   if (
+    !skipOnboardingCheck &&
+    user.Tenant?.approvalStatus === "approved" &&
+    user.Tenant.PlatformSubscription &&
+    user.Tenant.PlatformSubscription.status !== "active"
+  ) {
+    return <Navigate to="/subscription" replace />;
+  }
+
+  if (
     ((allowedRoles?.length && !hasRole(user, allowedRoles)) ||
       (allowedPermissions?.length && !hasAnyPermission(user, allowedPermissions)))
   ) {
