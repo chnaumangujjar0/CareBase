@@ -42,6 +42,9 @@ export const checkEligibilty = asyncHandler(
     if (!req.user.Tenant || req.user.Tenant.approvalStatus !== "approved") {
       throw new ApiError(403, "This hospital is awaiting CareBase approval.");
     }
+    if (req.user.Tenant.PlatformSubscription && req.user.Tenant.PlatformSubscription.status !== "active") {
+      throw new ApiError(402, "An active CareBase subscription is required to access this hospital.");
+    }
     req.role = role
     next();
   }

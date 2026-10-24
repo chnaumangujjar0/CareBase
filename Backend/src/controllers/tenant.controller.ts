@@ -35,7 +35,7 @@ export const completeOnboarding = asyncHandler(
       const message = parsedBody.error.issues[0]?.message ?? "Invalid request body";
       throw new ApiError(400, message);
     }
-    const { tenantName, ...location } = parsedBody.data;
+    const { tenantName, subscriptionPlan, ...location } = parsedBody.data;
 
     const files = req.files as
       | { [fieldname: string]: Express.Multer.File[] }
@@ -84,7 +84,16 @@ export const completeOnboarding = asyncHandler(
           approvalStatus: "pending",
           logo,
           favicon,
-          ...emptyOptionalFields({ tenantName, ...location }),
+          ...emptyOptionalFields({ tenantName, subscriptionPlan, ...location }),
+        },
+      });
+
+      await trx.platformSubscription.create({
+        data: {
+          tenantId: tenant.id,
+          plan: subscriptionPlan,
+          status: "incomplete",
+          stripePriceId: null,
         },
       });
 

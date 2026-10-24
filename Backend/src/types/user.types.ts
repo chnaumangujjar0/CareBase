@@ -10,7 +10,11 @@ export type AuthenticatedUser = Pick<
   | "isSuperAdmin"
   | "isActive"
 > & {
-  Tenant: { approvalStatus: string; approvalNote: string | null } | null;
+  Tenant: {
+    approvalStatus: string;
+    approvalNote: string | null;
+    PlatformSubscription: { plan: string; status: string; currentPeriodEnd: Date | null; cancelAtPeriodEnd: boolean } | null;
+  } | null;
 };
 
 export type { Role };

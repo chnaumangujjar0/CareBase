@@ -29,6 +29,9 @@ Create a local `.env` file in `Backend/`. Set the following variables for your e
 | `REFRESH_TOKEN_EXPIRY` | Refresh token lifetime accepted by the token helper. |
 | `RECAPTCHA_SECRET_KEY` | Server-side key for login and signup reCAPTCHA verification. |
 | `FRONTEND_URL` | Frontend origin used to build links in emails. |
+| `STRIPE_SECRET_KEY` | Backend-only Stripe secret key. Never expose it to the browser. |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret for `/api/v1/subscriptions/webhook`. |
+| `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_PLUS` | Stripe recurring monthly USD Price IDs for $100, $200, and $250 plans, respectively. |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | SMTP connection settings for email delivery. |
 | `SMTP_SECURE` | Set to `true` when the SMTP provider requires implicit TLS. |
 | `SMTP_FROM`, `SMTP_FROM_NAME` | Optional sender email and display name. The sender email defaults to `SMTP_USER`; the display name defaults to `CareBase`. |
@@ -37,6 +40,14 @@ Create a local `.env` file in `Backend/`. Set the following variables for your e
 | `NODE_ENV` | Runtime environment, such as `development` or `production`. |
 
 Never commit `.env` files or include real credentials in documentation, screenshots, or issue reports.
+
+### CareBase subscriptions
+
+Create three active recurring Prices in Stripe: Starter at $100 USD/month, Growth at $200 USD/month, and Plus at $250 USD/month. Configure their Price IDs using the backend variables above. Checkout verifies that each configured Price is active and matches its plan's monthly USD amount before creating a subscription.
+
+Register `POST /api/v1/subscriptions/webhook` in Stripe and subscribe to `customer.subscription.created`, `customer.subscription.updated`, and `customer.subscription.deleted`. Put the endpoint's signing secret in `STRIPE_WEBHOOK_SECRET`. The webhook updates CareBase subscription state; never grant access based only on the browser's Checkout return.
+
+The frontend uses Stripe-hosted Checkout, so the publishable key is not needed for this redirect flow. Keep any publishable key in the frontend only, and keep the secret key on the backend only. Hospital module and user limits are not enforced by the current plan selection; add entitlement checks before advertising those limits as active restrictions.
 
 ## Database
 

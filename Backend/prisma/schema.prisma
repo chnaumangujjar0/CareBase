@@ -418,6 +418,34 @@ model Tenant {
   BillingInvoice      BillingInvoice[]
   BillingPayment      BillingPayment[]
   billingInvoiceItems BillingInvoiceItem[]
+  PlatformSubscription PlatformSubscription?
+}
+
+model PlatformSubscription {
+  id                   String   @id @default(uuid()) @db.Uuid
+  tenantId             String   @unique @db.Uuid
+  plan                 String
+  status               String   @default("incomplete")
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime? @db.Timestamptz(6)
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+
+  Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@map("PlatformSubscription")
+}
+
+model StripeWebhookEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@map("StripeWebhookEvent")
 }
 
 model User {

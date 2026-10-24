@@ -4,6 +4,8 @@ import cookieParser from "cookie-parser";
 import http from "http"
 import {Server} from "socket.io"
 import { registerPublicAppointmentSockets } from "./services/public-appointment-socket.service.js"
+import subscriptionRouter from "./routes/subscription.routes.js"
+import { handleStripeWebhook } from "./controllers/subscription.controller.js"
 
 const app = express()
 const httpServer = http.createServer(app);
@@ -21,6 +23,8 @@ app.use(cors({
     origin: process.env.CORS_ORIGIN,
     credentials: true
 }))
+// Stripe signature verification requires the original request bytes, before JSON parsing.
+app.post("/api/v1/subscriptions/webhook", express.raw({ type: "application/json" }), handleStripeWebhook)
 app.use(express.json({limit : "16kb"}))
 app.use(express.urlencoded({extended : true, limit : "16kb"}))
 app.use(express.static("public"))
@@ -47,7 +51,6 @@ import billingRouter from "./routes/billing.routes.js"
 import medicineRouter from "./routes/medicine.routes.js"
 import superAdminRouter from "./routes/superAdmin.routes.js"
 import publicAppointmentRouter from "./routes/publicAppointment.routes.js"
-
 // routes intialization
 app.use("/api/v1/user",userRouter)
 app.use("/api/v1/tenant",tenantRouter)
@@ -66,5 +69,6 @@ app.use("/api/v1/medicines",medicineRouter)
 app.use("/api/v1/clinical/medicines",medicineRouter)
 app.use("/api/v1/super-admin", superAdminRouter)
 app.use("/api/v1/public", publicAppointmentRouter)
+app.use("/api/v1/subscriptions", subscriptionRouter)
 app.use(errorHandler)
 export {httpServer,app}

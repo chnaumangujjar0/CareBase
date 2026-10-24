@@ -12,7 +12,13 @@ export const SAFE_USER_SELECT = {
   createdAt: true,
   updatedAt: true,
   isSuperAdmin: true,
-  Tenant: { select: { approvalStatus: true, approvalNote: true } },
+  Tenant: {
+    select: {
+      approvalStatus: true,
+      approvalNote: true,
+      PlatformSubscription: { select: { plan: true, status: true, currentPeriodEnd: true, cancelAtPeriodEnd: true } },
+    },
+  },
 } as const;
 
 export const completeOnboardingSchema = z.object({
@@ -21,6 +27,7 @@ export const completeOnboardingSchema = z.object({
     .trim()
     .min(2, "Hospital name must be at least 2 characters")
     .max(120, "Hospital name must be under 120 characters"),
+  subscriptionPlan: z.enum(["starter", "growth", "plus"]),
   address: z.string().trim().max(255).optional(),
   city: z.string().trim().max(100).optional(),
   state: z.string().trim().max(100).optional(),
