@@ -80,6 +80,7 @@ export default function Subscription() {
         <Typography.Paragraph type="secondary">Choose a monthly USD plan. Hospital access opens after CareBase approves your registration.</Typography.Paragraph>
         {checkoutState === "cancelled" && <Alert type="info" showIcon message="Checkout was cancelled. No subscription was started." style={{ marginBottom: 16 }} />}
         {checkoutState === "retry" && <Alert type="warning" showIcon message="Your hospital was created, but payment setup did not start. Choose a plan below to retry." style={{ marginBottom: 16 }} />}
+        {checkoutState === "confirm_failed" && <Alert type="warning" showIcon message="CareBase could not confirm the completed checkout yet. Refresh this page shortly before trying payment again." style={{ marginBottom: 16 }} />}
         {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 16 }} />}
         {subscription && subscription.status !== "none" && (
           <Card style={{ marginBottom: 24 }}>

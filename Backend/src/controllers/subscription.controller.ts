@@ -16,6 +16,9 @@ type PlanKey = keyof typeof SUBSCRIPTION_PLANS;
 const getStripe = () => {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new ApiError(503, "Subscription payments are not configured on the server.");
+  if (key.startsWith("pk_")) {
+    throw new ApiError(503, "STRIPE_SECRET_KEY contains a publishable key. Set a backend Stripe secret key (sk_test_... or sk_live_...).");
+  }
   return new Stripe(key);
 };
 
@@ -39,6 +42,9 @@ export const createCheckoutSession = asyncHandler(async (req: Request, res: Resp
   const planConfig = SUBSCRIPTION_PLANS[plan];
   const priceId = process.env[planConfig.priceEnv];
   if (!priceId) throw new ApiError(503, `${planConfig.name} plan price is not configured on the server.`);
+  if (!/^price_[A-Za-z0-9]+$/.test(priceId)) {
+    throw new ApiError(503, `${planConfig.priceEnv} must contain the Stripe Price ID (price_...), not the amount or Product ID.`);
+  }
   const stripe = getStripe();
   const stripePrice = await stripe.prices.retrieve(priceId);
   if (
@@ -66,7 +72,7 @@ export const createCheckoutSession = asyncHandler(async (req: Request, res: Resp
     client_reference_id: tenant.id,
     metadata: { tenantId: tenant.id, plan },
     subscription_data: { metadata: { tenantId: tenant.id, plan } },
-    success_url: `${frontendUrl.replace(/\/$/, "")}/approval-status?checkout=success`,
+    success_url: `${frontendUrl.replace(/\/$/, "")}/approval-status?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${frontendUrl.replace(/\/$/, "")}/subscription?checkout=cancelled`,
   });
 
@@ -98,6 +104,72 @@ export const getSubscription = asyncHandler(async (req: Request, res: Response) 
   }));
 });
 
+const syncStripeSubscription = async (stripeSubscription: Stripe.Subscription, tenantIdOverride?: string) => {
+  const customerId = typeof stripeSubscription.customer === "string"
+    ? stripeSubscription.customer
+    : stripeSubscription.customer.id;
+  const existing = await db.platformSubscription.findFirst({
+    where: { OR: [{ stripeSubscriptionId: stripeSubscription.id }, { stripeCustomerId: customerId }] },
+  });
+  const tenantId = tenantIdOverride || stripeSubscription.metadata.tenantId || existing?.tenantId;
+  if (!tenantId) throw new ApiError(400, "Stripe subscription is not linked to a CareBase hospital.");
+
+  const priceId = stripeSubscription.items.data[0]?.price.id || existing?.stripePriceId;
+  if (!priceId) throw new ApiError(400, "Stripe subscription has no recurring Price ID.");
+  const periodEnd = stripeSubscription.items.data[0]?.current_period_end;
+  const data = {
+    plan: stripeSubscription.metadata.plan || existing?.plan || "starter",
+    status: stripeSubscription.status,
+    stripeCustomerId: customerId,
+    stripeSubscriptionId: stripeSubscription.id,
+    stripePriceId: priceId,
+    currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
+    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+  };
+  return db.platformSubscription.upsert({
+    where: { tenantId },
+    create: { tenantId, ...data },
+    update: data,
+  });
+};
+
+export const confirmCheckoutSession = asyncHandler(async (req: Request, res: Response) => {
+  const { tenant } = await getTenantOwner(req);
+  const sessionId = req.body?.sessionId;
+  if (typeof sessionId !== "string" || !sessionId.startsWith("cs_")) {
+    throw new ApiError(400, "A valid Stripe Checkout session ID is required.");
+  }
+
+  const stripe = getStripe();
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  if (
+    session.mode !== "subscription" ||
+    session.status !== "complete" ||
+    session.payment_status !== "paid" ||
+    session.client_reference_id !== tenant.id ||
+    session.metadata?.tenantId !== tenant.id
+  ) {
+    throw new ApiError(409, "Stripe has not confirmed a paid subscription for this hospital.");
+  }
+
+  const subscriptionId = typeof session.subscription === "string"
+    ? session.subscription
+    : session.subscription?.id;
+  if (!subscriptionId) throw new ApiError(409, "The completed Checkout session has no subscription.");
+  const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+  if (stripeSubscription.status !== "active") {
+    throw new ApiError(409, "Stripe is still processing the subscription payment.");
+  }
+
+  const subscription = await syncStripeSubscription(stripeSubscription, tenant.id);
+  return res.status(200).json(new ApiResponse(200, {
+    plan: subscription.plan,
+    status: subscription.status,
+    currentPeriodEnd: subscription.currentPeriodEnd,
+    cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+  }, "Stripe subscription confirmed."));
+});
+
 export const createBillingPortalSession = asyncHandler(async (req: Request, res: Response) => {
   const { tenant } = await getTenantOwner(req);
   const subscription = await db.platformSubscription.findUnique({ where: { tenantId: tenant.id } });
@@ -126,45 +198,25 @@ export const handleStripeWebhook = asyncHandler(async (req: Request, res: Respon
     throw new ApiError(400, "Stripe webhook signature verification failed.");
   }
 
-  const duplicate = await db.stripeWebhookEvent.findUnique({ where: { id: event.id } });
-  if (duplicate) return res.status(200).json({ received: true });
-
-  await db.$transaction(async (tx) => {
-    if (event.type.startsWith("customer.subscription.")) {
-      const stripeSubscription = event.data.object as Stripe.Subscription;
-      const tenantId = stripeSubscription.metadata.tenantId;
-      const customerId = typeof stripeSubscription.customer === "string"
-        ? stripeSubscription.customer
-        : stripeSubscription.customer.id;
-      const existing = await tx.platformSubscription.findFirst({
-        where: { OR: [{ stripeSubscriptionId: stripeSubscription.id }, { stripeCustomerId: customerId }] },
-      });
-      const resolvedTenantId = tenantId || existing?.tenantId;
-      if (resolvedTenantId) {
-        const firstPrice = stripeSubscription.items.data[0]?.price.id;
-        const periodEnd = stripeSubscription.items.data[0]?.current_period_end;
-        const plan = (stripeSubscription.metadata.plan || existing?.plan || "starter") as string;
-        const priceId = firstPrice || existing?.stripePriceId;
-        if (priceId) {
-          const data = {
-            plan,
-            status: stripeSubscription.status,
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: stripeSubscription.id,
-            stripePriceId: priceId,
-            currentPeriodEnd: periodEnd ? new Date(periodEnd * 1000) : null,
-            cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-          };
-          await tx.platformSubscription.upsert({
-            where: { tenantId: resolvedTenantId },
-            create: { tenantId: resolvedTenantId, ...data },
-            update: data,
-          });
-        }
-      }
+  // Re-sync the latest Stripe state even on a resent event. This lets Dashboard/CLI retries
+  // repair subscriptions created before the Checkout return confirmation was added.
+  if (event.type.startsWith("customer.subscription.")) {
+    const eventSubscription = event.data.object as Stripe.Subscription;
+    const currentSubscription = await getStripe().subscriptions.retrieve(eventSubscription.id);
+    await syncStripeSubscription(currentSubscription);
+  } else if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const subscriptionId = typeof session.subscription === "string"
+      ? session.subscription
+      : session.subscription?.id;
+    const tenantId = session.metadata?.tenantId || session.client_reference_id || undefined;
+    if (session.mode === "subscription" && subscriptionId && tenantId) {
+      const stripeSubscription = await getStripe().subscriptions.retrieve(subscriptionId);
+      await syncStripeSubscription(stripeSubscription, tenantId);
     }
-    await tx.stripeWebhookEvent.create({ data: { id: event.id, type: event.type } });
-  });
+  }
+  const duplicate = await db.stripeWebhookEvent.findUnique({ where: { id: event.id } });
+  if (!duplicate) await db.stripeWebhookEvent.create({ data: { id: event.id, type: event.type } });
 
   return res.status(200).json({ received: true });
 });

@@ -1,23 +1,56 @@
-import { useEffect } from "react";
-import { Navigate, useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { Button, Card, Result, Skeleton, Typography } from "antd";
 import { useDispatch } from "react-redux";
 import { fetchCurrentUser } from "../../store/authSlice";
 import type { AppDispatch } from "../../store/store";
 import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 import { getDefaultRoute } from "../../utils/authorization";
+import { confirmSubscriptionCheckout } from "../../services/api";
 
 export default function ApprovalStatus() {
   const { isReady, user } = useAuthBootstrap();
   const dispatch = useDispatch<AppDispatch>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const checkoutParams = new URLSearchParams(location.search);
+  const checkoutSuccess = checkoutParams.get("checkout") === "success";
+  const checkoutSessionId = checkoutParams.get("session_id");
+  const [checkoutConfirmation, setCheckoutConfirmation] = useState<"pending" | "done">(checkoutSuccess ? "pending" : "done");
+  const [checkoutConfirmationError, setCheckoutConfirmationError] = useState("");
 
   useEffect(() => {
+    if (!checkoutSuccess || !isReady || !user) return;
+    let cancelled = false;
+    const confirm = async () => {
+      try {
+        if (!checkoutSessionId) throw new Error("The Checkout return did not include a session ID.");
+        await confirmSubscriptionCheckout(checkoutSessionId);
+        await dispatch(fetchCurrentUser()).unwrap();
+      } catch (error) {
+        if (!cancelled) setCheckoutConfirmationError(error instanceof Error ? error.message : "Could not confirm the Stripe payment.");
+      } finally {
+        if (!cancelled) setCheckoutConfirmation("done");
+      }
+    };
+    void confirm();
+    return () => { cancelled = true; };
+  }, [checkoutSuccess, checkoutSessionId, dispatch, isReady, user?.id]);
+
+  useEffect(() => {
+    if (checkoutSuccess && checkoutConfirmation !== "done") return;
+    if (checkoutSuccess && checkoutConfirmationError) {
+      const sessionQuery = checkoutSessionId ? `&session_id=${encodeURIComponent(checkoutSessionId)}` : "";
+      navigate(`/subscription?checkout=confirm_failed${sessionQuery}`, { replace: true });
+      return;
+    }
     if (user?.Tenant?.approvalStatus === "approved") {
       const subscription = user.Tenant.PlatformSubscription;
       navigate(subscription && subscription.status !== "active" ? "/subscription" : getDefaultRoute(user), { replace: true });
     }
-  }, [navigate, user]);
+  }, [checkoutConfirmation, checkoutConfirmationError, checkoutSuccess, navigate, user]);
+
+  if (checkoutSuccess && checkoutConfirmation !== "done") return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F1F5F9", padding: 20 }}><Card style={{ width: "100%", maxWidth: 640 }}><Skeleton active paragraph={{ rows: 4 }} /></Card></div>;
 
   if (!isReady) return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F1F5F9", padding: 20 }}><Card style={{ width: "100%", maxWidth: 640 }}><Skeleton active paragraph={{ rows: 4 }} /></Card></div>;
   if (!user) return <Navigate to="/login" replace />;

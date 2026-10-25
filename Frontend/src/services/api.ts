@@ -131,6 +131,10 @@ export const startSubscriptionCheckout = async (plan: SubscriptionPlanKey): Prom
   return res.data.data.url as string;
 };
 
+export const confirmSubscriptionCheckout = async (sessionId: string): Promise<void> => {
+  await api.post("/subscriptions/checkout/confirm", { sessionId });
+};
+
 export const getCurrentSubscription = async (): Promise<CurrentSubscription> => {
   const res = await api.get("/subscriptions/current");
   return res.data.data as CurrentSubscription;
