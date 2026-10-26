@@ -1,19 +1,17 @@
-import { useSelector } from "react-redux";
-import { selectCurrentUser } from "../../store/authSlice";
 import { Navigate, Outlet } from "react-router";
+import { Spin } from "antd";
+import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
+import { getDefaultRoute } from "../../utils/authorization";
 
 const SuperAdmin = () => {
-    const user = useSelector((selectCurrentUser));
+    const { isReady, user } = useAuthBootstrap();
 
-    if(user && !user.isSuperAdmin && !user.tenantId && !user.roleId){
-        return <Outlet />
-    } else if (!user) {
-        return <Navigate to="/login" replace />;
-    } else {
-        return <Navigate to={user?.isSuperAdmin ? "/super-admin" : user?.Tenant?.approvalStatus !== "approved" ? "/approval-status" : "/"} replace />;
-    }
+    if (!isReady) return <Spin fullscreen spinning tip="Checking your account..." />;
+    if (!user) return <Navigate to="/login" replace />;
+    if (user.isSuperAdmin) return <Navigate to="/super-admin" replace />;
+    if (!user.tenantId || !user.roleId) return <Outlet />;
 
-  
+    return <Navigate to={getDefaultRoute(user)} replace />;
 }
 
 export default SuperAdmin

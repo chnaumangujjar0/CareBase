@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from "react-router";
 import { Spin } from "antd";
 import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
-import { hasAnyPermission, hasPermission, hasRole } from "../../utils/authorization";
+import { getDefaultRoute, hasAnyPermission, hasRole } from "../../utils/authorization";
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
@@ -50,7 +50,7 @@ export const ProtectedRoute = ({
     ((allowedRoles?.length && !hasRole(user, allowedRoles)) ||
       (allowedPermissions?.length && !hasAnyPermission(user, allowedPermissions)))
   ) {
-    return <Navigate to={hasPermission(user, "hr:dashboard:read") ? "/hr" : "/unauthorized"} replace />;
+    return <Navigate to={getDefaultRoute(user)} replace />;
   }
 
   return <Outlet />;

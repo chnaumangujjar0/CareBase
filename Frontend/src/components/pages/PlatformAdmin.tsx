@@ -62,8 +62,12 @@ export default function PlatformAdmin() {
   const decide = async (tenant: PlatformTenant, status: "pending" | "approved" | "rejected", note?: string) => {
     setSavingId(tenant.id);
     try {
-      await updatePlatformTenantApproval(tenant.id, { status, ...(note ? { note } : {}) });
-      toast.success(status === "pending" ? "Application returned to pending" : `Hospital ${status}`);
+      const result = await updatePlatformTenantApproval(tenant.id, { status, ...(note ? { note } : {}) });
+      if (status !== "pending" && result.emailDelivery?.sent === false) {
+        toast.warning(`Hospital ${status}, but the owner email could not be sent. Check SMTP settings and the owner email address.`);
+      } else {
+        toast.success(status === "pending" ? "Application returned to pending" : `Hospital ${status}; owner email sent`);
+      }
       setRejectingTenant(null);
       setRejectionNote("");
       await load();

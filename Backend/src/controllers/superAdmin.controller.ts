@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getAuditRequestMetadata } from "../utils/audit.utils.js";
 import { parseParamUuid, parseRequest } from "../utils/request.utils.js";
+import { sendTenantApprovalEmail } from "../services/staff-credentials-email.service.js";
 
 export const listPlatformTenants = asyncHandler(async (_req: Request, res: Response) => {
   const tenants = await db.tenant.findMany({
@@ -35,7 +36,20 @@ export const updatePlatformTenantApproval = asyncHandler(async (req: Request, re
     throw new ApiError(400, "Add a short reason when rejecting a hospital application.");
   }
 
-  const tenant = await db.tenant.findUnique({ where: { id: tenantId }, select: { id: true, approvalStatus: true } });
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    select: {
+      id: true,
+      name: true,
+      approvalStatus: true,
+      User: {
+        where: { roleId: { not: null }, Role: { name: "Owner" } },
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { name: true, email: true },
+      },
+    },
+  });
   if (!tenant) throw new ApiError(404, "Hospital application not found.");
   if (tenant.approvalStatus !== "pending" && input.status !== "pending") {
     throw new ApiError(409, "Only pending hospital applications can be approved or rejected.");
@@ -61,5 +75,14 @@ export const updatePlatformTenantApproval = asyncHandler(async (req: Request, re
       newValue: { status: updated.approvalStatus, note: updated.approvalNote },
     },
   });
-  return res.status(200).json(new ApiResponse(200, updated, `Hospital ${input.status === "pending" ? "returned to pending" : input.status}.`));
+  const emailDelivery = input.status === "pending"
+    ? null
+    : await sendTenantApprovalEmail({
+      tenantName: updated.name,
+      ownerName: tenant.User[0]?.name ?? "Hospital owner",
+      ownerEmail: tenant.User[0]?.email ?? "",
+      status: input.status,
+      note: updated.approvalNote,
+    });
+  return res.status(200).json(new ApiResponse(200, { ...updated, emailDelivery }, `Hospital ${input.status === "pending" ? "returned to pending" : input.status}.`));
 });

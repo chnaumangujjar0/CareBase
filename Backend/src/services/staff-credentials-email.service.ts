@@ -38,7 +38,15 @@ export interface TenantRegistrationEmailInput {
   country?: string | null;
 }
 
-export type CredentialEmailResult = { sent: true } | { sent: false; reason: "not_configured" | "provider_error" };
+export interface TenantApprovalEmailInput {
+  tenantName: string;
+  ownerName: string;
+  ownerEmail: string;
+  status: "approved" | "rejected";
+  note?: string | null;
+}
+
+export type CredentialEmailResult = { sent: true } | { sent: false; reason: "not_configured" | "provider_error" | "recipient_missing" };
 
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (character) => ({
   "&": "&amp;",
@@ -48,28 +56,44 @@ const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (charact
   "'": "&#39;",
 }[character]!));
 
-const safeLoginUrl = (): string | null => {
+const safeFrontendUrl = (path: string): string | null => {
   const configuredUrl = process.env.FRONTEND_URL?.trim();
   if (!configuredUrl) return null;
   try {
     const url = new URL(configuredUrl);
     if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    return new URL("/login", url).toString();
+    return new URL(path, url).toString();
   } catch {
     return null;
   }
 };
 
+const safeLoginUrl = (): string | null => safeFrontendUrl("/login");
+
 const safeLogoUrl = (): string | null => {
-  const configuredUrl = process.env.FRONTEND_URL?.trim();
-  if (!configuredUrl) return null;
-  try {
-    const url = new URL(configuredUrl);
-    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
-    return new URL("/carebase-logo-icon.svg", url).toString();
-  } catch {
-    return null;
-  }
+  return safeFrontendUrl("/carebase-logo-icon.svg");
+};
+
+const buildBrandedEmail = (content: string): string => {
+  const logoUrl = safeLogoUrl();
+  return `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:${BRAND.surface};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text};">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${BRAND.surface};padding:32px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:${BRAND.white};border:1px solid ${BRAND.border};border-radius:12px;overflow:hidden;">
+        <tr><td style="padding:24px 30px;border-bottom:1px solid ${BRAND.border};">
+          <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+            ${logoUrl ? `<td style="padding-right:10px;"><img src="${escapeHtml(logoUrl)}" width="40" height="40" alt="CareBase" style="display:block;width:40px;height:40px;border-radius:10px;"></td>` : ""}
+            <td style="font-size:24px;line-height:32px;font-weight:700;letter-spacing:-1px;"><span style="color:${BRAND.primary};">Care</span><span style="color:#0F172A;">Base</span></td>
+          </tr></table>
+        </td></tr>
+        <tr><td style="padding:28px 30px 32px;">${content}</td></tr>
+      </table>
+      <p style="margin:18px 0 0;font-size:12px;line-height:18px;color:${BRAND.muted};">CareBase · Hospital management made simple</p>
+    </td></tr>
+  </table>
+</body></html>`;
 };
 
 const buildHtml = (input: StaffCredentialEmailInput): string => {
@@ -209,15 +233,68 @@ export const sendTenantRegistrationEmail = async (input: TenantRegistrationEmail
   const tenantId = escapeHtml(input.tenantId);
   const location = [input.city, input.state, input.country].filter(Boolean).join(", ");
   const safeLocation = escapeHtml(location || "Not provided");
+  const adminUrl = safeFrontendUrl("/super-admin");
+  const content = `<p style="margin:0 0 8px;color:${BRAND.primary};font-size:12px;line-height:18px;font-weight:700;letter-spacing:1px;">NEW APPLICATION</p>
+    <h1 style="margin:0 0 12px;font-size:24px;line-height:32px;color:${BRAND.text};">A hospital is ready for review</h1>
+    <p style="margin:0 0 22px;font-size:15px;line-height:24px;color:${BRAND.muted};">A new hospital workspace has been submitted to CareBase. Review the owner and hospital details below.</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFC;border:1px solid ${BRAND.border};border-radius:8px;">
+      <tr><td style="padding:13px 16px 5px;font-size:11px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">HOSPITAL</td></tr>
+      <tr><td style="padding:0 16px 12px;font-size:15px;line-height:22px;color:${BRAND.text};">${tenantName}</td></tr>
+      <tr><td style="padding:10px 16px 5px;border-top:1px solid ${BRAND.border};font-size:11px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">OWNER</td></tr>
+      <tr><td style="padding:0 16px 12px;font-size:14px;line-height:22px;color:${BRAND.text};">${ownerName}<br>${ownerEmail}</td></tr>
+      <tr><td style="padding:10px 16px 5px;border-top:1px solid ${BRAND.border};font-size:11px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">LOCATION</td></tr>
+      <tr><td style="padding:0 16px 12px;font-size:14px;line-height:22px;color:${BRAND.text};">${safeLocation}</td></tr>
+      <tr><td style="padding:10px 16px 5px;border-top:1px solid ${BRAND.border};font-size:11px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">APPLICATION ID</td></tr>
+      <tr><td style="padding:0 16px 16px;font-family:monospace;font-size:12px;line-height:19px;color:${BRAND.text};word-break:break-all;">${tenantId}</td></tr>
+    </table>
+    ${adminUrl ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:${BRAND.primary};color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Review application</a></p>` : ""}
+    <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid ${BRAND.border};font-size:13px;line-height:21px;color:${BRAND.muted};">This is an automated notification from CareBase. Hospital access remains subject to the approval review.</p>`;
   try {
     await sendSmtpEmail({
       to: { email: recipientEmail },
-      subject: `New hospital registration: ${input.tenantName}`,
-      html: `<!doctype html><html lang="en"><body style="font-family:Arial,Helvetica,sans-serif;color:${BRAND.text};"><h1>New hospital registration</h1><p>A hospital has been submitted for approval on CareBase.</p><table role="presentation" cellspacing="0" cellpadding="8"><tr><td><strong>Hospital</strong></td><td>${tenantName}</td></tr><tr><td><strong>Tenant ID</strong></td><td>${tenantId}</td></tr><tr><td><strong>Owner</strong></td><td>${ownerName} (${ownerEmail})</td></tr><tr><td><strong>Location</strong></td><td>${safeLocation}</td></tr></table></body></html>`,
+      subject: "New CareBase hospital application",
+      html: buildBrandedEmail(content),
       text: `A hospital has been submitted for approval on CareBase.\n\nHospital: ${input.tenantName}\nTenant ID: ${input.tenantId}\nOwner: ${input.ownerName} (${input.ownerEmail})\nLocation: ${location || "Not provided"}`,
     });
     return { sent: true };
   } catch (error) {
     return emailFailure("Tenant registration", error);
+  }
+};
+
+export const sendTenantApprovalEmail = async (input: TenantApprovalEmailInput): Promise<CredentialEmailResult> => {
+  if (!input.ownerEmail.trim()) return { sent: false, reason: "recipient_missing" };
+
+  const approved = input.status === "approved";
+  const tenantName = escapeHtml(input.tenantName);
+  const ownerName = escapeHtml(input.ownerName);
+  const note = input.note?.trim() ? escapeHtml(input.note.trim()).replace(/\r?\n/g, "<br>") : "";
+  const loginUrl = safeLoginUrl();
+  const statusColor = approved ? BRAND.primary : "#B42318";
+  const heading = approved ? "Your hospital is approved" : "Your hospital application needs changes";
+  const explanation = approved
+    ? "Your CareBase hospital workspace has been approved. You can now sign in and continue setting up your team."
+    : "CareBase reviewed your hospital application. Please read the decision note below and contact our team if you need help with the next steps.";
+  const noteBlock = !approved && note
+    ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:20px;background:#FFF7F6;border:1px solid #F3C7C3;border-radius:8px;"><tr><td style="padding:14px 16px 6px;font-size:11px;color:${statusColor};font-weight:700;letter-spacing:.7px;">REVIEW NOTE</td></tr><tr><td style="padding:0 16px 16px;font-size:14px;line-height:23px;color:${BRAND.text};">${note}</td></tr></table>`
+    : "";
+  const content = `<p style="margin:0 0 8px;color:${statusColor};font-size:12px;line-height:18px;font-weight:700;letter-spacing:1px;">HOSPITAL APPLICATION ${approved ? "APPROVED" : "REVIEWED"}</p>
+    <h1 style="margin:0 0 12px;font-size:24px;line-height:32px;color:${BRAND.text};">${heading}</h1>
+    <p style="margin:0 0 20px;font-size:15px;line-height:24px;color:${BRAND.muted};">Hello ${ownerName}, ${explanation}</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFC;border:1px solid ${BRAND.border};border-radius:8px;"><tr><td style="padding:15px 17px;font-size:14px;line-height:22px;color:${BRAND.text};"><span style="color:${BRAND.muted};font-size:11px;font-weight:700;letter-spacing:.7px;">HOSPITAL</span><br><strong>${tenantName}</strong><br><span style="color:${statusColor};font-weight:700;">${approved ? "Approved" : "Rejected"}</span></td></tr></table>
+    ${noteBlock}
+    ${approved && loginUrl ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(loginUrl)}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:${BRAND.primary};color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Sign in to CareBase</a></p>` : ""}
+    <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid ${BRAND.border};font-size:13px;line-height:21px;color:${BRAND.muted};">If you have questions, reply to this email to contact the CareBase team.</p>`;
+
+  try {
+    await sendSmtpEmail({
+      to: { email: input.ownerEmail, name: input.ownerName },
+      subject: approved ? "Your CareBase hospital application is approved" : "Update on your CareBase hospital application",
+      html: buildBrandedEmail(content),
+      text: `Hello ${input.ownerName},\n\n${heading} for ${input.tenantName}.\n\n${approved ? "Your hospital workspace has been approved. Sign in to CareBase to continue." : `Review note: ${input.note?.trim() || "Please contact CareBase for next steps."}`}`,
+    });
+    return { sent: true };
+  } catch (error) {
+    return emailFailure("Tenant approval", error);
   }
 };

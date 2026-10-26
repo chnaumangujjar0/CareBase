@@ -7,6 +7,8 @@ import { ToastContainer } from 'react-toastify';
 import PlatformAdminRoute from './components/common/PlatformAdminRoute';
 import { appTheme } from './theme';
 import PageSkeleton from './components/common/PageSkeleton';
+import { useAuthBootstrap } from './hooks/useAuthBootstrap';
+import { getDefaultRoute } from './utils/authorization';
 
 const Layout = lazy(() => import('./Layout'));
 const LandingPage = lazy(() => import('./components/pages/LandingPage'));
@@ -36,6 +38,18 @@ const Room = lazy(() => import('./components/pages/Room').then((module) => ({ de
 const Bed = lazy(() => import('./components/pages/Bed').then((module) => ({ default: module.Bed })));
 const AuditLogs = lazy(() => import('./components/pages/AuditLogs'));
 
+const HomeRoute = () => {
+  const { isReady, user } = useAuthBootstrap();
+  if (!isReady) return <PageSkeleton />;
+  return user ? <Navigate to={getDefaultRoute(user)} replace /> : <LandingPage />;
+};
+
+const RoleHomeRedirect = () => {
+  const { isReady, user } = useAuthBootstrap();
+  if (!isReady) return <PageSkeleton />;
+  return <Navigate to={getDefaultRoute(user)} replace />;
+};
+
 function App() {
   return (
     <ConfigProvider theme={appTheme}>
@@ -54,7 +68,7 @@ function App() {
         />
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<HomeRoute />} />
             <Route path="/book-appointment" element={<PublicAppointmentBooking />} />
             <Route path="/my-appointments" element={<PatientAppointments />} />
             <Route path="/login" element={<Login />} />
@@ -109,7 +123,7 @@ function App() {
                 <Route path="/audit-logs" element={<AuditLogs />} />
               </Route>
 
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<RoleHomeRedirect />} />
             </Route>
           </Routes>
         </Suspense>

@@ -153,7 +153,9 @@ export const getPlatformTenants = async (): Promise<PlatformTenant[]> => {
 export const updatePlatformTenantApproval = async (
   tenantId: string,
   payload: { status: "pending" | "approved" | "rejected"; note?: string },
-): Promise<Pick<PlatformTenant, "id" | "name" | "approvalStatus" | "approvalNote" | "approvalReviewedAt">> => {
+): Promise<Pick<PlatformTenant, "id" | "name" | "approvalStatus" | "approvalNote" | "approvalReviewedAt"> & {
+  emailDelivery: { sent: true } | { sent: false; reason: "not_configured" | "provider_error" | "recipient_missing" } | null;
+}> => {
   const res = await api.patch(`/super-admin/tenants/${tenantId}/approval`, payload);
   return res.data.data;
 };
