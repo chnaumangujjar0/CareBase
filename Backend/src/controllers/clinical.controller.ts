@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { getAuditRequestMetadata } from "../utils/audit.utils.js";
 import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
+import { nextTenantCounter } from "../utils/tenantCounter.js";
 
 const uuidSchema = z.uuid();
 const encounterTypeSchema = z.enum(["outpatient", "inpatient", "emergency"]);
@@ -198,12 +199,11 @@ export const createEncounter = asyncHandler(async (req: Request, res: Response) 
 
     const queueDate = new Date();
     queueDate.setUTCHours(0, 0, 0, 0);
-    const lockKey = `${tenantId}:${departmentId}:${queueDate.toISOString().slice(0, 10)}`;
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
-    const last = await tx.encounter.aggregate({
-      where: { tenantId, departmentId, queueDate },
-      _max: { queueNumber: true },
-    });
+    const queueNumber = await nextTenantCounter(
+      tx,
+      tenantId,
+      `queue:${departmentId}:${queueDate.toISOString().slice(0, 10)}`,
+    );
     const encounter = await tx.encounter.create({
       data: {
         tenantId,
@@ -218,7 +218,7 @@ export const createEncounter = asyncHandler(async (req: Request, res: Response) 
         triageLevel: input.triageLevel ?? null,
         ...(input.triageLevel ? { triagedAt: new Date() } : {}),
         queueDate,
-        queueNumber: (last._max.queueNumber ?? 0) + 1,
+        queueNumber,
       },
       include: encounterInclude,
     });
@@ -942,6 +942,7 @@ export const createSurgeryCase = asyncHandler(async (req: Request, res: Response
         encounterId,
         procedureName: input.procedureName,
         scheduledAt: input.scheduledAt,
+        endsAt: new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000),
         durationMinutes: input.durationMinutes,
         theatreId: input.theatreId,
         surgeonId: input.surgeonId,
@@ -1005,6 +1006,7 @@ export const updateSurgeryCase = asyncHandler(async (req: Request, res: Response
       data: {
         ...(input.status ? { status: input.status } : {}),
         ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
+        ...(input.scheduledAt ? { endsAt: new Date(input.scheduledAt.getTime() + current.durationMinutes * 60_000) } : {}),
         ...(input.outcomeNotes !== undefined ? { outcomeNotes: input.outcomeNotes } : {}),
         ...(nextStatus === "in_progress" && !current.startedAt ? { startedAt: new Date() } : {}),
         ...(nextStatus === "completed" ? { endedAt: new Date() } : {}),

@@ -455,7 +455,13 @@ export const createSale = asyncHandler(async (req: Request, res: Response) => {
       if (Number(medicine.sellingPrice) <= 0) throw new ApiError(409, `${medicine.name} does not have a selling price configured.`);
       const lineTotal = Number(medicine.sellingPrice) * item.quantity;
       total += lineTotal;
-      await tx.pharmacyStock.update({ where: { id: stock.id }, data: { currentStock: { decrement: item.quantity } } });
+      const decremented = await tx.pharmacyStock.updateMany({
+        where: { id: stock.id, tenantId, currentStock: { gte: item.quantity } },
+        data: { currentStock: { decrement: item.quantity } },
+      });
+      if (decremented.count !== 1) {
+        throw new ApiError(409, `${medicine.name} stock changed while the sale was being recorded. Please retry.`);
+      }
       await tx.stockTransaction.create({ data: { pharmacyId, medicineId: item.medicineId, tenantId, type: "OUT", quantity: item.quantity, reason: "Customer sale", recordedBy: userId } });
       items.push({ medicineId: item.medicineId, quantity: item.quantity, unitPurchasePrice: medicine.purchasePrice.toString(), unitSellingPrice: medicine.sellingPrice.toString(), lineTotal: lineTotal.toFixed(2) });
     }

@@ -1,5 +1,4 @@
 import type { Request, Response } from "express";
-import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { ApiError } from "../utils/apiError.js";
@@ -7,6 +6,7 @@ import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { writeAuditLog } from "../utils/audit.utils.js";
 import { getTenantContext, parseParamUuid, parseRequest } from "../utils/request.utils.js";
+import { nextTenantCounter } from "../utils/tenantCounter.js";
 
 const uuidSchema = z.uuid();
 const categories = z.enum(["appointment", "bed", "surgery", "consultation", "hospital_fee"]);
@@ -17,7 +17,7 @@ type Transaction = Parameters<Parameters<typeof db.$transaction>[0]>[0];
 
 const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
 const amountString = (value: number) => roundMoney(value).toFixed(2);
-const invoiceNumber = () => `INV-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${randomUUID().slice(0, 8).toUpperCase()}`;
+const invoiceNumber = (sequence: number) => `INV-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${sequence}`;
 
 const invoiceInclude = {
   Patient: { select: { id: true, mrn: true, firstName: true, lastName: true, contactPhone: true } },
@@ -123,7 +123,8 @@ export const createAppointmentInvoice = asyncHandler(async (req: Request, res: R
     if (!rate) throw new ApiError(409, "The selected rate is not active or does not belong to the appointment doctor.");
     const amount = Number(rate.amount);
     const tax = roundMoney(amount * Number(rate.taxRate) / 100);
-    const created = await tx.billingInvoice.create({ data: { tenantId, patientId: appointment.patientId, appointmentId: appointment.id, kind: "appointment", invoiceNumber: invoiceNumber(), currency: rate.currency, subtotal: amountString(amount), taxAmount: amountString(tax), totalAmount: amountString(amount + tax), balanceAmount: amountString(amount + tax), createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null, Items: { create: { category: "appointment", description: rate.name, quantity: 1, unitPrice: rate.amount, taxRate: rate.taxRate, subtotal: rate.amount, taxAmount: amountString(tax), totalAmount: amountString(amount + tax) } } }, include: invoiceInclude });
+    const sequence = await nextTenantCounter(tx, tenantId, "invoice");
+    const created = await tx.billingInvoice.create({ data: { tenantId, patientId: appointment.patientId, appointmentId: appointment.id, kind: "appointment", invoiceNumber: invoiceNumber(sequence), currency: rate.currency, subtotal: amountString(amount), taxAmount: amountString(tax), totalAmount: amountString(amount + tax), balanceAmount: amountString(amount + tax), createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null, Items: { create: { category: "appointment", description: rate.name, quantity: 1, unitPrice: rate.amount, taxRate: rate.taxRate, subtotal: rate.amount, taxAmount: amountString(tax), totalAmount: amountString(amount + tax) } } }, include: invoiceInclude });
     return created;
   });
   await writeAuditLog(req, { action: "create", entityType: "BillingInvoice", entityId: invoice.id, newValue: { kind: "appointment", appointmentId: input.appointmentId, rateId: input.rateId } });
@@ -135,9 +136,12 @@ const inpatientInvoiceSchema = z.object({ admissionId: uuidSchema, dueAt: z.coer
 export const createInpatientInvoice = asyncHandler(async (req: Request, res: Response) => {
   const { tenantId, userId } = getTenantContext(req);
   const input = parseRequest(inpatientInvoiceSchema, req.body);
-  const admission = await db.admission.findFirst({ where: { id: input.admissionId, tenantId }, include: { Encounter: { select: { patientId: true } } } });
-  if (!admission) throw new ApiError(404, "Admission not found.");
-  const invoice = await db.billingInvoice.create({ data: { tenantId, patientId: admission.Encounter.patientId, admissionId: input.admissionId, kind: "inpatient", invoiceNumber: invoiceNumber(), currency: "PKR", subtotal: 0, taxAmount: 0, totalAmount: 0, balanceAmount: 0, createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null } });
+  const invoice = await db.$transaction(async (tx) => {
+    const admission = await tx.admission.findFirst({ where: { id: input.admissionId, tenantId }, include: { Encounter: { select: { patientId: true } } } });
+    if (!admission) throw new ApiError(404, "Admission not found.");
+    const sequence = await nextTenantCounter(tx, tenantId, "invoice");
+    return tx.billingInvoice.create({ data: { tenantId, patientId: admission.Encounter.patientId, admissionId: input.admissionId, kind: "inpatient", invoiceNumber: invoiceNumber(sequence), currency: "PKR", subtotal: 0, taxAmount: 0, totalAmount: 0, balanceAmount: 0, createdBy: userId, dueAt: input.dueAt ?? null, notes: input.notes ?? null } });
+  });
   await writeAuditLog(req, { action: "create", entityType: "BillingInvoice", entityId: invoice.id, newValue: { kind: "inpatient", admissionId: input.admissionId } });
   return res.status(201).json(new ApiResponse(201, serializeInvoice({ ...invoice, Items: [], Payments: [] }), "Inpatient invoice created successfully."));
 });

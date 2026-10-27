@@ -205,6 +205,7 @@ export const createAppointment = asyncHandler(async (req: Request, res: Response
         doctorId: input.doctorId,
         departmentId: input.departmentId,
         scheduledAt: input.scheduledAt,
+        endsAt: new Date(input.scheduledAt.getTime() + input.durationMinutes * 60_000),
         durationMinutes: input.durationMinutes,
         notes: input.notes || null,
         createdBy: userId,
@@ -381,6 +382,7 @@ export const updateAppointment = asyncHandler(async (req: Request, res: Response
       where: { id: current.id, tenantId, version: current.version },
       data: {
         ...(input.scheduledAt ? { scheduledAt: input.scheduledAt } : {}),
+        ...(scheduleChanged ? { endsAt: new Date(scheduledAt.getTime() + durationMinutes * 60_000) } : {}),
         ...(input.durationMinutes ? { durationMinutes: input.durationMinutes } : {}),
         ...(input.status ? { status: input.status } : {}),
         ...(input.notes !== undefined ? { notes: input.notes || null } : {}),

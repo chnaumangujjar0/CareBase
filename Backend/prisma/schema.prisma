@@ -13,6 +13,7 @@ model Appointment {
   createdAt       DateTime @default(now()) @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   scheduledAt     DateTime @db.Timestamptz(6)
+  endsAt          DateTime @db.Timestamptz(6)
   durationMinutes Int      @default(30)
   status          String   @default("booked")
   notes           String?
@@ -27,13 +28,13 @@ model Appointment {
   updatedBy    String? @db.Uuid
 
   // Relations
-  Tenant         Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
+  Tenant         Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "appointment_tenantId_fkey")
   // OPT: department/doctor/patient now include tenantId, so an appointment can never point to another tenant's data
-  Department     Department              @relation(fields: [departmentId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_departmentId_fkey")
-  DoctorProfile  DoctorProfile           @relation(fields: [doctorId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_doctorId_fkey")
-  Patient        Patient                 @relation(fields: [patientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_patientId_fkey")
-  Creator        User?                   @relation("AppointmentCreator", fields: [createdBy], references: [id], onUpdate: NoAction, map: "appointment_createdBy_fkey")
-  Updater        User?                   @relation("AppointmentUpdater", fields: [updatedBy], references: [id], onUpdate: NoAction, map: "appointment_updatedBy_fkey")
+  Department     Department               @relation(fields: [departmentId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_departmentId_fkey")
+  DoctorProfile  DoctorProfile            @relation(fields: [doctorId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_doctorId_fkey")
+  Patient        Patient                  @relation(fields: [patientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "appointment_patientId_fkey")
+  Creator        User?                    @relation("AppointmentCreator", fields: [createdBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "appointment_createdBy_fkey")
+  Updater        User?                    @relation("AppointmentUpdater", fields: [updatedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "appointment_updatedBy_fkey")
   Encounter      Encounter?
   BillingInvoice BillingInvoice?
   PublicAccess   PublicAppointmentAccess?
@@ -94,6 +95,7 @@ model Bed {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   code      String
+  isActive  Boolean  @default(true)
   status    String   @default("available")
   version   Int      @default(1)
 
@@ -101,7 +103,7 @@ model Bed {
   tenantId         String  @db.Uuid
   currentPatientId String? @db.Uuid
 
-  Room          Room            @relation(fields: [roomId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_roomId_fkey")
+  Room          Room            @relation(fields: [roomId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "bed_roomId_fkey")
   Tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "bed_tenantId_fkey")
   Patient       Patient?        @relation(fields: [currentPatientId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "bed_currentPatientId_fkey")
   BedAssignment BedAssignment[]
@@ -131,10 +133,10 @@ model Department {
   DoctorProfile DoctorProfile[]
   StaffProfile  StaffProfile[]
   Ward          Ward[]
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 
   @@unique([tenantId, name], map: "department_tenant_name_key_efdfefee")
   @@unique([id, tenantId])
-  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 }
 
 model DoctorProfile {
@@ -154,7 +156,7 @@ model DoctorProfile {
   tenantId     String @db.Uuid
   departmentId String @db.Uuid
 
-  User       User       @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_userId_fkey")
+  User       User       @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "doctorProfile_userId_fkey")
   Tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "doctorProfile_tenantId_fkey")
   // OPT: department link now includes tenantId (same-tenant guarantee)
   Department Department @relation(fields: [departmentId, tenantId], references: [id, tenantId], onUpdate: NoAction, map: "doctorProfile_departmentId_fkey")
@@ -168,13 +170,14 @@ model DoctorProfile {
   DischargeSummaries DischargeSummary[]
   DoctorAvailability DoctorAvailability[]
   BillingRate        BillingRate[]
+  // OPT: removed [tenantId]; both composite unique indexes above start with tenantId
 
   @@unique([id, tenantId], map: "doctorProfile_id_tenantId_key")
   // OPT: phone and employeeId are unique inside one hospital, not across the whole system
   @@unique([tenantId, phone])
   @@unique([tenantId, employeeId])
+  @@unique([userId, tenantId])
   @@index([departmentId], map: "DoctorProfile_departmentId_idx_8e261ed8")
-  // OPT: removed [tenantId]; both composite unique indexes above start with tenantId
 }
 
 model DoctorAvailability {
@@ -254,9 +257,9 @@ model PatientMedicalData {
   encounterId String? @db.Uuid
   recordedBy  String? @db.Uuid
 
-  Patient   Patient    @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_patient_tenant_fkey")
+  Patient   Patient    @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "patientMedicalData_patient_tenant_fkey")
   Tenant    Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "patientMedicalData_tenantId_fkey")
-  Recorder  User?      @relation("PatientMedicalDataRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction, map: "patientMedicalData_recordedBy_fkey")
+  Recorder  User?      @relation("PatientMedicalDataRecorder", fields: [recordedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "patientMedicalData_recordedBy_fkey")
   Encounter Encounter? @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([tenantId, patientId, recordedAt], map: "patientMedicalData_tenant_patient_recordedAt_idx")
@@ -275,9 +278,10 @@ model Role {
   tenantId String @db.Uuid
   Tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "role_tenantId_fkey")
   User     User[]
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 
   @@unique([tenantId, name], map: "role_tenant_name_key_efdfefee")
-  // OPT: removed [tenantId] (covered by unique [tenantId, name])
+  @@unique([id, tenantId], map: "role_id_tenantId_key")
 }
 
 model Room {
@@ -285,17 +289,19 @@ model Room {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   name      String
+  isActive  Boolean  @default(true)
 
   wardId   String @db.Uuid
   tenantId String @db.Uuid
 
-  Ward   Ward   @relation(fields: [wardId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_wardId_fkey")
+  Ward   Ward   @relation(fields: [wardId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "room_wardId_fkey")
   Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_tenantId_fkey")
   Bed    Bed[]
+  // OPT: removed [wardId] (covered by unique [wardId, name])
 
   @@unique([wardId, name])
+  @@unique([id, tenantId], map: "room_id_tenantId_key")
   @@index([tenantId], map: "Room_tenantId_idx_c93ed4f1")
-  // OPT: removed [wardId] (covered by unique [wardId, name])
 }
 
 model Session {
@@ -333,14 +339,15 @@ model StaffProfile {
   departmentId String? @db.Uuid
   wardId       String? @db.Uuid
 
-  User              User?               @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_userId_fkey")
+  User              User?               @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "staffProfile_userId_fkey")
   Tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "staffProfile_tenantId_fkey")
   // OPT: department link now includes tenantId (same-tenant guarantee)
   Department        Department?         @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "staffProfile_departmentId_fkey")
-  Ward              Ward?               @relation(fields: [wardId], references: [id], onUpdate: NoAction, map: "staffProfile_wardId_fkey")
+  Ward              Ward?               @relation(fields: [wardId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "staffProfile_wardId_fkey")
   StaffAvailability StaffAvailability[]
 
   @@unique([tenantId, employeeId], map: "staffProfile_tenant_employeeId_key_c90418e2")
+  @@unique([userId, tenantId], map: "staffProfile_userId_tenantId_key")
   @@unique([id, tenantId], map: "staffProfile_id_tenantId_key")
   @@index([departmentId], map: "StaffProfile_departmentId_idx_8e261ed8")
   // OPT: removed [tenantId] (covered by unique [tenantId, employeeId])
@@ -382,57 +389,58 @@ model Tenant {
   approvalNote       String?
   approvalReviewedAt DateTime? @db.Timestamptz(6)
 
-  Appointment         Appointment[]
-  AuditLog            AuditLog[]
-  Bed                 Bed[]
-  Department          Department[]
-  DoctorProfile       DoctorProfile[]
-  DoctorAvailability  DoctorAvailability[]
-  Patient             Patient[]
-  PatientMedicalData  PatientMedicalData[]
-  Role                Role[]
-  Room                Room[]
-  StaffProfile        StaffProfile[]
-  StaffAvailability   StaffAvailability[]
-  User                User[]
-  Ward                Ward[]
-  Encounter           Encounter[]
-  Consultation        Consultation[]
-  Medicine            Medicine[]
-  Prescription        Prescription[]
-  PrescriptionItem    PrescriptionItem[]
-  Admission           Admission[]
-  BedAssignment       BedAssignment[]
-  OperatingTheatre    OperatingTheatre[]
-  SurgeryCase         SurgeryCase[]
-  SurgeryTeamMember   SurgeryTeamMember[]
-  DischargeSummary    DischargeSummary[]
-  StockTransaction    StockTransaction[]
-  Pharmacy            Pharmacy[]
-  PharmacyStock       PharmacyStock[]
-  StockRequest        StockRequest[]
-  StockRequestItem    StockRequestItem[]
-  Sale                Sale[]
-  SaleItem            SaleItem[]
-  BillingRate         BillingRate[]
-  BillingInvoice      BillingInvoice[]
-  BillingPayment      BillingPayment[]
-  billingInvoiceItems BillingInvoiceItem[]
+  Appointment          Appointment[]
+  AuditLog             AuditLog[]
+  Bed                  Bed[]
+  Department           Department[]
+  DoctorProfile        DoctorProfile[]
+  DoctorAvailability   DoctorAvailability[]
+  Patient              Patient[]
+  PatientMedicalData   PatientMedicalData[]
+  Role                 Role[]
+  Room                 Room[]
+  StaffProfile         StaffProfile[]
+  StaffAvailability    StaffAvailability[]
+  User                 User[]
+  Ward                 Ward[]
+  Encounter            Encounter[]
+  Consultation         Consultation[]
+  Medicine             Medicine[]
+  Prescription         Prescription[]
+  PrescriptionItem     PrescriptionItem[]
+  Admission            Admission[]
+  BedAssignment        BedAssignment[]
+  OperatingTheatre     OperatingTheatre[]
+  SurgeryCase          SurgeryCase[]
+  SurgeryTeamMember    SurgeryTeamMember[]
+  DischargeSummary     DischargeSummary[]
+  StockTransaction     StockTransaction[]
+  Pharmacy             Pharmacy[]
+  PharmacyStock        PharmacyStock[]
+  StockRequest         StockRequest[]
+  StockRequestItem     StockRequestItem[]
+  Sale                 Sale[]
+  SaleItem             SaleItem[]
+  BillingRate          BillingRate[]
+  BillingInvoice       BillingInvoice[]
+  BillingPayment       BillingPayment[]
+  billingInvoiceItems  BillingInvoiceItem[]
+  TenantCounter        TenantCounter[]
   PlatformSubscription PlatformSubscription?
 }
 
 model PlatformSubscription {
-  id                   String   @id @default(uuid()) @db.Uuid
-  tenantId             String   @unique @db.Uuid
+  id                   String    @id @default(uuid()) @db.Uuid
+  tenantId             String    @unique @db.Uuid
   plan                 String
-  status               String   @default("incomplete")
-  stripeCustomerId     String?  @unique
-  stripeSubscriptionId String?  @unique
+  status               String    @default("incomplete")
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
   stripePriceId        String?
   currentPeriodEnd     DateTime? @db.Timestamptz(6)
-  cancelAtPeriodEnd    Boolean  @default(false)
-  createdAt            DateTime @default(now()) @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @db.Timestamptz(6)
+  cancelAtPeriodEnd    Boolean   @default(false)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
 
   Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -462,7 +470,7 @@ model User {
   roleId   String? @db.Uuid
   tenantId String? @db.Uuid
 
-  Role   Role?   @relation(fields: [roleId], references: [id], onUpdate: NoAction, map: "user_roleId_fkey")
+  Role   Role?   @relation(fields: [roleId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction, map: "user_roleId_fkey")
   Tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "user_tenantId_fkey")
 
   // Improved relation names
@@ -486,6 +494,7 @@ model User {
   ManagedPharmacy            Pharmacy?            @relation("PharmacyPharmacist")
   PharmacySales              Sale[]               @relation("SaleSeller")
 
+  @@unique([id, tenantId], map: "user_id_tenantId_key")
   @@index([roleId], map: "User_roleId_idx_ffccc9a4")
   @@index([tenantId], map: "User_tenantId_idx_c93ed4f1")
 }
@@ -495,6 +504,7 @@ model Ward {
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
   name      String
+  isActive  Boolean  @default(true)
 
   tenantId     String  @db.Uuid
   departmentId String? @db.Uuid
@@ -505,10 +515,11 @@ model Ward {
 
   Room         Room[]
   StaffProfile StaffProfile[]
+  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 
   @@unique([tenantId, name])
+  @@unique([id, tenantId], map: "ward_id_tenantId_key")
   @@index([departmentId], map: "Ward_departmentId_idx_8e261ed8")
-  // OPT: removed [tenantId] (covered by unique [tenantId, name])
 }
 
 model Encounter {
@@ -546,7 +557,7 @@ model Encounter {
   Department    Department     @relation(fields: [departmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   DoctorProfile DoctorProfile? @relation(fields: [doctorId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Appointment   Appointment?   @relation(fields: [appointmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  TriagedByUser User?          @relation("EncounterTriagedBy", fields: [triagedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  TriagedByUser User?          @relation("EncounterTriagedBy", fields: [triagedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   Consultation       Consultation[]
   Prescription       Prescription[]
@@ -675,7 +686,7 @@ model StockTransaction {
   Pharmacy Pharmacy @relation(fields: [pharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   Medicine Medicine @relation(fields: [medicineId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  User     User?    @relation("StockTransactionRecorder", fields: [recordedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  User     User?    @relation("StockTransactionRecorder", fields: [recordedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([medicineId, createdAt])
   // OPT: [tenantId] became [tenantId, createdAt] so "recent stock movements" is sorted by the index itself
@@ -736,7 +747,7 @@ model BedAssignment {
   Bed            Bed        @relation(fields: [bedId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Encounter      Encounter  @relation(fields: [encounterId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Admission      Admission? @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  AssignedByUser User?      @relation("BedAssignmentAssignedBy", fields: [assignedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  AssignedByUser User?      @relation("BedAssignmentAssignedBy", fields: [assignedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([bedId, releasedAt])
   @@index([encounterId, releasedAt])
@@ -769,6 +780,7 @@ model SurgeryCase {
   procedureName   String
   status          String    @default("scheduled") // scheduled | in_progress | completed | cancelled | postponed
   scheduledAt     DateTime  @db.Timestamptz(6)
+  endsAt          DateTime  @db.Timestamptz(6)
   durationMinutes Int       @default(60)
   startedAt       DateTime? @db.Timestamptz(6)
   endedAt         DateTime? @db.Timestamptz(6)
@@ -809,7 +821,7 @@ model SurgeryTeamMember {
 
   Tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   SurgeryCase SurgeryCase @relation(fields: [surgeryId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
-  User        User        @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  User        User        @relation(fields: [userId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@unique([surgeryId, userId])
   @@index([userId])
@@ -855,11 +867,12 @@ model Pharmacy {
   IncomingRequests StockRequest[]     @relation("IncomingRequests")
   Stocks           PharmacyStock[]
   Transactions     StockTransaction[]
-  Pharmacist       User?              @relation("PharmacyPharmacist", fields: [pharmacistUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  Pharmacist       User?              @relation("PharmacyPharmacist", fields: [pharmacistUserId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Sales            Sale[]
 
   @@unique([tenantId, name])
   @@unique([id, tenantId])
+  @@unique([pharmacistUserId, tenantId])
   @@index([tenantId, type, isActive])
 }
 
@@ -907,9 +920,9 @@ model StockRequest {
   RequestingPharmacy Pharmacy @relation("OutgoingRequests", fields: [requestingPharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   FulfillingPharmacy Pharmacy @relation("IncomingRequests", fields: [fulfillingPharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
-  Requester User  @relation("StockRequester", fields: [requestedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
-  Handler   User? @relation("StockRequestHandler", fields: [handledBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  Receiver  User? @relation("StockRequestReceiver", fields: [receivedBy], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  Requester User  @relation("StockRequester", fields: [requestedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Handler   User? @relation("StockRequestHandler", fields: [handledBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  Receiver  User? @relation("StockRequestReceiver", fields: [receivedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   Items StockRequestItem[]
 
@@ -955,7 +968,7 @@ model Sale {
 
   Tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   Pharmacy            Pharmacy             @relation(fields: [pharmacyId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  Seller              User                 @relation("SaleSeller", fields: [soldBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Seller              User                 @relation("SaleSeller", fields: [soldBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Patient             Patient?             @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Items               SaleItem[]
   BillingInvoiceItems BillingInvoiceItem[]
@@ -1042,7 +1055,7 @@ model BillingInvoice {
   Patient     Patient              @relation(fields: [patientId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Appointment Appointment?         @relation(fields: [appointmentId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Admission   Admission?           @relation(fields: [admissionId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  Creator     User                 @relation("BillingInvoiceCreator", fields: [createdBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Creator     User                 @relation("BillingInvoiceCreator", fields: [createdBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
   Items       BillingInvoiceItem[]
   Payments    BillingPayment[]
 
@@ -1073,10 +1086,10 @@ model BillingInvoiceItem {
   Tenant  Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   Invoice BillingInvoice @relation(fields: [invoiceId, tenantId], references: [id, tenantId], onDelete: Cascade, onUpdate: NoAction)
   Sale    Sale?          @relation(fields: [saleId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
+  // OPT: removed [saleId]; saleId is already @unique, which creates the same index
 
   @@index([invoiceId])
   @@index([tenantId, category])
-  // OPT: removed [saleId]; saleId is already @unique, which creates the same index
 }
 
 model BillingPayment {
@@ -1094,8 +1107,22 @@ model BillingPayment {
 
   Tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
   Invoice   BillingInvoice @relation(fields: [invoiceId, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
-  Collector User           @relation("PaymentCollector", fields: [collectedBy], references: [id], onDelete: Restrict, onUpdate: NoAction)
+  Collector User           @relation("PaymentCollector", fields: [collectedBy, tenantId], references: [id, tenantId], onDelete: Restrict, onUpdate: NoAction)
 
   @@index([tenantId, createdAt])
   @@index([invoiceId, createdAt])
+}
+
+model TenantCounter {
+  id        String   @id @default(uuid()) @db.Uuid
+  tenantId  String   @db.Uuid
+  kind      String
+  nextValue Int      @default(1)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  Tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@unique([tenantId, kind])
+  @@index([tenantId])
 }

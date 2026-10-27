@@ -312,6 +312,7 @@ export const createPublicAppointment = asyncHandler(async (req: Request, res: Re
           doctorId: doctor.id,
           departmentId: doctor.departmentId,
           scheduledAt: input.scheduledAt,
+          endsAt: new Date(input.scheduledAt.getTime() + SLOT_DURATION_MINUTES * 60_000),
           durationMinutes: SLOT_DURATION_MINUTES,
           status: "booked",
           createdBy: null,
@@ -395,6 +396,7 @@ export const getPublicAppointment = asyncHandler(async (req: Request, res: Respo
       Appointment: {
         select: {
           scheduledAt: true,
+          endsAt: true,
           durationMinutes: true,
           status: true,
           Patient: { select: { firstName: true, lastName: true } },
