@@ -35,7 +35,7 @@ export default function ApprovalStatus() {
     };
     void confirm();
     return () => { cancelled = true; };
-  }, [checkoutSuccess, checkoutSessionId, dispatch, isReady, user?.id]);
+  }, [checkoutSuccess, checkoutSessionId, dispatch, isReady, user]);
 
   useEffect(() => {
     if (checkoutSuccess && checkoutConfirmation !== "done") return;
@@ -48,7 +48,7 @@ export default function ApprovalStatus() {
       const subscription = user.Tenant.PlatformSubscription;
       navigate(subscription && subscription.status !== "active" ? "/subscription" : getDefaultRoute(user), { replace: true });
     }
-  }, [checkoutConfirmation, checkoutConfirmationError, checkoutSuccess, navigate, user]);
+  }, [checkoutConfirmation, checkoutConfirmationError, checkoutSessionId, checkoutSuccess, navigate, user]);
 
   if (checkoutSuccess && checkoutConfirmation !== "done") return <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#F1F5F9", padding: 20 }}><Card style={{ width: "100%", maxWidth: 640 }}><Skeleton active paragraph={{ rows: 4 }} /></Card></div>;
 

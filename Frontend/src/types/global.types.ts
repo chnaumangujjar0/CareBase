@@ -184,6 +184,7 @@ export interface AppointmentRecord {
   id: string;
   status: AppointmentStatus;
   scheduledAt: string;
+  endsAt: string;
   durationMinutes: number;
   notes: string | null;
   version: number;
@@ -305,6 +306,7 @@ export interface PatientMedicalData {
 export interface PatientUpcomingAppointment {
   id: string;
   scheduledAt: string;
+  endsAt: string;
   durationMinutes: number;
   Department: { name: string };
   DoctorProfile: {
@@ -770,6 +772,7 @@ export interface PublicAppointmentResult {
 
 export interface PublicAppointmentDetails {
   scheduledAt: string;
+  endsAt: string;
   durationMinutes: number;
   status: string;
   Patient: { firstName: string; lastName: string };

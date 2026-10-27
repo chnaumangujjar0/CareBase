@@ -122,6 +122,9 @@ export type SubscriptionPlanKey = "starter" | "growth" | "plus";
 export interface CurrentSubscription {
   plan: SubscriptionPlanKey | null;
   status: string;
+  amountCents: number | null;
+  currency: string;
+  interval: "month";
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
 }
@@ -143,6 +146,11 @@ export const getCurrentSubscription = async (): Promise<CurrentSubscription> => 
 export const openSubscriptionBillingPortal = async (): Promise<string> => {
   const res = await api.post("/subscriptions/portal");
   return res.data.data.url as string;
+};
+
+export const changeSubscriptionPlan = async (plan: SubscriptionPlanKey): Promise<CurrentSubscription> => {
+  const res = await api.post("/subscriptions/change-plan", { plan });
+  return res.data.data as CurrentSubscription;
 };
 
 export const getPlatformTenants = async (): Promise<PlatformTenant[]> => {

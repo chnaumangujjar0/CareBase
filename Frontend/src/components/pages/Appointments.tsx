@@ -59,6 +59,8 @@ const statusOptions = [
 
 const appointmentDate = (date: string) => dayjs(date).format("MMMM D, YYYY");
 const appointmentTime = (date: string) => dayjs(date).format("h:mm A");
+const appointmentTimeRange = (startsAt: string, endsAt: string) =>
+  `${appointmentTime(startsAt)} - ${appointmentTime(endsAt)}`;
 const getInitials = (name: string) =>
   name
     .split(/\s+/)
@@ -427,7 +429,7 @@ function Appointments() {
                   </div>
                   <div>
                     <dt>Date &amp; time</dt>
-                    <dd>{appointmentDate(appointment.scheduledAt)}, {appointmentTime(appointment.scheduledAt)}</dd>
+                    <dd>{appointmentDate(appointment.scheduledAt)}, {appointmentTimeRange(appointment.scheduledAt, appointment.endsAt)}</dd>
                   </div>
                 </dl>
               </article>

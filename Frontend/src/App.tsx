@@ -74,7 +74,7 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/approval-status" element={<ApprovalStatus />} />
-            <Route path="/subscription" element={<Subscription />} />
+
             <Route element={<PlatformAdminRoute />}>
               <Route path="/super-admin" element={<PlatformAdmin />} />
             </Route>
@@ -84,6 +84,7 @@ function App() {
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route element={<Layout />}>
               <Route element={<ProtectedRoute />}>
+                <Route path="/subscription" element={<Subscription />} />
                 <Route element={<ProtectedRoute allowedPermissions={["hr:dashboard:read"]} />}>
                   <Route path="/hr" element={<HrDashboard />} />
                 </Route>

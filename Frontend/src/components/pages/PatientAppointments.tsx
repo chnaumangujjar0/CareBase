@@ -41,7 +41,7 @@ export default function PatientAppointments() {
         {appointment && <Card className="public-lookup-result" title="Appointment details">
           <Alert type={appointment.status === "booked" ? "success" : "info"} showIcon message={appointment.status.replace("_", " ").toUpperCase()} />
           <Typography.Title level={4}>{appointment.Patient.firstName} {appointment.Patient.lastName}</Typography.Title>
-          <div className="public-detail-row"><CalendarDays size={18} /><span>{formatPakistanDateTime(appointment.scheduledAt)} (Pakistan Standard Time)</span></div>
+          <div className="public-detail-row"><CalendarDays size={18} /><span>{formatPakistanDateTime(appointment.scheduledAt)} - {formatPakistanTime(appointment.endsAt)} (Pakistan Standard Time)</span></div>
           <div className="public-detail-row"><strong>Doctor</strong><span>{appointment.DoctorProfile.User.name} · {appointment.DoctorProfile.specialization}</span></div>
           <div className="public-detail-row"><strong>Department</strong><span>{appointment.Department.name}</span></div>
           <div className="public-detail-row"><strong>Hospital</strong><span>{appointment.Tenant.name}</span></div>
@@ -57,4 +57,8 @@ export default function PatientAppointments() {
 
 function formatPakistanDateTime(value: string) {
   return new Intl.DateTimeFormat("en-PK", { dateStyle: "full", timeStyle: "short", timeZone: "Asia/Karachi" }).format(new Date(value));
+}
+
+function formatPakistanTime(value: string) {
+  return new Intl.DateTimeFormat("en-PK", { timeStyle: "short", timeZone: "Asia/Karachi" }).format(new Date(value));
 }

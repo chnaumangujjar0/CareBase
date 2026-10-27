@@ -56,6 +56,7 @@ const navConfig = [
       { label: "Staff Management", path: "/staff", icon: UsersRound, roles: ["Owner", "Admin"] },
       { label: "HR Dashboard", path: "/hr", icon: BriefcaseBusiness, permission: "hr:dashboard:read" },
       { label: "Audit Logs", path: "/audit-logs", icon: ClipboardList, roles: ["Owner", "Admin"] },
+      { label: "Subscription & Billing", path: "/subscription", icon: ReceiptText, roles: ["Owner", "Admin"] },
     ],
   },
 ];
