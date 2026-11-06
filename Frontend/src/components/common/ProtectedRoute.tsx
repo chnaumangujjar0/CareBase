@@ -1,11 +1,12 @@
 import { Navigate, Outlet } from "react-router";
 import { Spin } from "antd";
 import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
-import { getDefaultRoute, hasAnyPermission, hasRole } from "../../utils/authorization";
+import { getDefaultRoute, hasAnyPermission, hasRole, requiresSubscription } from "../../utils/authorization";
 
 interface ProtectedRouteProps {
   allowedRoles?: string[];
   allowedPermissions?: string[];
+  skipSubscriptionCheck?: boolean;
  
   skipOnboardingCheck?: boolean;
 }
@@ -14,6 +15,7 @@ export const ProtectedRoute = ({
   allowedRoles,
   allowedPermissions,
   skipOnboardingCheck = false,
+  skipSubscriptionCheck = false,
 }: ProtectedRouteProps) => {
   const { isReady, user } = useAuthBootstrap();
 
@@ -39,9 +41,8 @@ export const ProtectedRoute = ({
 
   if (
     !skipOnboardingCheck &&
-    user.Tenant?.approvalStatus === "approved" &&
-    user.Tenant.PlatformSubscription &&
-    user.Tenant.PlatformSubscription.status !== "active"
+    !skipSubscriptionCheck &&
+    requiresSubscription(user)
   ) {
     return <Navigate to="/subscription" replace />;
   }

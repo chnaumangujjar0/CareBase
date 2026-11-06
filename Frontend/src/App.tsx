@@ -83,8 +83,10 @@ function App() {
             </Route>
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route element={<Layout />}>
-              <Route element={<ProtectedRoute />}>
+              <Route element={<ProtectedRoute skipSubscriptionCheck />}>
                 <Route path="/subscription" element={<Subscription />} />
+              </Route>
+              <Route element={<ProtectedRoute />}>
                 <Route element={<ProtectedRoute allowedPermissions={["hr:dashboard:read"]} />}>
                   <Route path="/hr" element={<HrDashboard />} />
                 </Route>

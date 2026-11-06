@@ -11,6 +11,11 @@ export const hasAnyPermission = (
 export const hasRole = (user: AuthUser | null | undefined, roles: string[]): boolean =>
   Boolean(user?.role && roles.some((role) => role.toLowerCase() === user.role?.toLowerCase()));
 
+export const requiresSubscription = (user: AuthUser | null | undefined): boolean =>
+  hasRole(user, ["Owner", "Admin"]) &&
+  user?.Tenant?.approvalStatus === "approved" &&
+  (!user.Tenant.PlatformSubscription || user.Tenant.PlatformSubscription.status !== "active");
+
 const ROLE_HOME: Record<string, { route: string; permission: string }> = {
   owner: { route: "/dashboard", permission: "dashboard:read" },
   admin: { route: "/dashboard", permission: "dashboard:read" },
@@ -33,7 +38,7 @@ export const getDefaultRoute = (user: AuthUser | null | undefined): string => {
   if (user.isSuperAdmin) return "/super-admin";
   if (!user.tenantId || !user.roleId) return "/onboarding";
   if (user.Tenant?.approvalStatus && user.Tenant.approvalStatus !== "approved") return "/approval-status";
-  if (user.Tenant?.PlatformSubscription && user.Tenant.PlatformSubscription.status !== "active") return "/subscription";
+  if (requiresSubscription(user)) return "/subscription";
 
   const roleName = normalizeRoleName(user.role);
   const roleHome = ROLE_HOME[roleName];
