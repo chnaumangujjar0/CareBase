@@ -55,11 +55,50 @@ Prisma schema is in `prisma/schema.prisma`; SQL migration history is in `prisma/
 
 ```bash
 npm run db:generate  # Generate the Prisma client
+npm run db:push      # Push the current Prisma schema without creating migrations
 npm run db:migrate   # Create and apply a development migration
 npm run db:deploy    # Apply committed migrations in deployment environments
 ```
 
 `npm install` also runs Prisma client generation through the package's `postinstall` script. Apply migrations before starting the API against a new database. In deployed environments, use `db:deploy` with the committed migration history.
+
+### Supabase setup
+
+Set both connection strings in `Backend/.env`. `DIRECT_URL` is used by Prisma CLI commands
+(`db:push`, `db:migrate`, and `db:deploy`) and must use Supabase's direct connection or session
+pooler connection. `DATABASE_URL` is used by the running API. Do not use a transaction pooler
+connection on port `6543` for Prisma CLI commands; it can produce `prepared statement "s1" already
+exists`. Include `sslmode=require`, for example:
+
+```env
+DIRECT_URL="postgresql://postgres:<PASSWORD>@db.<PROJECT_REF>.supabase.co:5432/postgres?sslmode=require"
+DATABASE_URL="postgresql://postgres.<PROJECT_REF>:<PASSWORD>@<POOLER_HOST>:6543/postgres?sslmode=require&pgbouncer=true"
+```
+
+If the database password contains characters such as `@`, `:`, `/`, `?`, `#`, or spaces, URL-encode
+the password before placing it in the connection string. Never commit `.env`.
+
+From `Backend/`, generate the client and push the schema with:
+
+```powershell
+npm install
+npm run db:generate
+npm run db:push
+npm run dev
+```
+
+`prisma.config.ts` reads `DIRECT_URL` so Prisma CLI commands do not use the transaction pooler.
+
+Use `db:push` for a new or disposable Supabase database. To preserve and apply the committed
+migration history instead, use:
+
+```powershell
+npm run db:generate
+npm run db:deploy
+```
+
+Use `npm run db:migrate` only when intentionally creating a new migration from a development
+schema change. Do not use `db:push` and `db:migrate` interchangeably on a production database.
 
 ## Run and validate
 

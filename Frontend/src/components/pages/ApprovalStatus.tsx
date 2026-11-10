@@ -16,11 +16,12 @@ export default function ApprovalStatus() {
   const checkoutParams = new URLSearchParams(location.search);
   const checkoutSuccess = checkoutParams.get("checkout") === "success";
   const checkoutSessionId = checkoutParams.get("session_id");
+  const userId = user?.id;
   const [checkoutConfirmation, setCheckoutConfirmation] = useState<"pending" | "done">(checkoutSuccess ? "pending" : "done");
   const [checkoutConfirmationError, setCheckoutConfirmationError] = useState("");
 
   useEffect(() => {
-    if (!checkoutSuccess || !isReady || !user) return;
+    if (!checkoutSuccess || !isReady || !userId) return;
     let cancelled = false;
     const confirm = async () => {
       try {
@@ -35,7 +36,7 @@ export default function ApprovalStatus() {
     };
     void confirm();
     return () => { cancelled = true; };
-  }, [checkoutSuccess, checkoutSessionId, dispatch, isReady, user]);
+  }, [checkoutSuccess, checkoutSessionId, dispatch, isReady, userId]);
 
   useEffect(() => {
     if (checkoutSuccess && checkoutConfirmation !== "done") return;
