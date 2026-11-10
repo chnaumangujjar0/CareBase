@@ -41,6 +41,7 @@ Vite prints the local development URL after startup. The frontend expects the ba
 
 - **Public pages:** landing page, public doctor directory and appointment booking, booking lookup, login, signup, hospital onboarding, and approval status.
 - **Hospital workspace:** dashboards, patients, appointments, clinical desk and operations, pharmacy, billing, staff, departments, roles, wards, rooms, beds, hospital profile, and audit logs.
+- **Staff onboarding:** doctor profiles can use the authenticated AI CV extractor to pre-fill details from a text-based PDF CV.
 - **Platform administration:** hospital approval tools restricted to configured platform administrators.
 
 Routes are declared in `src/App.tsx`. Protected routes check authentication, role, or permission before rendering a workspace page. Most page components are loaded lazily and show the shared page skeleton while loading.
@@ -68,6 +69,17 @@ The shared Axios client is in `src/services/axiosinstance.ts`; API functions are
 ## Authentication and API behavior
 
 The frontend sends access tokens with authenticated API calls and handles access-token refresh through the shared Axios client. Public signup, login, appointment browsing, booking, and booking lookup use the API endpoints exposed by the backend. Keep API response shape changes coordinated between both apps.
+
+### AI doctor CV extraction
+
+When creating a doctor from the Staff page, select a PDF CV and choose **Extract Details**. The
+frontend sends the file as `cvFile` to the backend's authenticated
+`POST /api/v1/ai/extract-cv` endpoint, then maps the returned name, contact, specialization,
+license, designation, qualifications, and professional description into the form.
+
+The extracted values are suggestions only. Review them before submitting the profile. The backend
+must have `OPENROUTER_API_KEY` configured, and the CV must be a text-based PDF within the backend's
+5 MB upload limit; scanned image-only PDFs cannot be parsed.
 
 ## Production deployment
 

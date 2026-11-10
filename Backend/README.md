@@ -36,6 +36,7 @@ Create a local `.env` file in `Backend/`. Set the following variables for your e
 | `SMTP_SECURE` | Set to `true` when the SMTP provider requires implicit TLS. |
 | `SMTP_FROM`, `SMTP_FROM_NAME` | Optional sender email and display name. The sender email defaults to `SMTP_USER`; the display name defaults to `CareBase`. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional Cloudinary credentials for image uploads. |
+| `OPENROUTER_API_KEY` | API key used by the AI doctor CV detail extractor through OpenRouter. |
 | `SUPER_ADMIN_EMAILS` | Comma-separated trusted platform administrator email addresses. |
 | `NODE_ENV` | Runtime environment, such as `development` or `production`. |
 
@@ -125,9 +126,26 @@ The server connects to PostgreSQL before listening. The HTTP API is mounted unde
 | `/api/v1/pharmacies`, `/api/v1/medicines` | Pharmacy locations, stock, transfers, requests, sales, and medicine catalogue. |
 | `/api/v1/billing` | Billing rates, invoices, charges, and payments. |
 | `/api/v1/dashboard`, `/api/v1/audit-logs` | Hospital dashboards and audit history. |
+| `/api/v1/ai` | Authenticated AI-assisted doctor CV detail extraction. |
 | `/api/v1/public` | Public doctor search, appointment slots, booking, and booking lookup. |
 
 Most hospital endpoints require a valid access token, an approved hospital, and the relevant role permission. Public booking routes do not require a user login. Consult the route files in `src/routes/` for individual methods and authorization requirements.
+
+## AI doctor CV detail extraction
+
+The staff workflow can use AI to pre-fill a new doctor's profile from a text-based PDF CV. The
+frontend sends the selected file to `POST /api/v1/ai/extract-cv` using the `cvFile` multipart
+field. The endpoint requires authentication, accepts PDF files up to 5 MB, extracts the PDF text,
+and sends it to OpenRouter for structured JSON extraction.
+
+Set `OPENROUTER_API_KEY` in `Backend/.env` before using this feature. The extractor returns
+`fullName`, `email`, `phone`, `specialization`, `licenseNumber`, `designation`, `qualifications`,
+and `professionalDescription`. The frontend maps these values into the doctor form; staff should
+review and correct the AI-generated values before creating the profile.
+
+Scanned/image-only PDFs are not supported because they do not contain extractable text. If the
+file is missing, is not a PDF, exceeds the upload limit, or cannot be processed, the API returns
+an error and the form remains available for manual entry.
 
 ## Public appointment flow
 
