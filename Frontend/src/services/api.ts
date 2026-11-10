@@ -364,6 +364,27 @@ export const createStaffProfile = async (values: CreateStaffProfilePayload) => {
   return res.data.data as CreatedStaffProfileResponse
 }
 
+export interface ExtractedDoctorDetails {
+  fullName: string | null;
+  email: string | null;
+  phone: string | null;
+  specialization: string | null;
+  licenseNumber: string | null;
+  designation: string | null;
+  qualifications: string | null;
+  professionalDescription: string | null;
+}
+
+export const extractDoctorDetails = async (
+  cvFile: File,
+): Promise<ExtractedDoctorDetails> => {
+  const formData = new FormData();
+  formData.append("cvFile", cvFile);
+
+  const res = await api.post("/ai/extract-cv", formData);
+  return res.data.data.formPreFillData as ExtractedDoctorDetails;
+};
+
 export const updateStaffProfile = async (profileId: string, values: UpdateStaffProfilePayload) => {
   const res = await api.patch(`/staff/${profileId}`, values);
   return res.data.data;

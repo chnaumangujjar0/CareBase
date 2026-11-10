@@ -51,6 +51,8 @@ import billingRouter from "./routes/billing.routes.js"
 import medicineRouter from "./routes/medicine.routes.js"
 import superAdminRouter from "./routes/superAdmin.routes.js"
 import publicAppointmentRouter from "./routes/publicAppointment.routes.js"
+import aiRouter from "./routes/detailExtractor.routes.js"
+
 // routes intialization
 app.use("/api/v1/user",userRouter)
 app.use("/api/v1/tenant",tenantRouter)
@@ -70,5 +72,6 @@ app.use("/api/v1/clinical/medicines",medicineRouter)
 app.use("/api/v1/super-admin", superAdminRouter)
 app.use("/api/v1/public", publicAppointmentRouter)
 app.use("/api/v1/subscriptions", subscriptionRouter)
+app.use("/api/v1/ai",aiRouter)
 app.use(errorHandler)
 export {httpServer,app}

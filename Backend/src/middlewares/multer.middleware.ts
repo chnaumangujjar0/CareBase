@@ -3,6 +3,17 @@ import path from "path";
 import fs from "fs"
 import { ApiError } from "../utils/apiError.js";
 
+export const pdfUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype !== "application/pdf") {
+      return cb(new ApiError(400, "Only PDF files are supported"));
+    }
+    cb(null, true);
+  },
+});
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const uploadDir = "./public/temp";

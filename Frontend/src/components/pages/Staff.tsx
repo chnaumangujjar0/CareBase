@@ -20,7 +20,7 @@ import {
   Empty,
   Divider
 } from "antd";
-import { Search, Calendar, Plus, Mail, Phone } from "lucide-react";
+import { Search, Calendar, Plus, Mail, Phone, FileText } from "lucide-react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import dayjs from "dayjs";
@@ -32,6 +32,7 @@ import {
   getDepartments,
   getApiErrorMessage,
   getRoles,
+  extractDoctorDetails,
   updateStaffAvailability,
 } from "../../services/api";
 import { useSelector } from "react-redux";
@@ -149,7 +150,7 @@ const minuteToTime = (minute: number) => dayjs().startOf("day").add(minute, "min
 const formatAvailability = (availability: AvailabilityWindow[]) =>
   availability
     .filter((slot) => slot.isActive !== false)
-    .map((slot) => `${weekDays[slot.dayOfWeek]} ${minuteToTime(slot.startMinute).format("h:mm A")}–${minuteToTime(slot.endMinute).format("h:mm A")}`);
+    .map((slot) => `${weekDays[slot.dayOfWeek]} ${minuteToTime(slot.startMinute).format("h:mm A")}â€“${minuteToTime(slot.endMinute).format("h:mm A")}`);
 
 function WeeklyAvailabilityEditor({
   value,
@@ -237,6 +238,10 @@ function Staff() {
   const [rolesLoading, setRolesLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const user = useSelector(selectCurrentUser) as AuthUser | null;
+
+  // --- AI CV Upload State ---
+  const [cvFile, setCvFile] = useState<File | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
 
   useEffect(() => {
     if (!showModal || !user?.tenantId) return;
@@ -400,6 +405,7 @@ function Staff() {
           setShowModal(false);
           setEditingId(null);
           resetForm();
+          setCvFile(null); // Clear CV state on successful edit (if applicable)
           return;
         }
 
@@ -429,6 +435,7 @@ function Staff() {
         setShowModal(false);
         setEditingId(null);
         resetForm();
+        setCvFile(null); // Clear CV state on successful creation
       } catch (err: unknown) {
         const error = err as { response?: { data?: { message?: string } } };
         toast.error(error.response?.data?.message || "Could not create profile");
@@ -441,6 +448,7 @@ function Staff() {
   const handleClose = () => {
     setShowModal(false);
     setEditingId(null);
+    setCvFile(null); // Clear CV file when closing modal
     formik.resetForm();
   };
 
@@ -456,6 +464,36 @@ function Staff() {
       availability: staff.availability,
     });
     setShowModal(true);
+  };
+
+  // --- AI CV Extraction Handler ---
+  const handleExtractCV = async () => {
+    if (!cvFile) {
+      toast.error("Please select a PDF file first.");
+      return;
+    }
+
+    setIsExtracting(true);
+
+    try {
+      const data = await extractDoctorDetails(cvFile);
+
+      // Populate formik dynamically based on AI output
+      if (data.fullName) formik.setFieldValue("name", data.fullName);
+      if (data.email) formik.setFieldValue("email", data.email);
+      if (data.phone) formik.setFieldValue("phone", data.phone);
+      if (data.specialization) formik.setFieldValue("specialization", data.specialization);
+      if (data.licenseNumber) formik.setFieldValue("licenseNumber", data.licenseNumber);
+      if (data.designation) formik.setFieldValue("designation", data.designation);
+      if (data.qualifications) formik.setFieldValue("qualifications", data.qualifications);
+      if (data.professionalDescription) formik.setFieldValue("description", data.professionalDescription);
+
+      toast.success("CV extracted successfully! Please review the populated fields.");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error, "Something went wrong during CV extraction."));
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const errorMessage = (name: keyof typeof formik.values) =>
@@ -577,7 +615,17 @@ function Staff() {
                               </Text>
                               <Paragraph 
                                 type="secondary" 
-                                style={{ fontSize: 13, margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
+                                style={{
+                                  fontSize: 13,
+                                  lineHeight: '20px',
+                                  maxHeight: '40px',
+                                  margin: 0,
+                                  display: '-webkit-box',
+                                  WebkitBoxOrient: 'vertical',
+                                  WebkitLineClamp: 2,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
                               >
                                 {staff.bio}
                               </Paragraph>
@@ -727,6 +775,39 @@ function Staff() {
                     />
                   </Col>
                 </Row>
+
+                {/* --- AI CV Extraction Box (Only visible for new Doctors) --- */}
+                {formik.values.type === "Doctor" && (
+                  <div style={{ marginBottom: 24, padding: '16px 20px', backgroundColor: '#F0F9FF', border: '1px dashed #0284C7', borderRadius: 8 }}>
+                    <Flex justify="space-between" align="center" wrap="wrap" gap={16}>
+                      <div>
+                        <Text strong style={{ color: '#0369A1', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                          <FileText size={16}/> Auto-fill with AI
+                        </Text>
+                        <Text type="secondary" style={{ fontSize: 13 }}>
+                          Upload the doctor's CV (PDF) to instantly extract their clinical credentials and details.
+                        </Text>
+                      </div>
+                      <Flex gap={12} align="center" wrap="wrap">
+                        <input
+                          type="file"
+                          accept="application/pdf"
+                          onChange={(e) => setCvFile(e.target.files?.[0] || null)}
+                          style={{ fontSize: 13, maxWidth: 220 }}
+                        />
+                        <Button
+                          type="primary"
+                          onClick={handleExtractCV}
+                          loading={isExtracting}
+                          disabled={!cvFile || isExtracting}
+                          style={{ backgroundColor: '#0284C7' }}
+                        >
+                          Extract Details
+                        </Button>
+                      </Flex>
+                    </Flex>
+                  </div>
+                )}
 
                 <Divider orientation="horizontal" style={{ margin: '16px 0 24px 0' }}>
                   <Text strong>General Information</Text>
