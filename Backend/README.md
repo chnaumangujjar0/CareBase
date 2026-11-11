@@ -142,6 +142,31 @@ npm start          # Run the compiled server
 
 The server connects to PostgreSQL before listening. The HTTP API is mounted under `/api/v1`; the same HTTP server hosts Socket.IO for live appointment slot updates.
 
+## Production deployment on Render
+
+Create a Render **Web Service** using the `Backend/` directory as the root directory.
+
+| Render setting | Value |
+| --- | --- |
+| Runtime | Node |
+| Build command | `npm install && npm run build` |
+| Start command | `npm start` |
+| Health check path | `/health` |
+| Node version | Use the version configured by the repository or Render environment. |
+
+Render injects environment variables directly; do not create or upload a production `.env` file.
+Set `DATABASE_URL` to the runtime PostgreSQL connection string and `DIRECT_URL` to a direct or
+session-pooler connection for Prisma migrations. Run `npm run db:deploy` once against the production
+database before serving traffic, then redeploy the service if necessary.
+
+After the Vercel deployment exists, set `CORS_ORIGIN` to the exact Vercel production URL. Multiple
+origins may be supplied as a comma-separated allowlist when preview access is required, for example:
+`https://carebase.vercel.app,https://carebase-git-main-example.vercel.app`. Do not use `*` with
+credentials enabled.
+
+The Render service must remain a Web Service, not a static site, because it serves the API and
+Socket.IO endpoint. Use the Render HTTPS URL as the frontend API base URL.
+
 ## API areas
 
 | Base path | Purpose |

@@ -1,3 +1,5 @@
+import { API_URL } from "./apiConfig";
+
 export interface PublicBookingSocket {
   connect(): void;
   disconnect(): void;
@@ -15,7 +17,7 @@ declare global {
 let loadingClient: Promise<void> | null = null;
 
 const socketOrigin = () => {
-  const apiUrl = import.meta.env.VITE_API_URL as string | undefined;
+  const apiUrl = API_URL || undefined;
   if (!apiUrl) return window.location.origin;
   const url = new URL(apiUrl, window.location.origin);
   url.pathname = url.pathname.replace(/\/api\/v\d+\/?$/, "") || "/";

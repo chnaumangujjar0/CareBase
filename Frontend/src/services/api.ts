@@ -1,5 +1,4 @@
 import axios from "axios"
-const API_URL = import.meta.env.VITE_API_URL;
 import api from "./axiosinstance"
 import type { AuthResponseData, LoginPayload, OnboardingPayload, OnboardingResponseData, PlatformTenant, SignupPayload } from "../types/auth";
 import type {
@@ -66,7 +65,7 @@ import type { Tenant } from "../types/auth";
 // user apis
 
 export const registerUser = async (values: SignupPayload & { recaptchaToken: string }) => {
-  const res = await axios.post(`${API_URL}/user/register`, {
+  const res = await api.post("/user/register", {
     name: values.name.trim(),
     email: values.email.trim(),
     password: values.password.trim(),
@@ -79,8 +78,8 @@ export const registerUser = async (values: SignupPayload & { recaptchaToken: str
 
 
 export const loginUser = async (values: LoginPayload & { recaptchaToken: string }) => {
-  
-  const res = await axios.post(`${API_URL}/user/login`,{
+
+  const res = await api.post("/user/login",{
     email: values.email.trim(),
     password: values.password.trim(),
     recaptchaToken: values.recaptchaToken,
@@ -90,12 +89,12 @@ export const loginUser = async (values: LoginPayload & { recaptchaToken: string 
 }
 
 export const requestPasswordReset = async (email: string): Promise<string> => {
-  const res = await axios.post(`${API_URL}/user/forgot-password`, { email });
+  const res = await api.post("/user/forgot-password", { email });
   return res.data.message as string;
 };
 
 export const resetPassword = async (token: string, password: string): Promise<string> => {
-  const res = await axios.post(`${API_URL}/user/reset-password`, { token, password });
+  const res = await api.post("/user/reset-password", { token, password });
   return res.data.message as string;
 };
 

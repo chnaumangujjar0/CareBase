@@ -2,6 +2,7 @@ import axios, {
   AxiosError,
 } from "axios";
 import type { AxiosInstance ,InternalAxiosRequestConfig,AxiosResponse} from "axios";
+import { API_URL } from "./apiConfig";
 interface QueueItem {
   resolve: (token: string) => void;
   reject: (error: unknown) => void;
@@ -17,8 +18,6 @@ interface RefreshTokenResponse {
     accessToken?: string;
   };
 }
-
-const API_URL = import.meta.env.VITE_API_URL as string;
 
 const api: AxiosInstance = axios.create({
   baseURL: API_URL,

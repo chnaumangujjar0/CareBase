@@ -9,9 +9,25 @@ import { handleStripeWebhook } from "./controllers/subscription.controller.js"
 
 const app = express()
 const httpServer = http.createServer(app);
+const allowedOrigins = (process.env.CORS_ORIGIN ?? "")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (error: Error | null, allowed?: boolean) => void) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error("Origin is not allowed by CORS"));
+  },
+  credentials: true,
+};
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CORS_ORIGIN, 
+    origin: allowedOrigins,
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -19,16 +35,16 @@ const io = new Server(httpServer, {
 
 app.set("io",io)
 registerPublicAppointmentSockets(io)
-app.use(cors({
-    origin: process.env.CORS_ORIGIN,
-    credentials: true
-}))
+app.use(cors(corsOptions))
 // Stripe signature verification requires the original request bytes, before JSON parsing.
 app.post("/api/v1/subscriptions/webhook", express.raw({ type: "application/json" }), handleStripeWebhook)
 app.use(express.json({limit : "16kb"}))
 app.use(express.urlencoded({extended : true, limit : "16kb"}))
 app.use(express.static("public"))
 app.use(cookieParser())
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+})
 
 
 

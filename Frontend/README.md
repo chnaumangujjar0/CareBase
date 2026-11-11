@@ -37,6 +37,32 @@ npm run preview   # Serve the production bundle locally
 
 Vite prints the local development URL after startup. The frontend expects the backend to allow requests from that origin through its CORS configuration.
 
+## Production deployment on Vercel
+
+Import the repository into Vercel and set the project root directory to `Frontend/`.
+
+| Vercel setting | Value |
+| --- | --- |
+| Framework preset | Vite |
+| Build command | `npm run build` |
+| Output directory | `dist` |
+| Install command | `npm install` |
+
+Set these Vercel environment variables for the Production environment before building:
+
+```env
+VITE_API_URL=https://your-carebase-api.onrender.com/api/v1
+VITE_RECAPTCHA_SITE_KEY=your_production_recaptcha_site_key
+```
+
+The included [vercel.json](./vercel.json) rewrites application routes to `index.html`, so direct
+navigation to `/login`, `/staff`, `/reset-password`, and other React Router routes works after a
+refresh. Use the final Vercel production URL as the backend `CORS_ORIGIN` value.
+
+After changing either Vite variable, trigger a new Vercel deployment because Vite embeds them at
+build time. Test the deployed frontend at `/login`, `/forgot-password`, `/reset-password`, and
+`/book-appointment`, not only at `/`.
+
 ## Main application areas
 
 - **Public pages:** landing page, public doctor directory and appointment booking, booking lookup, login, signup, hospital onboarding, and approval status.
