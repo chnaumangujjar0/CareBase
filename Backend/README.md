@@ -149,12 +149,14 @@ Create a Render **Web Service** using the `Backend/` directory as the root direc
 | Render setting | Value |
 | --- | --- |
 | Runtime | Node |
-| Build command | `npm install && npm run build` |
+| Build command | `npm install --include=dev && npm run build` |
 | Start command | `npm start` |
 | Health check path | `/health` |
 | Node version | Use the version configured by the repository or Render environment. |
 
 Render injects environment variables directly; do not create or upload a production `.env` file.
+Use `npm install --include=dev` because the TypeScript compiler and declaration packages are
+development dependencies required during the build, even though they are not needed at runtime.
 The build command generates Prisma and copies its runtime artifacts into `dist`, which is required
 because the generated client is configured under `src/generated/prisma`.
 Set `DATABASE_URL` to the runtime PostgreSQL connection string and `DIRECT_URL` to a direct or
