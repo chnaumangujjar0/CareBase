@@ -1,1 +1,3 @@
-export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || "";
+// API calls use the Vercel same-origin proxy, so the backend hostname is not
+// embedded in the browser bundle.
+export const API_URL = "/api/v1";

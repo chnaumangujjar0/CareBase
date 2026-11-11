@@ -18,11 +18,10 @@ npm install
 Create a local `.env` file in `Frontend/` with the values for your environment:
 
 ```dotenv
-VITE_API_URL=http://localhost:8000/api/v1
 VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 ```
 
-`VITE_API_URL` is the backend API base URL, including `/api/v1`. The reCAPTCHA site key is used for automatic verification on the login and signup forms. Those forms require a valid site key and a matching backend secret key; the visible notice describes the verification and links to Google's privacy and terms pages.
+The frontend uses the same-origin `/api/v1` path. In development, Vite proxies it to the local backend; in production, Vercel proxies it to Render. The reCAPTCHA site key is used for automatic verification on the login and signup forms. Those forms require a valid site key and a matching backend secret key; the visible notice describes the verification and links to Google's privacy and terms pages.
 
 Do not commit `.env` files or place private keys in variables prefixed with `VITE_`; Vite exposes those values to browser code. Email-provider keys belong only in `Backend/.env`.
 
@@ -51,17 +50,16 @@ Import the repository into Vercel and set the project root directory to `Fronten
 Set these Vercel environment variables for the Production environment before building:
 
 ```env
-VITE_API_URL=https://your-carebase-api.onrender.com/api/v1
 VITE_RECAPTCHA_SITE_KEY=your_production_recaptcha_site_key
 ```
 
-The included [vercel.json](./vercel.json) rewrites application routes to `index.html`, so direct
-navigation to `/login`, `/staff`, `/reset-password`, and other React Router routes works after a
-refresh. Use the final Vercel production URL as the backend `CORS_ORIGIN` value.
+The included [vercel.json](./vercel.json) proxies API and Socket.IO requests to Render and rewrites
+application routes to `index.html`, so direct navigation to `/login`, `/staff`, `/reset-password`,
+and other React Router routes works after a refresh. Use the final Vercel production URL as the
+backend `CORS_ORIGIN` value.
 
-After changing either Vite variable, trigger a new Vercel deployment because Vite embeds them at
-build time. Test the deployed frontend at `/login`, `/forgot-password`, `/reset-password`, and
-`/book-appointment`, not only at `/`.
+After changing the reCAPTCHA variable, trigger a new Vercel deployment. Test the deployed frontend
+at `/login`, `/forgot-password`, `/reset-password`, and `/book-appointment`, not only at `/`.
 
 ## Main application areas
 
@@ -116,11 +114,11 @@ confirms whether the submitted email belongs to an account.
 
 ## Production deployment
 
-Build the app with `npm run build` and deploy the generated `dist/` directory to a static web host. Configure `VITE_API_URL` and `VITE_RECAPTCHA_SITE_KEY` for the deployment environment at build time. Configure the backend CORS origin to match the deployed frontend origin. Because Vite variables are embedded in the bundle, changing them requires a new build.
+Build the app with `npm run build` and deploy the generated `dist/` directory to a static web host. Configure only `VITE_RECAPTCHA_SITE_KEY` for the deployment environment at build time. Configure the backend CORS origin to match the deployed frontend origin.
 
 ## Troubleshooting
 
-- **API requests fail:** confirm `VITE_API_URL` points to the backend API base URL and that the backend is running.
+- **API requests fail:** confirm the Render backend is running and that its URL in `vercel.json` is correct.
 - **Browser reports a CORS error:** add the frontend origin to the backend's CORS configuration.
 - **Login or signup challenge is unavailable:** configure the matching reCAPTCHA site key in the frontend and secret key in the backend.
 - **A protected page redirects or shows an access error:** verify the signed-in user's active status, hospital approval, role, and permissions in the backend.
