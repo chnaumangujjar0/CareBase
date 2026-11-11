@@ -12,6 +12,8 @@ import { writeAuditLog } from "../utils/audit.utils.js";
 import { getEffectiveRolePermissions } from "../constants/roles.js";
 import { isConfiguredSuperAdmin } from "../utils/superAdmin.utils.js";
 import { verifyRecaptcha } from "../utils/verifyRecaptcha.js";
+import { createHash, randomBytes } from "node:crypto";
+import { sendPasswordResetEmail } from "../services/staff-credentials-email.service.js";
 const options = {
   httpOnly: true,
   secure: true,
@@ -20,6 +22,78 @@ const options = {
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const BCRYPT_ROUNDS = 12;
 const MIN_PASSWORD_LENGTH = 12;
+const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
+const PASSWORD_RESET_TTL_MINUTES = 30;
+const hashResetToken = (token: string) => createHash("sha256").update(token).digest("hex");
+const resetUrl = (token: string) => {
+  const base = process.env.FRONTEND_URL?.trim();
+  if (!base) throw new ApiError(500, "FRONTEND_URL is not configured");
+  return new URL(`/reset-password?token=${encodeURIComponent(token)}`, base).toString();
+};
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const email = typeof req.body?.email === "string" ? req.body.email.toLowerCase().trim() : "";
+  if (!EMAIL_REGEX.test(email)) throw new ApiError(400, "Please enter a valid email address");
+
+  const user = await db.user.findUnique({ where: { email }, select: { id: true, name: true, email: true, isActive: true } });
+  if (user?.isActive) {
+    const rawToken = randomBytes(32).toString("base64url");
+    await db.passwordResetToken.deleteMany({ where: { userId: user.id } });
+    await db.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        tokenHash: hashResetToken(rawToken),
+        expiresAt: new Date(Date.now() + PASSWORD_RESET_TTL_MS),
+      },
+    });
+    const result = await sendPasswordResetEmail({
+      name: user.name,
+      email: user.email,
+      resetUrl: resetUrl(rawToken),
+      expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
+    });
+    if (!result.sent) console.error("Password reset email delivery failed", result.reason);
+  }
+
+  return res.status(202).json(new ApiResponse(202, null, "If an active account exists, a password reset link has been sent."));
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response) => {
+  const token = typeof req.body?.token === "string" ? req.body.token : "";
+  const password = typeof req.body?.password === "string" ? req.body.password : "";
+  if (!token || password.length < MIN_PASSWORD_LENGTH) {
+    throw new ApiError(400, `A valid reset token and password of at least ${MIN_PASSWORD_LENGTH} characters are required`);
+  }
+
+  const resetToken = await db.passwordResetToken.findUnique({
+    where: { tokenHash: hashResetToken(token) },
+  });
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt <= new Date()) {
+    throw new ApiError(400, "This password reset link is invalid or expired");
+  }
+
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
+  const now = new Date();
+  await db.$transaction(async (transaction) => {
+    const consumed = await transaction.passwordResetToken.updateMany({
+      where: {
+        id: resetToken.id,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: { usedAt: now },
+    });
+    if (consumed.count !== 1) {
+      throw new ApiError(400, "This password reset link is invalid or expired");
+    }
+    await transaction.user.update({ where: { id: resetToken.userId }, data: { passwordHash } });
+    await transaction.session.updateMany({
+      where: { userId: resetToken.userId, revokedAt: null },
+      data: { revokedAt: now },
+    });
+  });
+  return res.status(200).json(new ApiResponse(200, null, "Password reset successfully. Please sign in."));
+});
 
  export const registerOwner = asyncHandler(async (req: Request, res: Response) => {
   await verifyRecaptcha(req.body?.recaptchaToken, "signup");

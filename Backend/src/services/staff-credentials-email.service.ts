@@ -46,6 +46,13 @@ export interface TenantApprovalEmailInput {
   note?: string | null;
 }
 
+export interface PasswordResetEmailInput {
+  name: string;
+  email: string;
+  resetUrl: string;
+  expiresInMinutes: number;
+}
+
 export type CredentialEmailResult = { sent: true } | { sent: false; reason: "not_configured" | "provider_error" | "recipient_missing" };
 
 const escapeHtml = (value: string): string => value.replace(/[&<>"']/g, (character) => ({
@@ -137,18 +144,60 @@ const buildHtml = (input: StaffCredentialEmailInput): string => {
 </body></html>`;
 };
 
-const sendSmtpEmail = async (input: {
+const sendEmail = async (input: {
   to: { email: string; name?: string };
   subject: string;
   html: string;
   text: string;
 }): Promise<void> => {
+  const provider = process.env.EMAIL_PROVIDER?.trim().toLowerCase() || "smtp";
+  const senderEmail = process.env.EMAIL_FROM?.trim();
+  const senderName = process.env.EMAIL_FROM_NAME?.trim() || "CareBase";
+
+  if (provider === "resend") {
+    const apiKey = process.env.RESEND_API_KEY?.trim();
+    if (!apiKey || !senderEmail) throw new Error("not_configured");
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: `${senderName} <${senderEmail}>`,
+        to: [input.to.email],
+        subject: input.subject,
+        html: input.html,
+        text: input.text,
+      }),
+    });
+    if (!response.ok) throw new Error(`resend_${response.status}`);
+    return;
+  }
+
+  if (provider === "brevo") {
+    const apiKey = process.env.BREVO_API_KEY?.trim();
+    if (!apiKey || !senderEmail) throw new Error("not_configured");
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: { "api-key": apiKey, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: input.to.email, ...(input.to.name ? { name: input.to.name } : {}) }],
+        subject: input.subject,
+        htmlContent: input.html,
+        textContent: input.text,
+      }),
+    });
+    if (!response.ok) throw new Error(`brevo_${response.status}`);
+    return;
+  }
+
+  if (provider !== "smtp") throw new Error("not_configured");
+
   const host = process.env.SMTP_HOST?.trim();
   const user = process.env.SMTP_USER?.trim();
   const pass = process.env.SMTP_PASS;
-  const senderEmail = process.env.SMTP_FROM?.trim() || user;
+  const smtpSenderEmail = process.env.SMTP_FROM?.trim() || user;
   const port = Number(process.env.SMTP_PORT?.trim() || 587);
-  if (!host || !user || !pass || !senderEmail || !Number.isInteger(port) || port < 1 || port > 65535) {
+  if (!host || !user || !pass || !smtpSenderEmail || !Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("not_configured");
   }
 
@@ -162,7 +211,7 @@ const sendSmtpEmail = async (input: {
     socketTimeout: 10_000,
   });
   await transporter.sendMail({
-    from: { name: process.env.SMTP_FROM_NAME?.trim() || "CareBase", address: senderEmail },
+    from: { name: process.env.SMTP_FROM_NAME?.trim() || senderName, address: smtpSenderEmail },
     to: input.to.name ? { name: input.to.name, address: input.to.email } : input.to.email,
     subject: input.subject,
     html: input.html,
@@ -171,14 +220,14 @@ const sendSmtpEmail = async (input: {
 };
 
 const emailFailure = (label: string, error: unknown): CredentialEmailResult => {
-  if (error instanceof Error && error.message === "not_configured") console.error(`${label} email was not sent: SMTP configuration is incomplete or invalid.`);
-  else console.error(`${label} email could not be delivered through SMTP.`, error instanceof Error ? error.name : "unknown error");
+  if (error instanceof Error && error.message === "not_configured") console.error(`${label} email was not sent: email provider configuration is incomplete or invalid.`);
+  else console.error(`${label} email could not be delivered.`, error instanceof Error ? error.name : "unknown error");
   return { sent: false, reason: error instanceof Error && error.message === "not_configured" ? "not_configured" : "provider_error" };
 };
 
 export const sendStaffCredentialsEmail = async (input: StaffCredentialEmailInput): Promise<CredentialEmailResult> => {
   try {
-    await sendSmtpEmail({
+    await sendEmail({
       to: { email: input.email, name: input.name },
       subject: "Your CareBase sign-in details",
       html: buildHtml(input),
@@ -187,6 +236,28 @@ export const sendStaffCredentialsEmail = async (input: StaffCredentialEmailInput
     return { sent: true };
   } catch (error) {
     return emailFailure("Staff credentials", error);
+  }
+};
+
+export const sendPasswordResetEmail = async (input: PasswordResetEmailInput): Promise<CredentialEmailResult> => {
+  const name = escapeHtml(input.name);
+  const resetUrl = escapeHtml(input.resetUrl);
+  const content = `
+    <p style="margin:0 0 8px;color:${BRAND.primary};font-size:12px;line-height:18px;font-weight:700;letter-spacing:1px;">PASSWORD RESET</p>
+    <h1 style="margin:0 0 12px;font-size:24px;line-height:32px;color:${BRAND.text};">Reset your CareBase password</h1>
+    <p style="margin:0 0 22px;font-size:15px;line-height:24px;color:${BRAND.muted};">Hello ${name}, we received a request to reset your password.</p>
+    <p style="margin:0 0 24px;"><a href="${resetUrl}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:${BRAND.primary};color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Reset password</a></p>
+    <p style="margin:0;font-size:13px;line-height:21px;color:${BRAND.muted};">This link expires in ${input.expiresInMinutes} minutes and can be used only once. If you did not request this, you can safely ignore this email.</p>`;
+  try {
+    await sendEmail({
+      to: { email: input.email, name: input.name },
+      subject: "Reset your CareBase password",
+      html: buildBrandedEmail(content),
+      text: `Hello ${input.name}, reset your CareBase password here: ${input.resetUrl}\n\nThis link expires in ${input.expiresInMinutes} minutes and can be used only once.`,
+    });
+    return { sent: true };
+  } catch (error) {
+    return emailFailure("Password reset", error);
   }
 };
 
@@ -203,7 +274,7 @@ export const sendPublicAppointmentEmail = async (input: PublicAppointmentEmailIn
   const code = escapeHtml(input.bookingCode);
   const loginUrl = safeLoginUrl();
   try {
-    await sendSmtpEmail({
+    await sendEmail({
       to: { email: input.recipientEmail, name: input.patientName },
       subject: "Your CareBase appointment booking",
       html: `<!doctype html><html lang="en"><body style="margin:0;padding:28px 12px;background:${BRAND.surface};font-family:Arial,Helvetica,sans-serif;color:${BRAND.text};"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:580px;margin:0 auto;background:${BRAND.white};border:1px solid ${BRAND.border};border-radius:12px;"><tr><td style="padding:28px 30px;"><div style="font-size:24px;font-weight:700;letter-spacing:-1px;"><span style="color:${BRAND.primary};">Care</span><span style="color:#0F172A;">Base</span></div><p style="margin:24px 0 8px;color:${BRAND.primary};font-size:12px;font-weight:700;letter-spacing:1px;">APPOINTMENT BOOKED</p><h1 style="margin:0 0 12px;font-size:24px;line-height:1.25;">Your appointment is confirmed</h1><p style="margin:0 0 22px;line-height:1.65;color:${BRAND.muted};">Hello ${patientName}, your appointment has been booked. Keep your private booking code to view the appointment later.</p><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F8FAFC;border:1px solid ${BRAND.border};border-radius:8px;"><tr><td style="padding:16px 18px;font-size:14px;line-height:1.8;"><strong>${hospitalName}</strong><br>Dr. ${doctorName}<br>${departmentName}<br>${escapeHtml(dateTime)} (Pakistan Standard Time)</td></tr></table><p style="margin:22px 0 7px;font-size:12px;color:${BRAND.muted};font-weight:700;letter-spacing:.7px;">PRIVATE BOOKING CODE</p><div style="padding:15px 18px;border:1px dashed ${BRAND.primary};border-radius:8px;background:#F0FDFA;color:${BRAND.primary};font-family:monospace;font-size:19px;font-weight:700;letter-spacing:2px;word-break:break-all;">${code}</div><p style="margin:14px 0 0;font-size:13px;line-height:1.65;color:${BRAND.muted};">Use this code together with ${escapeHtml(input.recipientEmail)} on the CareBase patient appointments page. Anyone with the code can access these booking details, so keep it private.</p>${loginUrl ? `<p style="margin:22px 0 0;"><a href="${escapeHtml(new URL("/my-appointments", loginUrl).toString())}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:${BRAND.primary};color:white;text-decoration:none;font-size:14px;font-weight:700;">View my appointment</a></p>` : ""}</td></tr></table></body></html>`,
@@ -250,7 +321,7 @@ export const sendTenantRegistrationEmail = async (input: TenantRegistrationEmail
     ${adminUrl ? `<p style="margin:24px 0 0;"><a href="${escapeHtml(adminUrl)}" style="display:inline-block;padding:12px 20px;border-radius:8px;background:${BRAND.primary};color:#fff;text-decoration:none;font-size:14px;font-weight:700;">Review application</a></p>` : ""}
     <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid ${BRAND.border};font-size:13px;line-height:21px;color:${BRAND.muted};">This is an automated notification from CareBase. Hospital access remains subject to the approval review.</p>`;
   try {
-    await sendSmtpEmail({
+    await sendEmail({
       to: { email: recipientEmail },
       subject: "New CareBase hospital application",
       html: buildBrandedEmail(content),
@@ -287,7 +358,7 @@ export const sendTenantApprovalEmail = async (input: TenantApprovalEmailInput): 
     <p style="margin:22px 0 0;padding-top:18px;border-top:1px solid ${BRAND.border};font-size:13px;line-height:21px;color:${BRAND.muted};">If you have questions, reply to this email to contact the CareBase team.</p>`;
 
   try {
-    await sendSmtpEmail({
+    await sendEmail({
       to: { email: input.ownerEmail, name: input.ownerName },
       subject: approved ? "Your CareBase hospital application is approved" : "Update on your CareBase hospital application",
       html: buildBrandedEmail(content),

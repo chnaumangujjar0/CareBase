@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Container, Card, Form, Button } from "react-bootstrap";
+import { Link } from "react-router";
 import { Spin } from "antd";
 import { setUser } from "../../store/authSlice";
 import Logo from "../../assets/carebase-logo-full.svg";
@@ -116,6 +117,9 @@ const Login = () => {
                   {formik.errors.password}
                 </Form.Control.Feedback>
               </Form.Group>
+              <div className="text-end mb-4">
+                <Link to="/forgot-password" className="small fw-semibold text-decoration-none">Forgot password?</Link>
+              </div>
 
               <RecaptchaNotice />
 

@@ -15,6 +15,8 @@ const LandingPage = lazy(() => import('./components/pages/LandingPage'));
 const PublicAppointmentBooking = lazy(() => import('./components/pages/PublicAppointmentBooking'));
 const PatientAppointments = lazy(() => import('./components/pages/PatientAppointments'));
 const Login = lazy(() => import('./components/pages/Login'));
+const ForgotPassword = lazy(() => import('./components/pages/ForgotPassword'));
+const ResetPassword = lazy(() => import('./components/pages/ResetPassword'));
 const SignUp = lazy(() => import('./components/pages/SignUp').then((module) => ({ default: module.SignUp })));
 const ApprovalStatus = lazy(() => import('./components/pages/ApprovalStatus'));
 const Subscription = lazy(() => import('./components/pages/Subscription'));
@@ -72,6 +74,8 @@ function App() {
             <Route path="/book-appointment" element={<PublicAppointmentBooking />} />
             <Route path="/my-appointments" element={<PatientAppointments />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="/approval-status" element={<ApprovalStatus />} />
 

@@ -35,12 +35,42 @@ Create a local `.env` file in `Backend/`. Set the following variables for your e
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` | SMTP connection settings for email delivery. |
 | `SMTP_SECURE` | Set to `true` when the SMTP provider requires implicit TLS. |
 | `SMTP_FROM`, `SMTP_FROM_NAME` | Optional sender email and display name. The sender email defaults to `SMTP_USER`; the display name defaults to `CareBase`. |
+| `EMAIL_PROVIDER` | Email transport: `brevo`, `resend`, or `smtp` (default). |
+| `EMAIL_FROM`, `EMAIL_FROM_NAME` | Sender address and display name for Brevo or Resend. The address must be verified with the provider. |
+| `BREVO_API_KEY` | Brevo API key, required when `EMAIL_PROVIDER=brevo`. |
+| `RESEND_API_KEY` | Resend API key, required when `EMAIL_PROVIDER=resend`. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Optional Cloudinary credentials for image uploads. |
 | `OPENROUTER_API_KEY` | API key used by the AI doctor CV detail extractor through OpenRouter. |
 | `SUPER_ADMIN_EMAILS` | Comma-separated trusted platform administrator email addresses. |
 | `NODE_ENV` | Runtime environment, such as `development` or `production`. |
 
 Never commit `.env` files or include real credentials in documentation, screenshots, or issue reports.
+
+### Free email provider setup
+
+CareBase supports Brevo and Resend through their HTTPS APIs. Choose one provider and set
+`EMAIL_PROVIDER`, `EMAIL_FROM`, `EMAIL_FROM_NAME`, and the matching API key. No npm package is
+required. The legacy SMTP transport remains available by setting `EMAIL_PROVIDER=smtp`.
+
+Brevo's free plan does not require buying a domain: create a free account, generate an API key,
+and verify a sender email address that you own in **Senders & IP**. Use that exact address as
+`EMAIL_FROM`; Brevo's free plan currently includes a daily sending limit, so monitor usage.
+
+Resend also does not require buying a domain for initial testing. Create an API key and use the
+provider's `onboarding@resend.dev` sender, but Resend restricts that onboarding sender to the
+account owner's recipient address. To send password-reset emails to arbitrary staff addresses,
+Resend requires a verified sending domain. Therefore, Brevo is the practical no-domain choice for
+production use with free-tier CareBase accounts.
+
+Example Brevo configuration:
+
+```env
+EMAIL_PROVIDER=brevo
+EMAIL_FROM=your-verified-email@example.com
+EMAIL_FROM_NAME=CareBase
+BREVO_API_KEY=your_brevo_api_key
+FRONTEND_URL=http://localhost:5173
+```
 
 ### CareBase subscriptions
 
@@ -130,6 +160,19 @@ The server connects to PostgreSQL before listening. The HTTP API is mounted unde
 | `/api/v1/public` | Public doctor search, appointment slots, booking, and booking lookup. |
 
 Most hospital endpoints require a valid access token, an approved hospital, and the relevant role permission. Public booking routes do not require a user login. Consult the route files in `src/routes/` for individual methods and authorization requirements.
+
+## Password reset flow
+
+`POST /api/v1/user/forgot-password` accepts `{ "email": "staff@example.com" }` and always
+returns a generic `202` response so account existence is not disclosed. For an active account,
+the backend stores only a SHA-256 hash of a random, single-use token and sends a reset link that
+expires after 30 minutes. `POST /api/v1/user/reset-password` accepts the token and a new password
+of at least 12 characters. A successful reset marks the token used and revokes all active login
+sessions for that user.
+
+The forgot-password endpoint is rate limited by IP and normalized email. Password-reset emails
+use the configured email provider and failures are logged without revealing account existence to
+the requester.
 
 ## AI doctor CV detail extraction
 

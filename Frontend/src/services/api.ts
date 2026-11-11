@@ -89,6 +89,16 @@ export const loginUser = async (values: LoginPayload & { recaptchaToken: string 
   return res.data.data as AuthResponseData;
 }
 
+export const requestPasswordReset = async (email: string): Promise<string> => {
+  const res = await axios.post(`${API_URL}/user/forgot-password`, { email });
+  return res.data.message as string;
+};
+
+export const resetPassword = async (token: string, password: string): Promise<string> => {
+  const res = await axios.post(`${API_URL}/user/reset-password`, { token, password });
+  return res.data.message as string;
+};
+
 export const logoutUser = async () => {
   const refreshToken = localStorage.getItem("refreshToken")
   const res = await api.post("/user/logout",{refreshToken})

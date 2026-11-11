@@ -24,7 +24,7 @@ VITE_RECAPTCHA_SITE_KEY=your_recaptcha_site_key
 
 `VITE_API_URL` is the backend API base URL, including `/api/v1`. The reCAPTCHA site key is used for automatic verification on the login and signup forms. Those forms require a valid site key and a matching backend secret key; the visible notice describes the verification and links to Google's privacy and terms pages.
 
-Do not commit `.env` files or place private keys in variables prefixed with `VITE_`; Vite exposes those values to browser code.
+Do not commit `.env` files or place private keys in variables prefixed with `VITE_`; Vite exposes those values to browser code. Email-provider keys belong only in `Backend/.env`.
 
 ## Development and build
 
@@ -42,6 +42,7 @@ Vite prints the local development URL after startup. The frontend expects the ba
 - **Public pages:** landing page, public doctor directory and appointment booking, booking lookup, login, signup, hospital onboarding, and approval status.
 - **Hospital workspace:** dashboards, patients, appointments, clinical desk and operations, pharmacy, billing, staff, departments, roles, wards, rooms, beds, hospital profile, and audit logs.
 - **Staff onboarding:** doctor profiles can use the authenticated AI CV extractor to pre-fill details from a text-based PDF CV.
+- **Account recovery:** staff can request a single-use password reset link from the login page.
 - **Platform administration:** hospital approval tools restricted to configured platform administrators.
 
 Routes are declared in `src/App.tsx`. Protected routes check authentication, role, or permission before rendering a workspace page. Most page components are loaded lazily and show the shared page skeleton while loading.
@@ -80,6 +81,12 @@ license, designation, qualifications, and professional description into the form
 The extracted values are suggestions only. Review them before submitting the profile. The backend
 must have `OPENROUTER_API_KEY` configured, and the CV must be a text-based PDF within the backend's
 5 MB upload limit; scanned image-only PDFs cannot be parsed.
+
+### Forgot password
+
+Use **Forgot password?** on the login page to request a reset email. The reset page requires the
+single-use token from the email and enforces a minimum 12-character password. The backend never
+confirms whether the submitted email belongs to an account.
 
 ## Production deployment
 
