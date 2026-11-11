@@ -6,21 +6,21 @@ import {
   getWard,
   listWards,
   updateWard,
-} from "../controllers/ward.controller";
+} from "../controllers/ward.controller.js";
 import {
   createRoom,
   deleteRoom,
   getRoom,
   listRooms,
   updateRoom,
-} from "../controllers/room.controller";
+} from "../controllers/room.controller.js";
 import {
   createBed,
   deleteBed,
   getBed,
   listBeds,
   updateBed,
-} from "../controllers/bed.controller";
+} from "../controllers/bed.controller.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import {
   checkAuthorizationForSuperRoles,

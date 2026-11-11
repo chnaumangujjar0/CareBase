@@ -1,6 +1,6 @@
 import type { Request } from "express";
 import { z } from "zod";
-import { ApiError } from "./apiError";
+import { ApiError } from "./apiError.js";
 
 
 export const parseOrThrow = <S extends z.ZodType>(

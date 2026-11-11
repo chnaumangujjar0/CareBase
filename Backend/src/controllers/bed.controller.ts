@@ -1,8 +1,8 @@
 import type { Request, Response } from "express";
 import { z } from "zod";
-import { asyncHandler } from "../utils/asyncHandler";
-import { ApiError } from "../utils/apiError";
-import { ApiResponse } from "../utils/apiResponse";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { ApiError } from "../utils/apiError.js";
+import { ApiResponse } from "../utils/apiResponse.js";
 import {
   BED_STATUSES,
   MANUAL_BED_STATUSES,
@@ -13,8 +13,8 @@ import {
   paginationSchema,
   parseOrThrow,
   uuidSchema,
-} from "../utils/facility.utils";
-import { db } from "../db";
+} from "../utils/facility.utils.js";
+import { db } from "../db/index.js";
 import { writeAuditLog } from "../utils/audit.utils.js";
 import { getTenantContext } from "../utils/request.utils.js";
 

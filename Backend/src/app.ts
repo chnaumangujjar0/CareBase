@@ -51,7 +51,7 @@ app.get("/health", (_req, res) => {
 // roter imports
 
 import userRouter from "./routes/user.routes.js"
-import { errorHandler } from "./middlewares/error.middleware";
+import { errorHandler } from "./middlewares/error.middleware.js";
 import tenantRouter from "./routes/tenant.routes.js"
 import departmentRouter from "./routes/department.routes.js"
 import staffRouter from "./routes/staff.routes.js"
