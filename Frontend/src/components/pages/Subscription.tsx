@@ -125,7 +125,7 @@ export default function Subscription() {
     return "There is no price difference for this change.";
   }, [priceDifference]);
 
-  if (!isReady || loading) return <Spin fullscreen spinning tip="Loading subscription and billing..." />;
+  if (!isReady || loading) return <Spin fullscreen spinning description="Loading subscription and billing..." />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.isSuperAdmin) return <Navigate to="/super-admin" replace />;
   if (!user.tenantId) return <Navigate to="/onboarding" replace />;

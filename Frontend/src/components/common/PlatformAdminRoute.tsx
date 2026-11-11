@@ -4,7 +4,7 @@ import { useAuthBootstrap } from "../../hooks/useAuthBootstrap";
 
 export default function PlatformAdminRoute() {
   const { isReady, user } = useAuthBootstrap();
-  if (!isReady) return <Spin fullscreen spinning tip="Loading..." />;
+  if (!isReady) return <Spin fullscreen spinning description="Loading..." />;
   if (!user) return <Navigate to="/login" replace />;
   return user.isSuperAdmin ? <Outlet /> : <Navigate to="/unauthorized" replace />;
 }

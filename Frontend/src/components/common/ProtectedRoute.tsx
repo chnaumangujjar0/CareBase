@@ -20,7 +20,7 @@ export const ProtectedRoute = ({
   const { isReady, user } = useAuthBootstrap();
 
   if (!isReady) {
-    return <Spin fullscreen spinning tip="Loading..." />;
+    return <Spin fullscreen spinning description="Loading..." />;
   }
 
   if (!user) {

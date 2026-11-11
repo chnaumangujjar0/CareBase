@@ -1,5 +1,11 @@
-@import "variables";
-@import "bootstrap/scss/bootstrap";
+@use "variables" as *;
+@use "bootstrap/scss/bootstrap";
+@use "header";
+@use "sidebar";
+@use "unauthorized";
+@use "department";
+@use "appointments";
+@use "responsive";
 
 /* Bulletproof React-Toastify Glassmorphism Overrides */
 .Toastify__toast-container {
@@ -50,11 +56,24 @@
   }
 }
 
-@import "header";
-@import "sidebar";
-@import "unauthorized";
-@import "department";
-@import "appointments";
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-width: 320px;
+  width: 100%;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+}
 
 @media (max-width: 768px) {
   .ant-card {

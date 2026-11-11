@@ -6,7 +6,7 @@ import { getDefaultRoute } from "../../utils/authorization";
 const SuperAdmin = () => {
     const { isReady, user } = useAuthBootstrap();
 
-    if (!isReady) return <Spin fullscreen spinning tip="Checking your account..." />;
+    if (!isReady) return <Spin fullscreen spinning description="Checking your account..." />;
     if (!user) return <Navigate to="/login" replace />;
     if (user.isSuperAdmin) return <Navigate to="/super-admin" replace />;
     if (!user.tenantId || !user.roleId) return <Outlet />;

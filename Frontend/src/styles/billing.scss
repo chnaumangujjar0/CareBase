@@ -1,4 +1,4 @@
-@import "variables";
+@use "variables" as *;
 
 .invoice-print-actions { display: flex; justify-content: flex-end; margin-bottom: 1rem; }
 .invoice-print { padding: 1.25rem; color: #1E293B; background: #fff; }

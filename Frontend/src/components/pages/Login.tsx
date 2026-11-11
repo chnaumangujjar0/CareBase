@@ -80,7 +80,7 @@ const Login = () => {
 
   return (
     <>
-      <Spin fullscreen spinning={isLoading || !isReady} tip={isLoading ? "Authenticating..." : "Checking your session..."} />
+      <Spin fullscreen spinning={isLoading || !isReady} description={isLoading ? "Authenticating..." : "Checking your session..."} />
       <Container fluid className="auth-shell d-flex vh-100 align-items-center justify-content-center">
         <Card className="auth-card border-0 shadow">
           <Card.Body className="p-4 p-md-5">

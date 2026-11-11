@@ -74,7 +74,7 @@ export const SignUp = () => {
 
   return (
     <div className="auth-shell d-flex min-vh-100 align-items-center justify-content-center p-3">
-    <Spin fullscreen spinning={isLoading} tip="Creating account..." />
+    <Spin fullscreen spinning={isLoading} description="Creating account..." />
       <Card className="auth-card border-0 p-4">
         <Card.Body>
           <div className="text-center mb-4">

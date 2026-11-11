@@ -1,3 +1,6 @@
+@use "variables" as *;
+@use "sass:color";
+
 .department-card ,.staff-card{
   border-radius: 0.5rem;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -9,10 +12,10 @@
   }
   .badge.bg-opacity-25 {
     background-color: rgba($success, 0.15) !important;
-    &.text-success { color: darken($success, 10%) !important; }
+    &.text-success { color: color.adjust($success, $lightness: -10%) !important; }
     &.text-secondary { 
       background-color: rgba($secondary, 0.15) !important; 
-      color: darken($secondary, 20%) !important;
+      color: color.adjust($secondary, $lightness: -20%) !important;
     }
   }
 }

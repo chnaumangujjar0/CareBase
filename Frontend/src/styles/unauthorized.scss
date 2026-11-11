@@ -1,4 +1,5 @@
-@import 'variables'; 
+@use 'variables' as *;
+@use 'sass:color';
 .unauthorized-container {
   position: relative;
   display: flex;
@@ -84,7 +85,7 @@
 
   &:hover {
     // Standard SCSS color function to darken your primary color slightly
-    background-color: darken(#0F766E, 5%); 
+    background-color: color.adjust(#0F766E, $lightness: -5%);
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba($primary, 0.25);
   }
