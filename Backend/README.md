@@ -155,6 +155,8 @@ Create a Render **Web Service** using the `Backend/` directory as the root direc
 | Node version | Use the version configured by the repository or Render environment. |
 
 Render injects environment variables directly; do not create or upload a production `.env` file.
+The build command generates Prisma and copies its runtime artifacts into `dist`, which is required
+because the generated client is configured under `src/generated/prisma`.
 Set `DATABASE_URL` to the runtime PostgreSQL connection string and `DIRECT_URL` to a direct or
 session-pooler connection for Prisma migrations. Run `npm run db:deploy` once against the production
 database before serving traffic, then redeploy the service if necessary.
