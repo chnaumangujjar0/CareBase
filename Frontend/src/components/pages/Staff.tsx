@@ -33,6 +33,7 @@ import {
   getApiErrorMessage,
   getRoles,
   extractDoctorDetails,
+  updateStaffStatus,
   updateStaffAvailability,
 } from "../../services/api";
 import { useSelector } from "react-redux";
@@ -466,6 +467,35 @@ function Staff() {
     setShowModal(true);
   };
 
+  const handleToggleStaffStatus = (staff: StaffDirectoryEntry) => {
+    const nextIsActive = staff.isActive === false;
+    Modal.confirm({
+      title: `${nextIsActive ? "Activate" : "Deactivate"} ${staff.name}?`,
+      content: nextIsActive
+        ? "This member will be able to access the system again if they have an account."
+        : "This member will no longer be able to sign in. Their profile will remain in the staff directory.",
+      okText: nextIsActive ? "Activate" : "Deactivate",
+      okType: nextIsActive ? "primary" : "danger",
+      onOk: async () => {
+        try {
+          const updated = await updateStaffStatus(staff.id, staff.type, nextIsActive);
+          setStaffList((current) =>
+            current.map((profile) =>
+              profile.id === staff.id ? { ...profile, isActive: updated.isActive } : profile,
+            ),
+          );
+          setActiveStaff((current) =>
+            current?.id === staff.id ? { ...current, isActive: updated.isActive } : current,
+          );
+          toast.success(`Staff member ${nextIsActive ? "activated" : "deactivated"} successfully`);
+        } catch (error: unknown) {
+          toast.error(getApiErrorMessage(error, "Unable to update staff status"));
+          throw error;
+        }
+      },
+    });
+  };
+
   // --- AI CV Extraction Handler ---
   const handleExtractCV = async () => {
     if (!cvFile) {
@@ -688,8 +718,21 @@ function Staff() {
                         style={{ border: `4px solid ${themeConfig.token.colorBgLayout}`, marginBottom: 16 }} 
                       />
                       <Title level={4} style={{ margin: 0 }}>{activeStaff.name}</Title>
+                      <Tag color={activeStaff.isActive === false ? "red" : "green"} style={{ marginTop: 6 }}>
+                        {activeStaff.isActive === false ? "Inactive" : "Active"}
+                      </Tag>
                       <Text type="secondary">{activeStaff.role}</Text>
                     </Flex>
+
+                    <Button
+                      danger={activeStaff.isActive !== false}
+                      type={activeStaff.isActive === false ? "primary" : "default"}
+                      block
+                      style={{ marginBottom: 16 }}
+                      onClick={() => handleToggleStaffStatus(activeStaff)}
+                    >
+                      {activeStaff.isActive === false ? "Activate member" : "Deactivate member"}
+                    </Button>
 
                     <div style={{ backgroundColor: themeConfig.token.colorBgLayout, padding: 20, borderRadius: 8 }}>
                       <div style={{ marginBottom: 16 }}>

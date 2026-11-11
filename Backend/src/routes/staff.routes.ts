@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 import { checkAuthorizationForSuperRoles, checkEligibilty, requirePermissions } from "../middlewares/RBAC.middleware.js";
-import { addStaff, getAllStaff, getGrantableStaffRoles, getHrDashboard, grantStaffSystemAccess, updateAvailability, updateStaffProfile } from "../controllers/staff.controller.js";
+import { addStaff, getAllStaff, getGrantableStaffRoles, getHrDashboard, grantStaffSystemAccess, updateAvailability, updateStaffProfile, updateStaffStatus } from "../controllers/staff.controller.js";
 
 const router = Router()
 
@@ -14,5 +14,6 @@ router.get("/account-roles", requirePermissions("staff:accounts:write"), getGran
 router.post("/add", requirePermissions("staff:write"), addStaff)
 router.patch("/availability", checkAuthorizationForSuperRoles, updateAvailability)
 router.patch("/:profileId", requirePermissions("staff:write"), updateStaffProfile)
+router.patch("/:profileId/status", requirePermissions("staff:write"), updateStaffStatus)
 router.post("/:profileId/account", requirePermissions("staff:accounts:write"), grantStaffSystemAccess)
 export default router;

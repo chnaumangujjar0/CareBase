@@ -400,6 +400,15 @@ export const updateStaffProfile = async (profileId: string, values: UpdateStaffP
   return res.data.data;
 };
 
+export const updateStaffStatus = async (
+  profileId: string,
+  type: "Doctor" | "Staff",
+  isActive: boolean,
+): Promise<{ isActive: boolean }> => {
+  const res = await api.patch(`/staff/${profileId}/status`, { type, isActive });
+  return res.data.data as { isActive: boolean };
+};
+
 export const grantStaffSystemAccess = async (profileId: string, values: GrantStaffSystemAccessPayload) => {
   const res = await api.post(`/staff/${profileId}/account`, values);
   return res.data.data as GrantedStaffSystemAccessResponse;

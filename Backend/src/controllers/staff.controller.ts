@@ -506,6 +506,56 @@ export const updateStaffProfile = asyncHandler(async (req: Request, res: Respons
   }
 });
 
+export const updateStaffStatus = asyncHandler(async (req: Request, res: Response) => {
+  const tenantId = req.user?.tenantId;
+  if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
+
+  const parsedId = z.uuid().safeParse(req.params.profileId);
+  const parsedBody = z.object({
+    type: z.enum(["Doctor", "Staff"]),
+    isActive: z.boolean(),
+  }).safeParse(req.body);
+  if (!parsedId.success || !parsedBody.success) {
+    throw new ApiError(400, "A valid profile id, profile type, and active status are required");
+  }
+
+  const { type, isActive } = parsedBody.data;
+  const updated = await db.$transaction(async (trx) => {
+    const profile = type === "Doctor"
+      ? await trx.doctorProfile.findFirst({ where: { id: parsedId.data, tenantId } })
+      : await trx.staffProfile.findFirst({ where: { id: parsedId.data, tenantId } });
+    if (!profile) throw new ApiError(404, "Staff profile not found");
+
+    const updatedProfile = type === "Doctor"
+      ? await trx.doctorProfile.update({ where: { id: profile.id }, data: { isActive } })
+      : await trx.staffProfile.update({ where: { id: profile.id }, data: { isActive } });
+
+    if (profile.userId) {
+      await trx.user.update({ where: { id: profile.userId }, data: { isActive } });
+    }
+
+    const { ipAddress, userAgent } = getAuditRequestMetadata(req);
+    await trx.auditLog.create({
+      data: {
+        action: isActive ? "activate" : "deactivate",
+        entityType: type === "Doctor" ? "DoctorProfile" : "StaffProfile",
+        entityId: profile.id,
+        tenantId,
+        userId: req.user!.id,
+        ipAddress,
+        userAgent,
+        oldValue: { isActive: profile.isActive },
+        newValue: { isActive: updatedProfile.isActive },
+      },
+    });
+    return updatedProfile;
+  });
+
+  return res.status(200).json(
+    new ApiResponse(200, updated, `Staff profile ${isActive ? "activated" : "deactivated"} successfully`),
+  );
+});
+
 export const grantStaffSystemAccess = asyncHandler(async (req: Request, res: Response) => {
   const tenantId = req.user?.tenantId;
   if (!tenantId) throw new ApiError(401, "Authenticated tenant context is required");
