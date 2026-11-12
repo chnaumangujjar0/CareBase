@@ -145,7 +145,7 @@ export default function Departments() {
 
   return (
     <>
-    <Container fluid className="p-4 body-bg min-vh-100">
+    <Container fluid className="p-4 body-bg min-vh-100 department-page">
       {/* Header Section */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <h3 className="fw-bold text-dark mb-0">Departments</h3>

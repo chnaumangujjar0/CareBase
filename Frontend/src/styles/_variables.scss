@@ -1,3 +1,5 @@
+@use "sass:color";
+
 $primary:       #0F766E;  // Deep teal — main brand/action color (buttons, links, active nav)
 $secondary:     #475569;  // Slate gray-blue — secondary buttons, muted UI chrome
 $success:       #16A34A;  // Green — "available", "completed", "normal" status
@@ -167,6 +169,23 @@ $enable-smooth-scroll:    true;
 
 .auth-shell {
   background-color: $body-bg;
+
+  .btn-primary {
+    --bs-btn-bg: #{$primary};
+    --bs-btn-border-color: #{$primary};
+    --bs-btn-hover-bg: #{color.adjust($primary, $lightness: -8%)};
+    --bs-btn-hover-border-color: #{color.adjust($primary, $lightness: -8%)};
+    --bs-btn-active-bg: #{color.adjust($primary, $lightness: -12%)};
+    --bs-btn-active-border-color: #{color.adjust($primary, $lightness: -12%)};
+  }
+
+  a {
+    color: $primary;
+
+    &:hover {
+      color: color.adjust($primary, $lightness: -12%);
+    }
+  }
 }
  
 .auth-card {

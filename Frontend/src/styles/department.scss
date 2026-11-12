@@ -18,6 +18,23 @@
       color: color.adjust($secondary, $lightness: -20%) !important;
     }
   }
+
+}
+
+.department-page {
+  .btn-primary {
+    --bs-btn-bg: #{$primary};
+    --bs-btn-border-color: #{$primary};
+    --bs-btn-hover-bg: #{color.adjust($primary, $lightness: -8%)};
+    --bs-btn-hover-border-color: #{color.adjust($primary, $lightness: -8%)};
+    --bs-btn-active-bg: #{color.adjust($primary, $lightness: -12%)};
+    --bs-btn-active-border-color: #{color.adjust($primary, $lightness: -12%)};
+  }
+
+  h3,
+  .department-card h5 {
+    color: $primary;
+  }
 }
 
 // 3. Text Truncation Utility
